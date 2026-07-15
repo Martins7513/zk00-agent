@@ -369,16 +369,63 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
           3. Para WhatsApp, escaneie o QR Code com seu celular
         </p>
       </div>
-      <div class="int-card">
-        <div class="int-logo" style="background:rgba(42,171,238,.15)">📱</div>
-        <div class="int-info">
-          <div class="int-name">Telegram Bot</div>
-          <div class="int-desc">Crie um bot no @BotFather → copie o token → cole aqui</div>
-        </div>
-        <div class="int-right">
+      <!-- TELEGRAM USERBOT -->
+      <div class="int-card" style="flex-direction:column;align-items:stretch;gap:14px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="int-logo" style="background:rgba(42,171,238,.15)">📱</div>
+          <div class="int-info">
+            <div class="int-name">Telegram Userbot (Conta Pessoal)</div>
+            <div class="int-desc">Conecta diretamente na sua conta pessoal — responde como você</div>
+          </div>
           <span class="int-status pending" id="tg-int-status">Aguardando</span>
-          <input class="form-input" id="tg-token" placeholder="123456:ABC..." type="text" style="width:220px">
-          <button class="btn primary" style="font-size:11px;padding:5px 12px" onclick="saveTelegramToken()">Conectar Telegram</button>
+        </div>
+
+        <!-- STEP 1: API credentials -->
+        <div id="ub-step1" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text)">Passo 1 — Credenciais do Telegram</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Pegue em <strong style="color:var(--accent)">my.telegram.org</strong> → API development tools</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input class="form-input" id="ub-api-id" placeholder="API ID (ex: 12345678)" type="text" style="flex:1">
+            <input class="form-input" id="ub-api-hash" placeholder="API Hash (ex: abc123...)" type="text" style="flex:2">
+          </div>
+          <button class="btn primary" style="width:100%;font-size:12px" onclick="startUserbot()">Iniciar conexão</button>
+        </div>
+
+        <!-- STEP 2: Phone -->
+        <div id="ub-step2" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text)">Passo 2 — Seu número de telefone</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Digite com código do país, ex: +5511999999999</div>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="ub-phone" placeholder="+5511999999999" type="text" style="flex:1">
+            <button class="btn primary" style="font-size:12px;white-space:nowrap" onclick="sendUbPhone()">Enviar código</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: Code -->
+        <div id="ub-step3" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text)">Passo 3 — Código recebido no Telegram</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px">O Telegram enviou um código para você — digite abaixo</div>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="ub-code" placeholder="ex: 12345" type="text" style="flex:1" onkeydown="if(event.key==='Enter')sendUbCode()">
+            <button class="btn primary" style="font-size:12px" onclick="sendUbCode()">Verificar</button>
+          </div>
+        </div>
+
+        <!-- STEP 4: 2FA Password (optional) -->
+        <div id="ub-step4" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text)">Passo 4 — Senha de verificação em 2 etapas</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Sua conta tem 2FA ativo — digite sua senha do Telegram</div>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="ub-password" placeholder="Senha 2FA" type="password" style="flex:1" onkeydown="if(event.key==='Enter')sendUbPassword()">
+            <button class="btn primary" style="font-size:12px" onclick="sendUbPassword()">Confirmar</button>
+          </div>
+        </div>
+
+        <!-- DONE -->
+        <div id="ub-step-done" style="display:none;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:20px;margin-bottom:6px">✅</div>
+          <div style="font-size:13px;font-weight:600;color:var(--green)">Userbot ativo!</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:4px">Sua conta pessoal está conectada. O agente responde automaticamente.</div>
         </div>
       </div>
       <div class="int-card">
@@ -902,6 +949,7 @@ function showTab(id, el) {
   const titles = { dashboard:'Dashboard', conversations:'Conversas', knowledge:'Base de Conhecimento', agent:'Configurar Agente', integrations:'Integrações', test:'Testar Agente' };
   document.getElementById('page-title').textContent = titles[id] || id;
   if (id === 'conversations') loadConversations();
+    if (id === 'integrations') { loadIntegrationStatus(); checkUserbotStatus(); }
 }
 
 function openModal(id) { document.getElementById('modal-' + id).classList.add('open'); }
@@ -1018,6 +1066,94 @@ async function sendUbPassword() {
     await loadUserbotStatus();
   } else {
     showNotif('Erro: ' + res.error, 'red');
+  }
+}
+
+// ============================================
+// USERBOT AUTH FUNCTIONS
+// ============================================
+async function startUserbot() {
+  const apiId = document.getElementById('ub-api-id').value.trim();
+  const apiHash = document.getElementById('ub-api-hash').value.trim();
+  if (!apiId || !apiHash) return showNotif('Preencha API ID e API Hash!', 'red');
+  showNotif('Conectando ao Telegram...', '');
+  const res = await api('POST', '/api/userbot/start', { apiId, apiHash });
+  if (res.success) {
+    document.getElementById('ub-step1').style.display = 'none';
+    document.getElementById('ub-step2').style.display = 'block';
+    showNotif(res.message || 'Conectado! Digite seu número.', 'green');
+  } else {
+    showNotif('Erro: ' + (res.error || 'Verifique API ID e Hash'), 'red');
+  }
+}
+
+async function sendUbPhone() {
+  const phone = document.getElementById('ub-phone').value.trim();
+  if (!phone) return showNotif('Digite seu número com código do país!', 'red');
+  showNotif('Enviando código...', '');
+  const res = await api('POST', '/api/userbot/phone', { phone });
+  if (res.success) {
+    document.getElementById('ub-step2').style.display = 'none';
+    document.getElementById('ub-step3').style.display = 'block';
+    showNotif('Código enviado! Verifique seu Telegram.', 'green');
+  } else {
+    showNotif('Erro: ' + (res.error || 'Número inválido'), 'red');
+  }
+}
+
+async function sendUbCode() {
+  const code = document.getElementById('ub-code').value.trim();
+  if (!code) return showNotif('Digite o código!', 'red');
+  showNotif('Verificando...', '');
+  const res = await api('POST', '/api/userbot/code', { code });
+  if (res.success) {
+    if (res.step === 'waiting_password') {
+      document.getElementById('ub-step3').style.display = 'none';
+      document.getElementById('ub-step4').style.display = 'block';
+      showNotif('2FA detectado — digite sua senha.', 'yellow');
+    } else {
+      document.getElementById('ub-step3').style.display = 'none';
+      document.getElementById('ub-step-done').style.display = 'block';
+      document.getElementById('tg-int-status').textContent = '✅ Conectado';
+      document.getElementById('tg-int-status').className = 'int-status connected';
+      document.getElementById('tg-status').textContent = '● Online';
+      document.getElementById('tg-status').style.color = 'var(--green)';
+      showNotif('✅ Userbot ativo! Conta pessoal conectada!', 'green');
+    }
+  } else {
+    showNotif('Erro: ' + (res.error || 'Código inválido'), 'red');
+  }
+}
+
+async function sendUbPassword() {
+  const password = document.getElementById('ub-password').value.trim();
+  if (!password) return showNotif('Digite a senha 2FA!', 'red');
+  showNotif('Verificando senha...', '');
+  const res = await api('POST', '/api/userbot/password', { password });
+  if (res.success) {
+    document.getElementById('ub-step4').style.display = 'none';
+    document.getElementById('ub-step-done').style.display = 'block';
+    document.getElementById('tg-int-status').textContent = '✅ Conectado';
+    document.getElementById('tg-int-status').className = 'int-status connected';
+    document.getElementById('tg-status').textContent = '● Online';
+    document.getElementById('tg-status').style.color = 'var(--green)';
+    showNotif('✅ Userbot ativo com 2FA!', 'green');
+  } else {
+    showNotif('Erro: ' + (res.error || 'Senha incorreta'), 'red');
+  }
+}
+
+// Verifica status do userbot ao carregar integrações
+async function checkUserbotStatus() {
+  const res = await api('GET', '/api/userbot/status');
+  if (!res || res.error) return;
+  if (res.connected) {
+    document.getElementById('ub-step1').style.display = 'none';
+    document.getElementById('ub-step-done').style.display = 'block';
+    const s = document.getElementById('tg-int-status');
+    if (s) { s.textContent = '✅ Conectado'; s.className = 'int-status connected'; }
+    const ts = document.getElementById('tg-status');
+    if (ts) { ts.textContent = '● Online'; ts.style.color = 'var(--green)'; }
   }
 }
 </script>
