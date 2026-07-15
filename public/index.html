@@ -534,6 +534,41 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
       <label class="form-label">🏁 Objetivo da conversa <span style="color:var(--text3);font-weight:400">(o que a IA deve conquistar ao final)</span></label>
       <textarea class="form-textarea" id="kb-objective" placeholder="Ex: Fazer o lead entender que é uma seleção exclusiva, gerar desejo de participar e levá-lo a mandar o print do saldo para ser avaliado." style="min-height:60px"></textarea>
     </div>
+
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:4px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+        ⏰ Follow-up automático
+        <span style="color:var(--text3);font-weight:400;font-size:11px">— lembrete se o lead não agir</span>
+        <div class="toggle-switch" id="kb-followup-toggle" onclick="toggleKbFollowup(this)" style="margin-left:auto"></div>
+      </div>
+      <div id="kb-followup-fields" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label class="form-label">Disparar após (minutos)</label>
+            <input class="form-input" id="kb-followup-delay" type="number" value="10" min="1" max="1440" placeholder="10">
+          </div>
+          <div>
+            <label class="form-label">Cancelar se o lead</label>
+            <select class="form-select" id="kb-followup-cancel">
+              <option value="photo">Mandar foto/print</option>
+              <option value="reply">Responder qualquer coisa</option>
+              <option value="never">Nunca cancelar</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Mensagem do lembrete</label>
+          <textarea class="form-textarea" id="kb-followup-message" placeholder="Ex: Oi! Só passando pra lembrar — ainda preciso do print com seu saldo pra te avaliar. Me manda aqui quando puder! 📲" style="min-height:65px"></textarea>
+        </div>
+        <div style="margin-top:8px">
+          <label class="form-label">Segunda mensagem (opcional) — se não responder após mais</label>
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:8px">
+            <input class="form-input" id="kb-followup2-delay" type="number" placeholder="min" min="1">
+            <textarea class="form-textarea" id="kb-followup2-message" placeholder="Ex: Última chamada! As vagas da próxima sessão estão quase esgotando..." style="min-height:50px"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="closeModal('add-knowledge')">Cancelar</button>
       <button class="btn primary" onclick="saveKnowledge()">Salvar</button>
@@ -893,15 +928,42 @@ function editKnowledge(item) {
   document.getElementById('kb-answer').value = item.answer || '';
   document.getElementById('kb-context').value = item.context || '';
   document.getElementById('kb-objective').value = item.objective || '';
-  // Guarda o ID para salvar como edição
   document.getElementById('kb-editing-id').value = item.id || '';
   document.getElementById('modal-title-kb').textContent = 'Editar Conhecimento';
+
+  // Preenche follow-up se tiver
+  const toggle = document.getElementById('kb-followup-toggle');
+  const fields = document.getElementById('kb-followup-fields');
+  if (item.followup && item.followup.active) {
+    toggle.classList.remove('off');
+    fields.style.display = 'block';
+    document.getElementById('kb-followup-delay').value = item.followup.delay || 10;
+    document.getElementById('kb-followup-cancel').value = item.followup.cancelOn || 'photo';
+    document.getElementById('kb-followup-message').value = item.followup.message || '';
+    if (item.followup.second) {
+      document.getElementById('kb-followup2-delay').value = item.followup.second.delay || '';
+      document.getElementById('kb-followup2-message').value = item.followup.second.message || '';
+    }
+  } else {
+    toggle.classList.add('off');
+    fields.style.display = 'none';
+  }
+
   openModal('add-knowledge');
+}
+
+function toggleKbFollowup(el) {
+  el.classList.toggle('off');
+  const fields = document.getElementById('kb-followup-fields');
+  fields.style.display = el.classList.contains('off') ? 'none' : 'block';
 }
 
 async function saveKnowledge() {
   const trigger = document.getElementById('kb-trigger').value.split(',').map(t => t.trim()).filter(Boolean);
   const editingId = document.getElementById('kb-editing-id').value;
+  const followupToggle = document.getElementById('kb-followup-toggle');
+  const hasFollowup = !followupToggle.classList.contains('off');
+
   const item = {
     type: document.getElementById('kb-type').value,
     trigger,
@@ -910,21 +972,40 @@ async function saveKnowledge() {
     context: document.getElementById('kb-context').value,
     objective: document.getElementById('kb-objective').value
   };
-  if (!item.answer) return showNotif('Preencha a resposta!', 'red');
 
-  if (editingId) {
-    // Edição: deleta o antigo e cria novo com mesmo ID
-    await api('DELETE', `/api/knowledge/${editingId}`);
-    item.id = editingId;
+  // Salva configuração de follow-up junto ao gatilho
+  if (hasFollowup) {
+    const msg1 = document.getElementById('kb-followup-message').value.trim();
+    const msg2 = document.getElementById('kb-followup2-message').value.trim();
+    const delay2 = parseInt(document.getElementById('kb-followup2-delay').value);
+    item.followup = {
+      active: true,
+      delay: parseInt(document.getElementById('kb-followup-delay').value) || 10,
+      cancelOn: document.getElementById('kb-followup-cancel').value,
+      message: msg1,
+      second: msg2 && delay2 ? { delay: delay2, message: msg2 } : null
+    };
+  } else {
+    item.followup = null;
   }
+
+  if (!item.answer) return showNotif('Preencha a resposta!', 'red');
+  if (hasFollowup && !item.followup.message) return showNotif('Preencha a mensagem do follow-up!', 'red');
+
+  if (editingId) item.id = editingId;
 
   await api('POST', '/api/knowledge', item);
   closeModal('add-knowledge');
 
   // Limpa campos
-  ['kb-trigger','kb-question','kb-answer','kb-context','kb-objective','kb-editing-id'].forEach(id => {
-    document.getElementById(id).value = '';
+  ['kb-trigger','kb-question','kb-answer','kb-context','kb-objective','kb-editing-id',
+   'kb-followup-message','kb-followup2-message','kb-followup2-delay'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
   });
+  document.getElementById('kb-followup-delay').value = '10';
+  document.getElementById('kb-followup-toggle').classList.add('off');
+  document.getElementById('kb-followup-fields').style.display = 'none';
   document.getElementById('modal-title-kb').textContent = 'Adicionar Conhecimento';
 
   await loadKnowledge();
