@@ -182,8 +182,10 @@ async function processMessage(platform, userId, userName, text) {
   const response = await generateResponse(platform, userId, text, knowledgeAnswer);
   db.addMessage(platform, userId, 'agent', response);
 
-  // Agenda follow-up se esse gatilho tiver regra configurada
-  followup.checkAndSchedule(platform, userId, knowledgeAnswer, getSendFn(platform));
+  // Agenda follow-up se esse gatilho tiver config
+  followup.scheduleFromKnowledge(platform, userId, knowledgeAnswer, getSendFn(platform));
+  // Marca que usuário respondeu (cancela follow-ups do tipo 'reply')
+  followup.onUserReply(platform, userId);
 
   return response;
 }
