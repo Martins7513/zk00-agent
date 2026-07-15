@@ -237,10 +237,11 @@ function getAllKnowledge() {
 
 function addKnowledge(item) {
   const newItem = {
-    id: 'k' + Date.now(),
+    id: item.id || ('k' + Date.now()), // preserva ID se for edição
     ...item,
-    createdAt: new Date().toISOString()
+    updatedAt: new Date().toISOString()
   };
+  if (!newItem.createdAt) newItem.createdAt = new Date().toISOString();
   db.knowledge.push(newItem);
   saveDB(db);
   return newItem;
