@@ -927,3 +927,97 @@ document.getElementById('login-pass').addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
+<script>
+// USERBOT AUTH — injeta na aba de integrações
+const _origLoadInt = typeof loadIntegrationStatus === 'function' ? loadIntegrationStatus : null;
+
+async function loadUserbotStatus() {
+  const res = await api('GET', '/api/userbot/status');
+  const tgStatus = document.getElementById('tg-int-status');
+  const tgSide = document.getElementById('tg-status');
+  if (!res || res.error) return;
+  if (res.connected) {
+    if (tgStatus) { tgStatus.textContent = '✅ Userbot Ativo'; tgStatus.className = 'int-status connected'; }
+    if (tgSide) { tgSide.textContent = '● Online'; tgSide.style.color = 'var(--green)'; }
+  } else if (res.hasSession) {
+    if (tgStatus) { tgStatus.textContent = '⏳ Reconectando'; tgStatus.className = 'int-status pending'; }
+  }
+}
+
+// Sobrescreve loadIntegrationStatus para incluir userbot
+const _baseLoadInt = window.loadIntegrationStatus;
+window.loadIntegrationStatus = async function() {
+  if (_baseLoadInt) await _baseLoadInt();
+  await loadUserbotStatus();
+};
+
+// Função de autenticação do userbot
+let ubStep = 'idle';
+async function startUserbot() {
+  const apiId = document.getElementById('ub-api-id').value.trim();
+  const apiHash = document.getElementById('ub-api-hash').value.trim();
+  if (!apiId || !apiHash) return showNotif('Preencha API ID e API Hash!', 'red');
+  showNotif('Conectando ao Telegram...', '');
+  const res = await api('POST', '/api/userbot/start', { apiId, apiHash });
+  if (res.success) {
+    ubStep = res.step;
+    document.getElementById('ub-step1').style.display = 'none';
+    document.getElementById('ub-step2').style.display = 'block';
+    showNotif(res.message, 'green');
+  } else {
+    showNotif('Erro: ' + res.error, 'red');
+  }
+}
+
+async function sendUbPhone() {
+  const phone = document.getElementById('ub-phone').value.trim();
+  if (!phone) return showNotif('Digite seu número!', 'red');
+  showNotif('Enviando código...', '');
+  const res = await api('POST', '/api/userbot/phone', { phone });
+  if (res.success) {
+    ubStep = res.step;
+    document.getElementById('ub-step2').style.display = 'none';
+    document.getElementById('ub-step3').style.display = 'block';
+    showNotif(res.message, 'green');
+  } else {
+    showNotif('Erro: ' + res.error, 'red');
+  }
+}
+
+async function sendUbCode() {
+  const code = document.getElementById('ub-code').value.trim();
+  if (!code) return showNotif('Digite o código!', 'red');
+  showNotif('Verificando código...', '');
+  const res = await api('POST', '/api/userbot/code', { code });
+  if (res.success) {
+    if (res.step === 'waiting_password') {
+      document.getElementById('ub-step3').style.display = 'none';
+      document.getElementById('ub-step4').style.display = 'block';
+      showNotif(res.message, 'yellow');
+    } else {
+      document.getElementById('ub-step3').style.display = 'none';
+      document.getElementById('ub-step-done').style.display = 'block';
+      showNotif('✅ Userbot ativo! Sua conta pessoal está conectada!', 'green');
+      await loadUserbotStatus();
+    }
+  } else {
+    showNotif('Erro: ' + res.error, 'red');
+  }
+}
+
+async function sendUbPassword() {
+  const password = document.getElementById('ub-password').value.trim();
+  if (!password) return showNotif('Digite a senha!', 'red');
+  showNotif('Verificando senha 2FA...', '');
+  const res = await api('POST', '/api/userbot/password', { password });
+  if (res.success) {
+    document.getElementById('ub-step4').style.display = 'none';
+    document.getElementById('ub-step-done').style.display = 'block';
+    showNotif('✅ Userbot ativo com 2FA!', 'green');
+    await loadUserbotStatus();
+  } else {
+    showNotif('Erro: ' + res.error, 'red');
+  }
+}
+</script>
