@@ -496,16 +496,24 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label">Gatilhos (palavras que ativam esta resposta, separadas por vírgula)</label>
-      <input class="form-input" id="kb-trigger" placeholder="Ex: saque, como sacar, retirar" type="text">
+      <label class="form-label">Gatilhos (palavras que ativam, separadas por vírgula)</label>
+      <input class="form-input" id="kb-trigger" placeholder="Ex: dobra, dobra de banca, operar junto, garantia" type="text">
     </div>
     <div class="form-group">
       <label class="form-label">Pergunta / Título</label>
-      <input class="form-input" id="kb-question" placeholder="Ex: Como faço o saque?" type="text">
+      <input class="form-input" id="kb-question" placeholder="Ex: O que é a Dobra de Banca?" type="text">
     </div>
     <div class="form-group">
-      <label class="form-label">Resposta do agente</label>
-      <textarea class="form-textarea" id="kb-answer" placeholder="O agente vai usar esse texto..."></textarea>
+      <label class="form-label">Resposta base do agente</label>
+      <textarea class="form-textarea" id="kb-answer" placeholder="A IA vai usar isso como referência e reescrever de forma natural..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">🎯 Contexto do assunto <span style="color:var(--text3);font-weight:400">(explique para a IA o que é esse assunto)</span></label>
+      <textarea class="form-textarea" id="kb-context" placeholder="Ex: A Dobra de Banca NÃO é um grupo. É uma seleção individual feita pelo Rodrigo. O aluno é escolhido pessoalmente, opera ao vivo com o Rodrigo, cada um com seu próprio capital..." style="min-height:70px"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">🏁 Objetivo da conversa <span style="color:var(--text3);font-weight:400">(o que a IA deve conquistar ao final)</span></label>
+      <textarea class="form-textarea" id="kb-objective" placeholder="Ex: Fazer o lead entender que é uma seleção exclusiva, gerar desejo de participar e levá-lo a mandar o print do saldo para ser avaliado." style="min-height:60px"></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="closeModal('add-knowledge')">Cancelar</button>
@@ -816,7 +824,9 @@ async function saveKnowledge() {
     type: document.getElementById('kb-type').value,
     trigger,
     question: document.getElementById('kb-question').value,
-    answer: document.getElementById('kb-answer').value
+    answer: document.getElementById('kb-answer').value,
+    context: document.getElementById('kb-context').value,
+    objective: document.getElementById('kb-objective').value
   };
   if (!item.answer) return showNotif('Preencha a resposta!', 'red');
   await api('POST', '/api/knowledge', item);
@@ -824,6 +834,8 @@ async function saveKnowledge() {
   document.getElementById('kb-trigger').value = '';
   document.getElementById('kb-question').value = '';
   document.getElementById('kb-answer').value = '';
+  document.getElementById('kb-context').value = '';
+  document.getElementById('kb-objective').value = '';
   await loadKnowledge();
   showNotif('Adicionado à base de conhecimento!', 'green');
 }
