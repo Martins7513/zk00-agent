@@ -6,7 +6,7 @@
 
 const { TelegramClient, Api } = require('telegram');
 const { StringSession } = require('telegram/sessions');
-const { processMessage } = require('./agent');
+const { processMessage, processPhoto, registerSendFn } = require('./agent');
 const db = require('./database');
 
 let client = null;
@@ -69,61 +69,70 @@ async function initUserbot() {
 function startMessageListener() {
   if (!client) return;
 
+  // Registra função de envio no agente (para follow-ups)
+  registerSendFn('telegram', async (userId, msg) => {
+    try {
+      await client.sendMessage(parseInt(userId), { message: msg });
+    } catch (e) {
+      console.error('[USERBOT] Erro no sendFn:', e.message);
+    }
+  });
+
   client.addEventHandler(async (event) => {
     try {
       const message = event.message;
       if (!message) return;
 
-      // Só responde mensagens recebidas (não enviadas por você)
+      // Só mensagens recebidas (não enviadas por você)
       if (message.out) return;
 
-      // Só DMs (não grupos ou canais)
+      // Só DMs
       const peer = message.peerId;
       if (!peer || peer.className !== 'PeerUser') return;
 
       const userId = String(peer.userId);
-      const text = message.message;
-
-      if (!text || text.trim() === '') return;
-
-      // Verifica lista de ignorados
       if (IGNORE_IDS.includes(userId)) return;
 
-      // Busca o nome do contato
+      // Nome do contato
       let userName = userId;
       try {
         const entity = await client.getEntity(peer);
         userName = entity.firstName || entity.username || userId;
       } catch (e) {}
 
-      console.log(`[USERBOT] Mensagem de ${userName} (${userId}): ${text.substring(0, 60)}`);
+      // ============ DETECTA FOTO/PRINT ============
+      const hasPhoto = message.media &&
+        (message.media.className === 'MessageMediaPhoto' ||
+         message.media.className === 'MessageMediaDocument');
 
-      // Verifica modo humano
-      if (db.isHumanMode('telegram', userId)) {
-        console.log(`[USERBOT] Chat ${userId} em modo humano — ignorando`);
+      if (hasPhoto) {
+        console.log(`[USERBOT] 📸 Foto recebida de ${userName} (${userId})`);
+        const response = await processPhoto('telegram', userId, userName);
+        if (response) {
+          await new Promise(r => setTimeout(r, 1500));
+          await client.invoke(new Api.messages.SetTyping({
+            peer, action: new Api.SendMessageTypingAction()
+          }));
+          await new Promise(r => setTimeout(r, 1200));
+          await client.sendMessage(peer, { message: response });
+        }
         return;
       }
 
-      // Verifica se agente está ativo
-      const settings = db.getSettings();
-      if (!settings.agentActive) return;
+      // ============ MENSAGEM DE TEXTO ============
+      const text = message.message;
+      if (!text || text.trim() === '') return;
 
-      // Processa e responde
+      console.log(`[USERBOT] Mensagem de ${userName} (${userId}): ${text.substring(0, 60)}`);
+
       const response = await processMessage('telegram', userId, userName, text);
       if (response) {
-        // Delay natural antes de responder
         const delay = Math.min(text.length * 60, 3000) + Math.random() * 1000;
         await new Promise(r => setTimeout(r, delay));
-
-        // Marca como "digitando"
         await client.invoke(new Api.messages.SetTyping({
-          peer: peer,
-          action: new Api.SendMessageTypingAction()
+          peer, action: new Api.SendMessageTypingAction()
         }));
-
         await new Promise(r => setTimeout(r, 1500));
-
-        // Envia a resposta
         await client.sendMessage(peer, { message: response });
         console.log(`[USERBOT] Respondido: ${response.substring(0, 60)}`);
       }
@@ -132,7 +141,7 @@ function startMessageListener() {
     }
   }, new (require('telegram/events').NewMessage)({}));
 
-  console.log('[USERBOT] 🎧 Ouvindo mensagens...');
+  console.log('[USERBOT] 🎧 Ouvindo mensagens e fotos...');
 }
 
 // ==============================
