@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZK00 — Analisador de Conversas</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  :root{--bg:#080c14;--bg2:#0d1320;--bg3:#111827;--bg4:#1a2235;--border:#1e2d45;--accent:#3b82f6;--accent2:#1d4ed8;--green:#10b981;--yellow:#f59e0b;--red:#ef4444;--purple:#8b5cf6;--text:#f1f5f9;--text2:#94a3b8;--text3:#475569}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px}
+  .container{max-width:900px;margin:0 auto}
+  .header{display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  .header h1{font-size:20px;font-weight:700}
+  .header p{font-size:13px;color:var(--text2);margin-top:2px}
+  .back-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 12px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+  .back-btn:hover{color:var(--text);border-color:var(--accent)}
+
+  /* UPLOAD AREA */
+  .upload-area{border:2px dashed var(--border);border-radius:16px;padding:48px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:20px;background:var(--bg2)}
+  .upload-area:hover,.upload-area.drag{border-color:var(--accent);background:rgba(59,130,246,.05)}
+  .upload-icon{font-size:40px;margin-bottom:12px}
+  .upload-title{font-size:16px;font-weight:600;margin-bottom:6px}
+  .upload-sub{font-size:12px;color:var(--text2);line-height:1.7}
+  .upload-btn{background:var(--accent);color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;margin-top:14px;font-weight:500}
+
+  /* GUIDE */
+  .guide{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px}
+  .guide-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}
+  .guide-steps{display:flex;gap:8px;flex-wrap:wrap}
+  .guide-step{background:var(--bg4);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;display:flex;align-items:center;gap:6px}
+  .guide-step .num{width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+  /* PROCESSING */
+  .processing{display:none;text-align:center;padding:32px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;margin-bottom:20px}
+  .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* STATS */
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+  .stat{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
+  .stat-val{font-size:22px;font-weight:700;margin-bottom:2px}
+  .stat-label{font-size:11px;color:var(--text2)}
+
+  /* SUGGESTIONS */
+  .section-title{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+  .section-title span{color:var(--text2);font-size:11px;font-weight:400}
+  .approve-all{background:var(--green);color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:500}
+
+  .suggestion{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;transition:border-color .15s}
+  .suggestion.approved{border-color:var(--green);background:rgba(16,185,129,.05)}
+  .suggestion.rejected{opacity:.4;border-color:var(--border)}
+  .suggestion.editing{border-color:var(--accent)}
+
+  .sug-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+  .sug-freq{background:rgba(139,92,246,.2);color:var(--purple);font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;white-space:nowrap;margin-top:2px;flex-shrink:0}
+  .sug-question{font-size:13px;font-weight:600;flex:1}
+  .sug-actions{display:flex;gap:6px;flex-shrink:0}
+
+  .btn-approve{background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.3);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:500}
+  .btn-approve:hover{background:var(--green);color:#fff}
+  .btn-edit{background:rgba(59,130,246,.15);color:var(--accent);border:1px solid rgba(59,130,246,.3);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit}
+  .btn-reject{background:transparent;color:var(--text3);border:1px solid var(--border);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit}
+  .btn-reject:hover{border-color:var(--red);color:var(--red)}
+
+  .sug-body{font-size:12px;color:var(--text2);line-height:1.7}
+  .sug-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;margin-top:8px}
+
+  .tag-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+  .tag{background:var(--bg4);border:1px solid var(--border);font-size:10px;padding:2px 7px;border-radius:5px;color:var(--text2)}
+
+  .edit-area{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:10px;display:none}
+  .edit-label{font-size:11px;color:var(--text2);margin-bottom:4px;display:block}
+  .edit-input{width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:inherit;outline:none;margin-bottom:8px}
+  .edit-input:focus{border-color:var(--accent)}
+  .edit-textarea{width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:inherit;outline:none;resize:vertical;min-height:70px}
+  .edit-textarea:focus{border-color:var(--accent)}
+
+  /* BOTTOM BAR */
+  .bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;z-index:100}
+  .bottom-info{font-size:12px;color:var(--text2)}
+  .bottom-info strong{color:var(--green)}
+  .save-btn{background:var(--accent);color:#fff;border:none;padding:8px 20px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:600}
+  .save-btn:hover{background:var(--accent2)}
+  .save-btn:disabled{opacity:.4;cursor:not-allowed}
+
+  /* NOTIF */
+  .notif-area{position:fixed;top:16px;right:16px;z-index:200}
+  .notif{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;margin-bottom:6px;animation:slideIn .3s ease;border-left:3px solid var(--accent)}
+  .notif.green{border-left-color:var(--green)}
+  .notif.red{border-left-color:var(--red)}
+  @keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div>
+      <h1>🔍 Analisador de Conversas</h1>
+      <p>Importe suas conversas do Telegram — a IA identifica dúvidas frequentes e sugere gatilhos prontos</p>
+    </div>
+    <a href="/" class="back-btn">← Voltar ao painel</a>
+  </div>
+
+  <!-- GUIA -->
+  <div class="guide">
+    <div class="guide-title">Como exportar suas conversas do Telegram</div>
+    <div class="guide-steps">
+      <div class="guide-step"><span class="num">1</span>Abra o Telegram Desktop (PC/Mac)</div>
+      <div class="guide-step"><span class="num">2</span>Abra uma conversa → clique nos 3 pontinhos</div>
+      <div class="guide-step"><span class="num">3</span>Clique em "Exportar histórico do chat"</div>
+      <div class="guide-step"><span class="num">4</span>Formato: <strong>JSON</strong> → Exportar</div>
+      <div class="guide-step"><span class="num">5</span>Faça isso para cada conversa e suba aqui</div>
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()" ondragover="handleDrag(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+    <div class="upload-icon">📂</div>
+    <div class="upload-title">Arraste os arquivos JSON aqui</div>
+    <div class="upload-sub">
+      Aceita múltiplos arquivos de uma vez<br>
+      Formato: <code>result.json</code> exportado pelo Telegram Desktop
+    </div>
+    <button class="upload-btn" onclick="event.stopPropagation()">Selecionar arquivos</button>
+    <input type="file" id="file-input" accept=".json" multiple style="display:none" onchange="handleFiles(this.files)">
+  </div>
+
+  <!-- PROCESSING -->
+  <div class="processing" id="processing">
+    <div class="spinner"></div>
+    <div style="font-size:14px;font-weight:600;margin-bottom:4px" id="processing-title">Analisando conversas...</div>
+    <div style="font-size:12px;color:var(--text2)" id="processing-sub">A IA está identificando padrões e dúvidas frequentes</div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row hidden" id="stats-row">
+    <div class="stat"><div class="stat-val" id="s-msgs" style="color:var(--accent)">0</div><div class="stat-label">Mensagens analisadas</div></div>
+    <div class="stat"><div class="stat-val" id="s-convs" style="color:var(--purple)">0</div><div class="stat-label">Conversas</div></div>
+    <div class="stat"><div class="stat-val" id="s-questions" style="color:var(--yellow)">0</div><div class="stat-label">Dúvidas identificadas</div></div>
+    <div class="stat"><div class="stat-val" id="s-approved" style="color:var(--green)">0</div><div class="stat-label">Aprovadas</div></div>
+  </div>
+
+  <!-- SUGGESTIONS -->
+  <div class="hidden" id="suggestions-area">
+    <div class="section-title">
+      Sugestões de Gatilhos
+      <div style="display:flex;gap:8px">
+        <span id="approve-count" style="color:var(--text2);font-size:12px;align-self:center"></span>
+        <button class="approve-all" onclick="approveAll()">✅ Aprovar todas</button>
+      </div>
+    </div>
+    <div id="suggestions-list"></div>
+  </div>
+
+  <div style="height:70px"></div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar hidden" id="bottom-bar">
+  <div class="bottom-info">
+    <strong id="approved-count">0</strong> gatilhos aprovados e prontos para salvar na base de conhecimento
+  </div>
+  <button class="save-btn" id="save-btn" onclick="saveApproved()" disabled>Salvar na base de conhecimento</button>
+</div>
+
+<div class="notif-area" id="notif-area"></div>
+
+<script>
+// ============================================
+// STATE
+// ============================================
+let suggestions = [];
+let stats = { msgs: 0, convs: 0, questions: 0 };
+const TOKEN = localStorage.getItem('zk00_token') || '';
+
+// ============================================
+// DRAG & DROP
+// ============================================
+function handleDrag(e) {
+  e.preventDefault();
+  document.getElementById('upload-area').classList.add('drag');
+}
+function handleDragLeave(e) {
+  document.getElementById('upload-area').classList.remove('drag');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-area').classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+}
+
+// ============================================
+// FILE HANDLING
+// ============================================
+async function handleFiles(files) {
+  if (!files.length) return;
+
+  showProcessing('Lendo arquivos...', `${files.length} arquivo(s) selecionado(s)`);
+
+  let allMessages = [];
+  let convCount = 0;
+
+  for (const file of files) {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Formato do Telegram Desktop: { messages: [...] }
+      const msgs = data.messages || [];
+      convCount++;
+
+      // Filtra só mensagens de texto de outras pessoas (não suas)
+      const incoming = msgs.filter(m =>
+        m.type === 'message' &&
+        m.text &&
+        typeof m.text === 'string' &&
+        m.text.trim().length > 3 &&
+        !m.from_id?.includes('user') // mensagens recebidas
+      );
+
+      // Também pega mensagens enviadas por você para contexto
+      const outgoing = msgs.filter(m =>
+        m.type === 'message' &&
+        m.text &&
+        typeof m.text === 'string'
+      );
+
+      allMessages.push(...outgoing.map(m => ({
+        text: typeof m.text === 'string' ? m.text : m.text.map(t => typeof t === 'string' ? t : t.text || '').join(''),
+        from: m.from || 'desconhecido',
+        date: m.date
+      })));
+
+      stats.msgs += outgoing.length;
+    } catch (e) {
+      showNotif(`Erro ao ler ${file.name}: ${e.message}`, 'red');
+    }
+  }
+
+  stats.convs = convCount;
+
+  if (!allMessages.length) {
+    showNotif('Nenhuma mensagem encontrada nos arquivos', 'red');
+    hideProcessing();
+    return;
+  }
+
+  updateProcessing('IA analisando padrões...', 'Identificando dúvidas frequentes e criando sugestões');
+  await analyzeWithAI(allMessages);
+}
+
+// ============================================
+// AI ANALYSIS
+// ============================================
+async function analyzeWithAI(messages) {
+  // Monta amostra das mensagens (últimas 200 para não estourar o contexto)
+  const sample = messages.slice(-200).map(m => `${m.from}: ${m.text}`).join('\n');
+
+  const prompt = `Você é um especialista em análise de conversas de vendas e atendimento.
+
+Analise as mensagens abaixo de conversas reais do Telegram de um operador de sinais de apostas (Bac Bo).
+
+Identifique as DÚVIDAS e PERGUNTAS mais frequentes que os leads fazem.
+Para cada dúvida identificada, crie um gatilho para um sistema de resposta automática.
+
+Retorne APENAS um JSON válido neste formato (sem markdown, sem explicação, só o JSON):
+{
+  "insights": [
+    {
+      "question": "Pergunta/dúvida identificada (curta e clara)",
+      "frequency": número de vezes aproximado que aparece,
+      "triggers": ["palavra1", "palavra2", "frase gatilho", "variação"],
+      "suggestedAnswer": "Resposta sugerida natural e humanizada, como se fosse o Rodrigo ZK00 respondendo. Máximo 3 frases. Sem asteriscos.",
+      "context": "Contexto importante sobre esse assunto para a IA entender bem",
+      "objective": "O que o agente deve conquistar ao final desta conversa"
+    }
+  ]
+}
+
+Identifique entre 5 e 15 dúvidas distintas. Priorize as mais frequentes.
+Agrupe variações da mesma dúvida em um único item.
+
+MENSAGENS PARA ANALISAR:
+${sample}`;
+
+  try {
+    const response = await fetch('/api/analyze-conversations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': TOKEN
+      },
+      body: JSON.stringify({ prompt, messageCount: messages.length })
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      // Fallback — análise local se API falhar
+      showNotif('Usando análise local (configure a API key para análise por IA)', 'yellow');
+      await analyzeLocally(messages);
+      return;
+    }
+
+    const insights = data.insights || [];
+    stats.questions = insights.length;
+    suggestions = insights.map((item, i) => ({ ...item, id: 'sug_' + i, status: 'pending' }));
+    renderSuggestions();
+    hideProcessing();
+    showStats();
+
+  } catch (e) {
+    showNotif('Erro na análise — tentando análise local', 'yellow');
+    await analyzeLocally(messages);
+  }
+}
+
+// Análise local básica (fallback sem IA)
+async function analyzeLocally(messages) {
+  const wordCount = {};
+  const commonQuestions = [
+    { words: ['como funciona', 'o que é', 'me explica'], q: 'Como funciona o sistema?' },
+    { words: ['grupo', 'entrar', 'como entro', 'participar'], q: 'Como entrar no grupo?' },
+    { words: ['vip', 'premium', 'pago'], q: 'O que tem no VIP?' },
+    { words: ['saque', 'retirar', 'sacar'], q: 'Como fazer o saque?' },
+    { words: ['depósito', 'deposito', 'pagar', 'valor'], q: 'Como fazer o depósito?' },
+    { words: ['dobra', 'operar junto', 'ao vivo'], q: 'O que é a Dobra de Banca?' },
+    { words: ['link', 'casa', 'plataforma', 'site'], q: 'Qual a plataforma/casa?' },
+    { words: ['funciona mesmo', 'confiável', 'golpe', 'é verdade'], q: 'É confiável?' },
+    { words: ['live', 'horário', 'quando', 'que horas'], q: 'Qual o horário das lives?' },
+    { words: ['grátis', 'free', 'gratuito'], q: 'Tem grupo gratuito?' },
+  ];
+
+  const found = [];
+  for (const pattern of commonQuestions) {
+    let count = 0;
+    for (const msg of messages) {
+      if (pattern.words.some(w => msg.text.toLowerCase().includes(w))) count++;
+    }
+    if (count > 0) {
+      found.push({
+        question: pattern.q,
+        frequency: count,
+        triggers: pattern.words,
+        suggestedAnswer: `[Configure sua API key da Anthropic para gerar respostas automáticas. Padrão identificado: "${pattern.q}" apareceu ${count} vez(es)]`,
+        context: '',
+        objective: ''
+      });
+    }
+  }
+
+  found.sort((a, b) => b.frequency - a.frequency);
+  stats.questions = found.length;
+  suggestions = found.map((item, i) => ({ ...item, id: 'sug_' + i, status: 'pending' }));
+  renderSuggestions();
+  hideProcessing();
+  showStats();
+}
+
+// ============================================
+// RENDER
+// ============================================
+function renderSuggestions() {
+  const el = document.getElementById('suggestions-list');
+  document.getElementById('suggestions-area').classList.remove('hidden');
+
+  el.innerHTML = suggestions.map((sug, i) => `
+    <div class="suggestion ${sug.status === 'approved' ? 'approved' : sug.status === 'rejected' ? 'rejected' : ''}" id="sug-${i}">
+      <div class="sug-header">
+        <span class="sug-freq">🔁 ${sug.frequency}x</span>
+        <div class="sug-question">${sug.question}</div>
+        <div class="sug-actions">
+          <button class="btn-approve" onclick="approveSug(${i})">${sug.status === 'approved' ? '✅ Aprovado' : '✅ Aprovar'}</button>
+          <button class="btn-edit" onclick="toggleEdit(${i})">✏️ Editar</button>
+          <button class="btn-reject" onclick="rejectSug(${i})">${sug.status === 'rejected' ? 'Desfeito' : '✕'}</button>
+        </div>
+      </div>
+      <div class="sug-body">
+        <div class="sug-label">Gatilhos</div>
+        <div class="tag-list">${(sug.triggers || []).map(t => `<span class="tag">${t}</span>`).join('')}</div>
+        <div class="sug-label" style="margin-top:8px">Resposta sugerida</div>
+        <div style="background:var(--bg3);border-radius:7px;padding:8px 10px;font-size:12px;color:var(--text);margin-top:4px;line-height:1.6">${sug.suggestedAnswer}</div>
+        ${sug.context ? `<div class="sug-label" style="margin-top:8px">Contexto para a IA</div><div style="font-size:11px;color:var(--accent)">${sug.context}</div>` : ''}
+        ${sug.objective ? `<div class="sug-label" style="margin-top:6px">Objetivo</div><div style="font-size:11px;color:var(--green)">${sug.objective}</div>` : ''}
+      </div>
+
+      <!-- EDIT PANEL -->
+      <div class="edit-area" id="edit-${i}">
+        <label class="edit-label">Pergunta/Título</label>
+        <input class="edit-input" id="eq-${i}" value="${sug.question.replace(/"/g,'&quot;')}">
+        <label class="edit-label">Gatilhos (separados por vírgula)</label>
+        <input class="edit-input" id="et-${i}" value="${(sug.triggers||[]).join(', ')}">
+        <label class="edit-label">Resposta</label>
+        <textarea class="edit-textarea" id="ea-${i}">${sug.suggestedAnswer}</textarea>
+        <label class="edit-label" style="margin-top:8px">Contexto para a IA</label>
+        <textarea class="edit-textarea" id="ec-${i}" style="min-height:50px">${sug.context||''}</textarea>
+        <label class="edit-label" style="margin-top:6px">Objetivo da conversa</label>
+        <textarea class="edit-textarea" id="eo-${i}" style="min-height:50px">${sug.objective||''}</textarea>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="btn-approve" onclick="saveEdit(${i})">Salvar edição</button>
+          <button class="btn-reject" onclick="toggleEdit(${i})">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  updateBottomBar();
+}
+
+function toggleEdit(i) {
+  const el = document.getElementById(`edit-${i}`);
+  const sug = document.getElementById(`sug-${i}`);
+  const open = el.style.display === 'block';
+  el.style.display = open ? 'none' : 'block';
+  sug.classList.toggle('editing', !open);
+}
+
+function saveEdit(i) {
+  suggestions[i].question = document.getElementById(`eq-${i}`).value;
+  suggestions[i].triggers = document.getElementById(`et-${i}`).value.split(',').map(t => t.trim()).filter(Boolean);
+  suggestions[i].suggestedAnswer = document.getElementById(`ea-${i}`).value;
+  suggestions[i].context = document.getElementById(`ec-${i}`).value;
+  suggestions[i].objective = document.getElementById(`eo-${i}`).value;
+  suggestions[i].status = 'approved';
+  renderSuggestions();
+  showNotif('Editado e aprovado!', 'green');
+}
+
+function approveSug(i) {
+  suggestions[i].status = suggestions[i].status === 'approved' ? 'pending' : 'approved';
+  renderSuggestions();
+}
+
+function rejectSug(i) {
+  suggestions[i].status = suggestions[i].status === 'rejected' ? 'pending' : 'rejected';
+  renderSuggestions();
+}
+
+function approveAll() {
+  suggestions.forEach(s => { if (s.status !== 'rejected') s.status = 'approved'; });
+  renderSuggestions();
+  showNotif('Todas aprovadas!', 'green');
+}
+
+function updateBottomBar() {
+  const approved = suggestions.filter(s => s.status === 'approved').length;
+  document.getElementById('approved-count').textContent = approved;
+  document.getElementById('approve-count').textContent = `${approved}/${suggestions.length} aprovadas`;
+  document.getElementById('approve-count').style.color = approved > 0 ? 'var(--green)' : 'var(--text2)';
+  document.getElementById('save-btn').disabled = approved === 0;
+  document.getElementById('bottom-bar').classList.toggle('hidden', suggestions.length === 0);
+  document.getElementById('s-approved').textContent = approved;
+}
+
+// ============================================
+// SAVE TO KNOWLEDGE BASE
+// ============================================
+async function saveApproved() {
+  const approved = suggestions.filter(s => s.status === 'approved');
+  if (!approved.length) return;
+
+  document.getElementById('save-btn').disabled = true;
+  document.getElementById('save-btn').textContent = 'Salvando...';
+
+  let saved = 0;
+  for (const sug of approved) {
+    const item = {
+      type: 'faq',
+      trigger: sug.triggers,
+      question: sug.question,
+      answer: sug.suggestedAnswer,
+      context: sug.context || '',
+      objective: sug.objective || ''
+    };
+    try {
+      const res = await fetch('/api/knowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': TOKEN },
+        body: JSON.stringify(item)
+      });
+      if (res.ok) saved++;
+    } catch (e) {}
+  }
+
+  document.getElementById('save-btn').textContent = 'Salvar na base de conhecimento';
+  document.getElementById('save-btn').disabled = false;
+  showNotif(`✅ ${saved} gatilhos salvos na base de conhecimento!`, 'green');
+
+  // Marca como salvas
+  approved.forEach(s => { s.saved = true; });
+  setTimeout(() => window.location.href = '/', 2000);
+}
+
+// ============================================
+// UI HELPERS
+// ============================================
+function showStats() {
+  document.getElementById('stats-row').classList.remove('hidden');
+  document.getElementById('s-msgs').textContent = stats.msgs;
+  document.getElementById('s-convs').textContent = stats.convs;
+  document.getElementById('s-questions').textContent = stats.questions;
+  document.getElementById('s-approved').textContent = 0;
+}
+
+function showProcessing(title, sub) {
+  document.getElementById('processing').style.display = 'block';
+  document.getElementById('upload-area').style.display = 'none';
+  document.getElementById('processing-title').textContent = title;
+  document.getElementById('processing-sub').textContent = sub;
+}
+
+function updateProcessing(title, sub) {
+  document.getElementById('processing-title').textContent = title;
+  document.getElementById('processing-sub').textContent = sub;
+}
+
+function hideProcessing() {
+  document.getElementById('processing').style.display = 'none';
+}
+
+function showNotif(msg, type) {
+  const area = document.getElementById('notif-area');
+  const n = document.createElement('div');
+  n.className = 'notif ' + (type || '');
+  n.textContent = (type === 'green' ? '✅ ' : type === 'red' ? '❌ ' : '⚠️ ') + msg;
+  area.appendChild(n);
+  setTimeout(() => n.remove(), 4000);
+}
+</script>
+</body>
+</html>
