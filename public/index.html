@@ -224,6 +224,7 @@
     <div class="nav-item" onclick="showTab('agent',this)">⚙️ Configurar Agente</div>
     <div class="nav-item" onclick="showTab('integrations',this)">🔌 Integrações</div>
     <div class="nav-section">Ferramentas</div>
+    <div class="nav-item" onclick="showTab('followup',this)">⏰ Follow-ups</div>
     <div class="nav-item" onclick="showTab('test',this)">🧪 Testar Agente</div>
   </nav>
 </aside>
@@ -464,6 +465,22 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
       </div>
     </div>
 
+    <!-- FOLLOWUP -->
+    <div class="tab" id="tab-followup" style="flex-direction:column;padding:20px;overflow-y:auto;gap:16px">
+      <div class="card" style="margin:0">
+        <div class="card-title">⏰ Follow-ups Automáticos <span>mensagens enviadas após tempo sem resposta</span></div>
+        <div id="followup-list"><div class="loading">Carregando...</div></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title">📸 Respostas para Foto/Print <span>enviadas quando o lead manda uma imagem</span></div>
+        <div id="photo-response-list"><div class="loading">Carregando...</div></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title">⚡ Timers Ativos agora</div>
+        <div id="active-timers"><div style="font-size:12px;color:var(--text2)">Nenhum timer ativo</div></div>
+      </div>
+    </div>
+
     <!-- TEST -->
     <div class="tab" id="tab-test">
       <div class="card" style="margin:0;max-width:640px">
@@ -519,6 +536,51 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="closeModal('add-knowledge')">Cancelar</button>
       <button class="btn primary" onclick="saveKnowledge()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD FOLLOWUP -->
+<div class="modal-overlay" id="modal-add-followup">
+  <div class="modal">
+    <div class="modal-title">⏰ Configurar Follow-up <button class="close-btn" onclick="closeModal('add-followup')">✕</button></div>
+    <input type="hidden" id="fu-editing-id">
+    <div class="form-group">
+      <label class="form-label">Nome do follow-up</label>
+      <input class="form-input" id="fu-name" placeholder="Ex: Lembrete de print — Dobra" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tempo para disparar (em minutos)</label>
+      <input class="form-input" id="fu-delay" type="number" value="10" min="1" max="1440" placeholder="10">
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">O timer começa quando o agente responder sobre esse assunto. Se o lead mandar foto, o timer é cancelado automaticamente.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Mensagem do follow-up</label>
+      <textarea class="form-textarea" id="fu-message" placeholder="Ex: Oi! Só passando pra lembrar que ainda preciso do print com seu saldo. Me manda aqui quando puder! 📲" style="min-height:80px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('add-followup')">Cancelar</button>
+      <button class="btn primary" onclick="saveFollowupRule()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD PHOTO RESPONSE -->
+<div class="modal-overlay" id="modal-add-photo-response">
+  <div class="modal">
+    <div class="modal-title">📸 Resposta para Foto/Print <button class="close-btn" onclick="closeModal('add-photo-response')">✕</button></div>
+    <input type="hidden" id="pr-editing-id">
+    <div class="form-group">
+      <label class="form-label">Nome</label>
+      <input class="form-input" id="pr-name" placeholder="Ex: Print recebido — Dobra de Banca" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Mensagem enviada quando o lead mandar uma foto</label>
+      <textarea class="form-textarea" id="pr-message" placeholder="Ex: Boa! Print recebido ✅ Agora é só aguardar — vou avaliar seu perfil e, se você for selecionado, te chamo pessoalmente antes da próxima sessão. Fique de olho!" style="min-height:80px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('add-photo-response')">Cancelar</button>
+      <button class="btn primary" onclick="savePhotoResponse()">Salvar</button>
     </div>
   </div>
 </div>
@@ -990,6 +1052,7 @@ function showTab(id, el) {
   document.getElementById('page-title').textContent = titles[id] || id;
   if (id === 'conversations') loadConversations();
     if (id === 'integrations') { loadIntegrationStatus(); checkUserbotStatus(); }
+    if (id === 'followup') loadFollowups();
 }
 
 function openModal(id) { document.getElementById('modal-' + id).classList.add('open'); }
@@ -1107,6 +1170,126 @@ async function sendUbPassword() {
   } else {
     showNotif('Erro: ' + res.error, 'red');
   }
+}
+
+// ============================================
+// FOLLOWUP FUNCTIONS
+// ============================================
+async function loadFollowups() {
+  const settings = await api('GET', '/api/settings');
+  if (!settings || settings.error) return;
+
+  // Render follow-up rules
+  const fuEl = document.getElementById('followup-list');
+  const rules = settings.followupRules || [];
+  fuEl.innerHTML = rules.length ? rules.map(r => `
+    <div class="kb-item" style="margin-bottom:8px">
+      <div style="width:32px;height:32px;border-radius:8px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">⏰</div>
+      <div class="kb-item-text">
+        <div class="kb-item-q">${r.name}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">Dispara após <strong style="color:var(--yellow)">${r.delay} minutos</strong> sem o lead mandar foto</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;font-style:italic">"${r.message.substring(0,80)}..."</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <div class="toggle-switch ${r.active?'':'off'}" onclick="toggleFollowupRule('${r.id}',${!r.active})" style="width:28px;height:16px"></div>
+        <button class="icon-btn" onclick="editFollowupRule(${JSON.stringify(r).replace(/"/g,'&quot;')})">✏️</button>
+      </div>
+    </div>
+  `).join('') : '<div style="font-size:12px;color:var(--text2)">Nenhum follow-up configurado</div>';
+  fuEl.innerHTML += `<button class="btn primary" style="margin-top:8px;font-size:12px" onclick="openModal('add-followup')">+ Novo Follow-up</button>`;
+
+  // Render photo responses
+  const prEl = document.getElementById('photo-response-list');
+  const photoRules = settings.photoResponses || [];
+  prEl.innerHTML = photoRules.length ? photoRules.map(r => `
+    <div class="kb-item" style="margin-bottom:8px">
+      <div style="width:32px;height:32px;border-radius:8px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📸</div>
+      <div class="kb-item-text">
+        <div class="kb-item-q">${r.name}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;font-style:italic">"${r.message.substring(0,80)}..."</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <div class="toggle-switch ${r.active?'':'off'}" onclick="togglePhotoRule('${r.id}',${!r.active})"></div>
+        <button class="icon-btn" onclick="editPhotoRule(${JSON.stringify(r).replace(/"/g,'&quot;')})">✏️</button>
+      </div>
+    </div>
+  `).join('') : '<div style="font-size:12px;color:var(--text2)">Nenhuma resposta de foto configurada</div>';
+  prEl.innerHTML += `<button class="btn primary" style="margin-top:8px;font-size:12px" onclick="openModal('add-photo-response')">+ Nova Resposta de Foto</button>`;
+}
+
+async function toggleFollowupRule(id, active) {
+  const settings = await api('GET', '/api/settings');
+  const rules = settings.followupRules || [];
+  const updated = rules.map(r => r.id === id ? {...r, active} : r);
+  await api('PATCH', '/api/settings', { followupRules: updated });
+  await loadFollowups();
+  showNotif(active ? 'Follow-up ativado!' : 'Follow-up desativado!', active ? 'green' : '');
+}
+
+async function togglePhotoRule(id, active) {
+  const settings = await api('GET', '/api/settings');
+  const rules = settings.photoResponses || [];
+  const updated = rules.map(r => r.id === id ? {...r, active} : r);
+  await api('PATCH', '/api/settings', { photoResponses: updated });
+  await loadFollowups();
+  showNotif(active ? 'Resposta de foto ativada!' : 'Desativada!', active ? 'green' : '');
+}
+
+function editFollowupRule(rule) {
+  document.getElementById('fu-name').value = rule.name || '';
+  document.getElementById('fu-delay').value = rule.delay || 10;
+  document.getElementById('fu-message').value = rule.message || '';
+  document.getElementById('fu-editing-id').value = rule.id || '';
+  openModal('add-followup');
+}
+
+function editPhotoRule(rule) {
+  document.getElementById('pr-name').value = rule.name || '';
+  document.getElementById('pr-message').value = rule.message || '';
+  document.getElementById('pr-editing-id').value = rule.id || '';
+  openModal('add-photo-response');
+}
+
+async function saveFollowupRule() {
+  const editingId = document.getElementById('fu-editing-id').value;
+  const newRule = {
+    id: editingId || ('fu' + Date.now()),
+    name: document.getElementById('fu-name').value,
+    active: true,
+    triggerKnowledgeIds: [],
+    cancelOn: 'photo',
+    delay: parseInt(document.getElementById('fu-delay').value) || 10,
+    message: document.getElementById('fu-message').value
+  };
+  if (!newRule.message) return showNotif('Preencha a mensagem!', 'red');
+  const settings = await api('GET', '/api/settings');
+  let rules = settings.followupRules || [];
+  if (editingId) rules = rules.filter(r => r.id !== editingId);
+  rules.push(newRule);
+  await api('PATCH', '/api/settings', { followupRules: rules });
+  closeModal('add-followup');
+  await loadFollowups();
+  showNotif('Follow-up salvo!', 'green');
+}
+
+async function savePhotoResponse() {
+  const editingId = document.getElementById('pr-editing-id').value;
+  const newRule = {
+    id: editingId || ('pr' + Date.now()),
+    name: document.getElementById('pr-name').value,
+    active: true,
+    linkedKnowledgeIds: [],
+    message: document.getElementById('pr-message').value
+  };
+  if (!newRule.message) return showNotif('Preencha a mensagem!', 'red');
+  const settings = await api('GET', '/api/settings');
+  let rules = settings.photoResponses || [];
+  if (editingId) rules = rules.filter(r => r.id !== editingId);
+  rules.push(newRule);
+  await api('PATCH', '/api/settings', { photoResponses: rules });
+  closeModal('add-photo-response');
+  await loadFollowups();
+  showNotif('Resposta de foto salva!', 'green');
 }
 
 // ============================================
