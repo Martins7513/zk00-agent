@@ -8,6 +8,63 @@ const { TelegramClient, Api } = require('telegram');
 const { StringSession } = require('telegram/sessions');
 const { processMessage, processPhoto, registerSendFn } = require('./agent');
 const db = require('./database');
+const axios = require('axios');
+
+// Salva a sessão como variável de ambiente no Railway
+// Assim persiste entre redeploys sem precisar re-autenticar
+async function saveSessionToRailway(sessionStr) {
+  try {
+    const projectId = process.env.RAILWAY_PROJECT_ID;
+    const serviceId = process.env.RAILWAY_SERVICE_ID;
+    const token = process.env.RAILWAY_API_TOKEN; // você adiciona isso manualmente
+
+    if (!token || !projectId || !serviceId) {
+      console.log('[USERBOT] Railway API não configurada — sessão salva apenas no banco local');
+      return;
+    }
+
+    // Atualiza a variável TELEGRAM_SESSION no Railway via API
+    await axios.post(
+      'https://backboard.railway.app/graphql/v2',
+      {
+        query: `mutation {
+          variableUpsert(input: {
+            projectId: "${projectId}",
+            serviceId: "${serviceId}",
+            environmentId: "${process.env.RAILWAY_ENVIRONMENT_ID || ''}",
+            name: "TELEGRAM_SESSION",
+            value: "${sessionStr.replace(/"/g, '\"')}"
+          })
+        }`
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    console.log('[USERBOT] ✅ Sessão salva no Railway como variável de ambiente!');
+  } catch (err) {
+    console.log('[USERBOT] Sessão salva no banco local (Railway API não disponível)');
+  }
+}
+
+// Recupera sessão de todas as fontes disponíveis
+function getStoredSession() {
+  // 1. Variável de ambiente (Railway)
+  if (process.env.TELEGRAM_SESSION && process.env.TELEGRAM_SESSION.length > 10) {
+    console.log('[USERBOT] Sessão encontrada nas variáveis de ambiente');
+    return process.env.TELEGRAM_SESSION;
+  }
+  // 2. Banco de dados local
+  const settings = db.getSettings();
+  if (settings.telegramSession && settings.telegramSession.length > 10) {
+    console.log('[USERBOT] Sessão encontrada no banco local');
+    return settings.telegramSession;
+  }
+  return null;
+}
 
 let client = null;
 let isConnected = false;
@@ -21,10 +78,17 @@ const IGNORE_IDS = [];
 async function initUserbot() {
   const apiId = parseInt(process.env.TELEGRAM_API_ID);
   const apiHash = process.env.TELEGRAM_API_HASH;
-  const sessionStr = process.env.TELEGRAM_SESSION || '';
 
   if (!apiId || !apiHash) {
-    console.log('[USERBOT] API_ID ou API_HASH não configurados — modo simulado');
+    console.log('[USERBOT] API_ID ou API_HASH não configurados — acesse o painel para autenticar');
+    return null;
+  }
+
+  // Busca sessão de todas as fontes
+  const sessionStr = getStoredSession();
+
+  if (!sessionStr) {
+    console.log('[USERBOT] Sem sessão salva — acesse o painel → Integrações para autenticar');
     return null;
   }
 
@@ -36,20 +100,17 @@ async function initUserbot() {
       autoReconnect: true,
     });
 
-    // Se não tem sessão salva, precisa autenticar
-    if (!sessionStr) {
-      console.log('[USERBOT] Sem sessão — use /api/userbot/auth para autenticar');
-      return null;
-    }
-
     await client.connect();
     isConnected = true;
     console.log('[USERBOT] ✅ Conectado à conta pessoal do Telegram!');
 
-    // Salva a sessão atualizada
+    // Atualiza sessão se mudou (token de sessão pode ser renovado pelo Telegram)
     const newSession = client.session.save();
-    if (newSession !== sessionStr) {
+    if (newSession && newSession !== sessionStr) {
+      console.log('[USERBOT] Sessão renovada — salvando...');
       db.updateSettings({ telegramSession: newSession });
+      process.env.TELEGRAM_SESSION = newSession;
+      await saveSessionToRailway(newSession);
     }
 
     // Inicia o listener de mensagens
@@ -59,6 +120,13 @@ async function initUserbot() {
   } catch (err) {
     console.error('[USERBOT] Erro ao conectar:', err.message);
     isConnected = false;
+
+    // Se sessão expirou, limpa para forçar nova autenticação
+    if (err.message.includes('AUTH_KEY') || err.message.includes('SESSION')) {
+      console.log('[USERBOT] Sessão expirada — será necessário re-autenticar no painel');
+      db.updateSettings({ telegramSession: '' });
+      process.env.TELEGRAM_SESSION = '';
+    }
     return null;
   }
 }
@@ -208,6 +276,9 @@ async function sendCode(code) {
     db.updateSettings({ telegramSession: sessionStr });
     process.env.TELEGRAM_SESSION = sessionStr;
 
+    // Salva no Railway via API (persiste entre redeploys)
+    await saveSessionToRailway(sessionStr);
+
     authState.step = 'done';
     client = authState.tempClient;
     isConnected = true;
@@ -242,6 +313,9 @@ async function sendPassword(password) {
     const sessionStr = authState.tempClient.session.save();
     db.updateSettings({ telegramSession: sessionStr });
     process.env.TELEGRAM_SESSION = sessionStr;
+
+    // Salva no Railway via API (persiste entre redeploys)
+    await saveSessionToRailway(sessionStr);
 
     authState.step = 'done';
     client = authState.tempClient;
