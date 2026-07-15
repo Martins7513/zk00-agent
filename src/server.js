@@ -175,6 +175,25 @@ app.get('/api/integrations/whatsapp/qr', authMiddleware, async (req, res) => {
 });
 
 // ==============================
+// BACKUP & RESTORE
+// ==============================
+app.get('/api/backup', authMiddleware, (req, res) => {
+  const backup = db.exportBackup();
+  res.setHeader('Content-Disposition', 'attachment; filename=zk00-backup.json');
+  res.setHeader('Content-Type', 'application/json');
+  res.json(backup);
+});
+
+app.post('/api/restore', authMiddleware, (req, res) => {
+  try {
+    db.importBackup(req.body);
+    res.json({ success: true, message: 'Backup restaurado com sucesso!' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==============================
 // TESTE
 // ==============================
 app.post('/api/test/message', authMiddleware, async (req, res) => {
