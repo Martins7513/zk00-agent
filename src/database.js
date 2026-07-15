@@ -204,7 +204,8 @@ function getRecentConversations(limit = 20) {
       lastRole: last.role,
       lastTime: last.timestamp,
       unread: msgs.filter(m => m.role === 'user' && !m.read).length,
-      isHumanMode: db.settings.humanModeChats.includes(key)
+      isHumanMode: db.settings.humanModeChats.includes(key),
+      flag: client.flag || null
     });
   }
   return result
@@ -275,6 +276,14 @@ function setHumanMode(platform, userId, active) {
   saveDB(db);
 }
 
+// Flag de atenção — marca conversa em vermelho quando sem gatilho
+function flagConversation(platform, userId, flag) {
+  const key = `${platform}_${userId}`;
+  if (!db.clients[key]) return;
+  db.clients[key].flag = flag; // 'attention' ou null
+  saveDB(db);
+}
+
 // Estatísticas
 function getStats() {
   const clients = Object.values(db.clients);
@@ -300,5 +309,5 @@ module.exports = {
   getHistory, addMessage, getRecentConversations,
   searchKnowledge, getAllKnowledge, addKnowledge, deleteKnowledge,
   getSettings, updateSettings, isHumanMode, setHumanMode,
-  getStats
+  flagConversation, getStats
 };
