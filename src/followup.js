@@ -1,136 +1,98 @@
 // ============================================
 // FOLLOW-UP — ZK00 Agent
-// Mensagens automáticas por tempo
+// Timers vinculados diretamente ao gatilho
 // ============================================
 
 const db = require('./database');
 
-let followupTimers = {}; // { "platform_userId_ruleId": timeoutId }
+let timers = {}; // { "platform_userId_ruleId": [timeoutId, ...] }
 
-// ============================================
-// REGRAS DE FOLLOW-UP
-// Configuradas pelo painel ou manualmente aqui
-// ============================================
-function getFollowupRules() {
-  const settings = db.getSettings();
-  return settings.followupRules || [
-    {
-      id: 'fu1',
-      name: 'Print não enviado — Dobra de Banca',
-      active: true,
-      triggerOn: 'knowledge', // dispara quando gatilho específico for ativado
-      triggerKnowledgeIds: ['k9', 'k10'], // IDs do conhecimento (dobra de banca)
-      cancelOn: 'photo', // cancela se receber foto
-      delay: 10, // minutos
-      message: 'Oi! Só passando pra lembrar que ainda preciso do print com seu saldo pra te avaliar pra Dobra. Me manda aqui quando puder! 📲'
-    },
-    {
-      id: 'fu2',
-      name: 'Print não enviado — VIP',
-      active: true,
-      triggerOn: 'knowledge',
-      triggerKnowledgeIds: ['k2', 'k3'],
-      cancelOn: 'photo',
-      delay: 10,
-      message: 'Ei, tudo certo? Lembra que pra entrar no VIP só precisamos do print do saldo. Me manda aqui e já te coloco na lista! 🔗'
-    }
-  ];
+// Agenda follow-up a partir da config do gatilho
+function scheduleFromKnowledge(platform, userId, knowledgeItem, sendFn) {
+  if (!knowledgeItem || !knowledgeItem.followup || !knowledgeItem.followup.active) return;
+
+  const fu = knowledgeItem.followup;
+  const baseKey = `${platform}_${userId}_${knowledgeItem.id}`;
+
+  // Cancela timers anteriores para este gatilho
+  cancelTimers(baseKey);
+
+  timers[baseKey] = [];
+
+  // 1ª mensagem
+  if (fu.message && fu.delay) {
+    const t1 = setTimeout(async () => {
+      if (shouldSkip(platform, userId, fu.cancelOn)) return;
+      console.log(`[FOLLOWUP] Disparando 1ª msg para ${userId}`);
+      const msg = fu.message;
+      db.addMessage(platform, userId, 'agent', msg);
+      await sendFn(userId, msg);
+    }, fu.delay * 60 * 1000);
+    timers[baseKey].push(t1);
+  }
+
+  // 2ª mensagem (opcional)
+  if (fu.second && fu.second.message && fu.second.delay) {
+    const totalDelay = (fu.delay + fu.second.delay) * 60 * 1000;
+    const t2 = setTimeout(async () => {
+      if (shouldSkip(platform, userId, fu.cancelOn)) return;
+      console.log(`[FOLLOWUP] Disparando 2ª msg para ${userId}`);
+      const msg = fu.second.message;
+      db.addMessage(platform, userId, 'agent', msg);
+      await sendFn(userId, msg);
+    }, totalDelay);
+    timers[baseKey].push(t2);
+  }
+
+  console.log(`[FOLLOWUP] Agendado para ${userId} — 1ª em ${fu.delay}min${fu.second ? `, 2ª em ${fu.delay + fu.second.delay}min` : ''}`);
 }
 
-// Inicia um timer de follow-up
-function scheduleFollowup(platform, userId, ruleId, message, delayMinutes, sendFn) {
-  const key = `${platform}_${userId}_${ruleId}`;
-
-  // Cancela timer existente se tiver
-  cancelFollowup(platform, userId, ruleId);
-
-  const ms = delayMinutes * 60 * 1000;
-  console.log(`[FOLLOWUP] Agendado para ${userId} em ${delayMinutes}min (rule: ${ruleId})`);
-
-  followupTimers[key] = setTimeout(async () => {
-    // Verifica se o chat ainda está ativo e não em modo humano
-    if (db.isHumanMode(platform, userId)) {
-      console.log(`[FOLLOWUP] ${userId} em modo humano — cancelado`);
-      return;
-    }
-
-    const settings = db.getSettings();
-    if (!settings.agentActive) return;
-
-    // Verifica se já recebeu foto (flag)
-    const client = db.getClient(platform, userId);
-    if (client && client.photoReceived) {
-      console.log(`[FOLLOWUP] ${userId} já mandou foto — cancelado`);
-      return;
-    }
-
-    console.log(`[FOLLOWUP] Disparando follow-up para ${userId}`);
-    db.addMessage(platform, userId, 'agent', message);
-    await sendFn(userId, message);
-
-    delete followupTimers[key];
-  }, ms);
+// Verifica se deve pular o disparo
+function shouldSkip(platform, userId, cancelOn) {
+  if (db.isHumanMode(platform, userId)) return true;
+  if (!db.getSettings().agentActive) return true;
+  const client = db.getClient(platform, userId);
+  if (!client) return false;
+  if (cancelOn === 'photo' && client.photoReceived) return true;
+  if (cancelOn === 'reply' && client.lastReplied) return true;
+  return false;
 }
 
-// Cancela um timer específico
-function cancelFollowup(platform, userId, ruleId) {
-  const key = `${platform}_${userId}_${ruleId}`;
-  if (followupTimers[key]) {
-    clearTimeout(followupTimers[key]);
-    delete followupTimers[key];
-    console.log(`[FOLLOWUP] Cancelado: ${key}`);
+// Cancela timers de uma chave
+function cancelTimers(key) {
+  if (timers[key]) {
+    timers[key].forEach(t => clearTimeout(t));
+    delete timers[key];
   }
 }
 
-// Cancela TODOS os timers de um usuário
-function cancelAllFollowups(platform, userId) {
+// Cancela todos os timers de um usuário
+function cancelAllForUser(platform, userId) {
   const prefix = `${platform}_${userId}_`;
-  Object.keys(followupTimers).forEach(key => {
-    if (key.startsWith(prefix)) {
-      clearTimeout(followupTimers[key]);
-      delete followupTimers[key];
-    }
-  });
-  console.log(`[FOLLOWUP] Todos cancelados para ${userId}`);
+  Object.keys(timers).filter(k => k.startsWith(prefix)).forEach(k => cancelTimers(k));
 }
 
-// Verifica se deve disparar follow-up após um gatilho
-function checkAndSchedule(platform, userId, knowledgeItem, sendFn) {
-  if (!knowledgeItem || !knowledgeItem.id) return;
-  const rules = getFollowupRules();
-
-  for (const rule of rules) {
-    if (!rule.active) continue;
-    if (rule.triggerOn === 'knowledge' && rule.triggerKnowledgeIds.includes(knowledgeItem.id)) {
-      scheduleFollowup(platform, userId, rule.id, rule.message, rule.delay, sendFn);
-    }
-  }
-}
-
-// Chamado quando usuário manda uma FOTO
+// Chamado quando chega foto — cancela follow-ups com cancelOn:'photo'
 function onPhotoReceived(platform, userId) {
-  const rules = getFollowupRules();
   const client = db.getClient(platform, userId) || {};
-
-  // Marca que recebeu foto
   db.saveClient(platform, userId, { ...client, photoReceived: true, photoReceivedAt: new Date().toISOString() });
 
-  // Cancela follow-ups que dependem de foto
-  for (const rule of rules) {
-    if (rule.cancelOn === 'photo') {
-      cancelFollowup(platform, userId, rule.id);
-    }
-  }
-
-  console.log(`[FOLLOWUP] Foto recebida de ${userId} — follow-ups cancelados`);
+  // Cancela todos os timers ativos desse usuário
+  cancelAllForUser(platform, userId);
+  console.log(`[FOLLOWUP] Foto recebida de ${userId} — todos os timers cancelados`);
 }
 
-// Lista timers ativos (para o painel)
+// Chamado quando usuário responde qualquer coisa — cancela 'reply'
+function onUserReply(platform, userId) {
+  const client = db.getClient(platform, userId) || {};
+  db.saveClient(platform, userId, { ...client, lastReplied: new Date().toISOString() });
+}
+
 function getActiveTimers() {
-  return Object.keys(followupTimers).map(key => {
+  return Object.keys(timers).map(key => {
     const parts = key.split('_');
-    return { key, platform: parts[0], userId: parts[1], ruleId: parts[2] };
+    return { key, platform: parts[0], userId: parts[1], knowledgeId: parts[2], count: timers[key].length };
   });
 }
 
-module.exports = { checkAndSchedule, onPhotoReceived, cancelAllFollowups, getFollowupRules, scheduleFollowup, getActiveTimers };
+module.exports = { scheduleFromKnowledge, onPhotoReceived, onUserReply, cancelAllForUser, getActiveTimers };
