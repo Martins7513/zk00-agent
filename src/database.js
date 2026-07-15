@@ -79,16 +79,20 @@ const DEFAULT_DB = {
     {
       id: 'k9',
       type: 'faq',
-      trigger: ['dobra', 'dobra de banca', 'operar junto', 'ao vivo com voce', 'garantia de banca', 'opera comigo', 'operar comigo', 'sessao ao vivo', 'dobrar banca', 'quero dobra'],
+      trigger: ['dobra', 'dobra de banca', 'operar junto', 'garantia de banca', 'opera comigo', 'operar comigo', 'sessao ao vivo', 'dobrar banca', 'quero dobra', 'dobra banca'],
       question: 'O que e a Dobra de Banca?',
-      answer: 'A Dobra de Banca e um programa exclusivo onde a gente opera juntos ao vivo. Voce opera com seu capital e eu com o meu, usando minhas analises. O diferencial: se voce perder na sessao, eu devolvo o valor. Eu assumo o risco total da sua banca. As vagas sao limitadas e eu escolho quem entra. Pra participar voce precisa se cadastrar na casa parceira, fazer um deposito e me mandar o print do saldo. Ai eu avalio e te chamo pra proxima sessao. Bora pra cima!'
+      answer: 'A Dobra de Banca e um programa exclusivo e bem diferente. Nao e um grupo — e uma selecao individual. Eu escolho pessoalmente quem vai operar comigo ao vivo. Voce opera com seu capital, eu com o meu, usando minhas analises em tempo real. E o diferencial: se voce perder na sessao, eu devolvo o valor. Eu assumo o risco. As vagas sao bem limitadas porque eu preciso acompanhar cada pessoa de perto. Pra ser avaliado, voce precisa se cadastrar na casa parceira, fazer um deposito e me mandar o print do saldo aqui.',
+      context: 'A Dobra de Banca NAO e um grupo. E um programa de selecao individual feita pelo Rodrigo. Cada pessoa e escolhida pessoalmente. O aluno opera com seu proprio capital, Rodrigo opera com o dele. Rodrigo da garantia: se o aluno perder na sessao, Rodrigo devolve o valor perdido. As vagas sao extremamente limitadas porque Rodrigo precisa operar junto com cada pessoa selecionada.',
+      objective: 'Fazer o lead entender que e algo exclusivo e pessoal, nao um grupo. Gerar desejo e senso de privilegio por ser selecionado. Levar o lead a querer ser avaliado e mandar o print do saldo para participar da selecao.'
     },
     {
       id: 'k10',
       type: 'faq',
-      trigger: ['como participar', 'quero participar', 'como entrar dobra', 'quero operar', 'proxima sessao'],
+      trigger: ['como participar', 'quero participar', 'como entrar dobra', 'quero operar', 'proxima sessao', 'como sou selecionado'],
       question: 'Como participar da Dobra de Banca?',
-      answer: 'Simples: se cadastra na casa parceira pelo meu link, faz o deposito e me manda o print do saldo aqui. Eu analiso e, se tiver vaga, te chamo pra proxima sessao ao vivo. As vagas sao bem disputadas porque eu opero junto e dou garantia da banca. Me manda o print!'
+      answer: 'Pra ser avaliado para a Dobra e simples: se cadastra na casa parceira pelo meu link, faz o deposito e me manda o print do saldo aqui. Eu analiso o perfil e, se voce for selecionado, te chamo pessoalmente para a proxima sessao.',
+      context: 'A selecao e feita pelo Rodrigo com base no perfil do lead. Nao e automatico — Rodrigo avalia cada pessoa individualmente antes de selecionar.',
+      objective: 'Levar o lead ao proximo passo concreto: se cadastrar na casa parceira e mandar o print do saldo para ser avaliado por Rodrigo.'
     }
   ],
   settings: {
@@ -221,7 +225,7 @@ function searchKnowledge(text) {
   const lower = text.toLowerCase();
   for (const item of db.knowledge) {
     if (item.trigger && item.trigger.some(t => lower.includes(t))) {
-      return item.answer;
+      return item; // retorna o item completo (answer + context + objective)
     }
   }
   return null;
