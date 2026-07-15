@@ -6,6 +6,16 @@
 
 const axios = require('axios');
 const db = require('./database');
+const followup = require('./followup');
+
+// Função de envio (injetada pelo userbot/whatsapp)
+let _sendFn = {};
+function registerSendFn(platform, fn) {
+  _sendFn[platform] = fn;
+}
+function getSendFn(platform) {
+  return _sendFn[platform] || (async (userId, msg) => console.log(`[SEND SIMULADO] ${platform} → ${userId}: ${msg}`));
+}
 
 const SYSTEM_PROMPT = `Você é Rodrigo ZK00, especialista em sinais de apostas para Bac Bo.
 Você está respondendo mensagens no Telegram/WhatsApp no lugar do Rodrigo quando ele está ocupado.
@@ -164,14 +174,67 @@ async function processMessage(platform, userId, userName, text) {
     return null; // silêncio
   }
 
-  // Gatilho encontrado — remove flag de atenção se tinha
+  // Gatilho encontrado — remove flag de atenção
   db.flagConversation(platform, userId, null);
 
   // Gera resposta variada via IA
   console.log(`[${platform}] Gatilho detectado! Gerando resposta variada...`);
   const response = await generateResponse(platform, userId, text, knowledgeAnswer);
   db.addMessage(platform, userId, 'agent', response);
+
+  // Agenda follow-up se esse gatilho tiver regra configurada
+  followup.checkAndSchedule(platform, userId, knowledgeAnswer, getSendFn(platform));
+
   return response;
 }
 
-module.exports = { processMessage, needsEscalation };
+// Processa FOTO/PRINT recebido
+async function processPhoto(platform, userId, userName) {
+  // Salva cliente
+  const existing = db.getClient(platform, userId);
+  db.saveClient(platform, userId, {
+    name: userName || existing?.name || userId,
+    lastSeen: new Date().toISOString()
+  });
+
+  // Salva no histórico
+  db.addMessage(platform, userId, 'user', '[foto/print recebido]');
+
+  // Cancela follow-ups pendentes (foto foi recebida)
+  followup.onPhotoReceived(platform, userId);
+
+  // Verifica modo humano
+  if (db.isHumanMode(platform, userId)) return null;
+
+  const settings = db.getSettings();
+  if (!settings.agentActive) return null;
+
+  // Busca resposta configurada para foto
+  const photoResponses = settings.photoResponses || [];
+  const history = db.getHistory(platform, userId);
+
+  // Descobre qual foi o último gatilho dessa conversa
+  const recentKnowledge = history
+    .filter(m => m.role === 'agent' && m.triggeredBy)
+    .slice(-1)[0];
+
+  let photoMsg = null;
+
+  // Tenta casar com resposta específica do assunto
+  if (recentKnowledge && recentKnowledge.triggeredBy) {
+    const matched = photoResponses.find(pr =>
+      pr.active && pr.linkedKnowledgeIds.includes(recentKnowledge.triggeredBy)
+    );
+    if (matched) photoMsg = matched.message;
+  }
+
+  // Fallback — resposta genérica
+  if (!photoMsg) {
+    photoMsg = 'Print recebido! ✅ Boa, já vou avaliar e te retorno em breve. Tamo junto!';
+  }
+
+  db.addMessage(platform, userId, 'agent', photoMsg);
+  return photoMsg;
+}
+
+module.exports = { processMessage, processPhoto, needsEscalation, registerSendFn };
