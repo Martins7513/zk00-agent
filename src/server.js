@@ -223,13 +223,15 @@ app.listen(PORT, async () => {
 ╚══════════════════════════════════════╝
   `);
 
-  // Tenta iniciar userbot se já tiver sessão salva
+  // Tenta iniciar userbot — busca sessão de todas as fontes automaticamente
   const settings = db.getSettings();
-  if (process.env.TELEGRAM_SESSION || settings.telegramSession) {
-    process.env.TELEGRAM_SESSION = process.env.TELEGRAM_SESSION || settings.telegramSession;
+  const savedSession = process.env.TELEGRAM_SESSION || settings.telegramSession || '';
+  if (savedSession && savedSession.length > 10) {
+    process.env.TELEGRAM_SESSION = savedSession;
+    console.log('[SERVER] Sessão do Telegram encontrada — iniciando userbot...');
     await userbot.initUserbot();
   } else {
-    console.log('[USERBOT] Sem sessão — acesse o painel para autenticar');
+    console.log('[SERVER] Sem sessão do Telegram — acesse o painel → Integrações para autenticar');
   }
 
   // WhatsApp
