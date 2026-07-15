@@ -75,6 +75,20 @@ const DEFAULT_DB = {
       trigger: ['link', 'casa', 'plataforma', 'onde jogar', 'qual casa'],
       question: 'Qual a casa de apostas?',
       answer: 'Trabalhamos com casas parceiras regulamentadas. Me manda mensagem que te passo o link com o bônus de cadastro! 🔗'
+    },
+    {
+      id: 'k9',
+      type: 'faq',
+      trigger: ['dobra', 'dobra de banca', 'operar junto', 'ao vivo com voce', 'garantia de banca', 'opera comigo', 'operar comigo', 'sessao ao vivo', 'dobrar banca', 'quero dobra'],
+      question: 'O que e a Dobra de Banca?',
+      answer: 'A Dobra de Banca e um programa exclusivo onde a gente opera juntos ao vivo. Voce opera com seu capital e eu com o meu, usando minhas analises. O diferencial: se voce perder na sessao, eu devolvo o valor. Eu assumo o risco total da sua banca. As vagas sao limitadas e eu escolho quem entra. Pra participar voce precisa se cadastrar na casa parceira, fazer um deposito e me mandar o print do saldo. Ai eu avalio e te chamo pra proxima sessao. Bora pra cima!'
+    },
+    {
+      id: 'k10',
+      type: 'faq',
+      trigger: ['como participar', 'quero participar', 'como entrar dobra', 'quero operar', 'proxima sessao'],
+      question: 'Como participar da Dobra de Banca?',
+      answer: 'Simples: se cadastra na casa parceira pelo meu link, faz o deposito e me manda o print do saldo aqui. Eu analiso e, se tiver vaga, te chamo pra proxima sessao ao vivo. As vagas sao bem disputadas porque eu opero junto e dou garantia da banca. Me manda o print!'
     }
   ],
   settings: {
