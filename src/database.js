@@ -1,181 +1,229 @@
 // ============================================
 // DATABASE — ZK00 Agent
-// Banco SQLite local (Railway persiste automaticamente)
+// Banco persistente com dados fixos embutidos
+// Usa arquivo JSON + fallback para memória
 // ============================================
 
 const path = require('path');
 const fs = require('fs');
 
-// Usa SQLite em memória-like via JSON para compatibilidade máxima
-// (não precisa instalar nada além do Node)
-const DB_PATH = path.join(__dirname, '../data/zk00.json');
+// Tenta salvar em /data (Railway Volume) ou /tmp como fallback
+const DATA_DIRS = [
+  '/data',
+  path.join(__dirname, '../data'),
+  '/tmp/zk00data'
+];
 
-// Garante que a pasta data existe
-if (!fs.existsSync(path.join(__dirname, '../data'))) {
-  fs.mkdirSync(path.join(__dirname, '../data'), { recursive: true });
+let DATA_DIR = null;
+let DB_PATH = null;
+
+// Encontra um diretório gravável
+for (const dir of DATA_DIRS) {
+  try {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const testFile = path.join(dir, '.write_test');
+    fs.writeFileSync(testFile, 'ok');
+    fs.unlinkSync(testFile);
+    DATA_DIR = dir;
+    DB_PATH = path.join(dir, 'zk00.json');
+    console.log(`[DB] Usando diretório: ${dir}`);
+    break;
+  } catch (e) {
+    console.log(`[DB] Diretório ${dir} não gravável, tentando próximo...`);
+  }
 }
 
-// Estrutura inicial do banco
-const DEFAULT_DB = {
-  clients: {},
-  conversations: {},
-  knowledge: [
+// ==============================
+// DADOS FIXOS — nunca se perdem
+// Seus dados reais já estão aqui
+// ==============================
+const FIXED_KNOWLEDGE = [
+  {
+    id: 'k1', type: 'faq',
+    trigger: ['como funciona', 'o que é', 'robô', 'sinais', 'bac bo'],
+    question: 'Como funciona o robô de sinais?',
+    answer: 'O robô analisa padrões em tempo real no Bac Bo e manda os sinais direto aqui, 24h por dia. Você só segue e aposta. Tamo junto! 🎯'
+  },
+  {
+    id: 'k2', type: 'faq',
+    trigger: ['deposito', 'depósito', 'como entrar', 'cadastro', 'cadastrar'],
+    question: 'Como faço o depósito e entro no grupo?',
+    answer: 'Simples! Você se cadastra na casa parceira pelo meu link, faz o depósito e me manda o print do saldo. Aí te coloco no VIP na hora. Fica tranquilo que te explico tudo! 📲'
+  },
+  {
+    id: 'k3', type: 'faq',
+    trigger: ['vip', 'grupo vip', 'grupo'],
+    question: 'O que é o Grupo VIP?',
+    answer: 'No VIP você recebe os sinais em primeira mão, análise completa das entradas e suporte direto. É onde estão os membros mais ativos. Bora pra cima! 🏆'
+  },
+  {
+    id: 'k4', type: 'faq',
+    trigger: ['live', 'horario', 'horário', 'quando', 'transmissão'],
+    question: 'Qual o horário das lives?',
+    answer: 'As lives acontecem de segunda a sexta a partir das 20h no canal do Telegram. Fica de olho lá que aviso sempre antes de começar! 🕐'
+  },
+  {
+    id: 'k5', type: 'faq',
+    trigger: ['saque', 'retirar', 'sacar'],
+    question: 'Como faço o saque?',
+    answer: 'O saque é direto pela plataforma da casa. Normalmente cai em até 24h úteis. Qualquer problema me chama que ajudamos! 💰'
+  },
+  {
+    id: 'k6', type: 'faq',
+    trigger: ['gratis', 'gratuito', 'free', 'grupo free'],
+    question: 'Tem grupo gratuito?',
+    answer: 'Sim! Temos o grupo free onde mando alguns sinais e conteúdo. Mas no VIP a qualidade e quantidade de sinais é muito maior. Me manda mensagem que te passo o link do free! 👊'
+  },
+  {
+    id: 'k7', type: 'faq',
+    trigger: ['seguro', 'confiavel', 'funciona mesmo', 'prova'],
+    question: 'É confiável?',
+    answer: 'Vou ser direto: todo jogo tem risco e eu nunca prometo ganho garantido. O que posso te mostrar são os resultados reais dos membros que seguem os sinais. Quer ver os prints? 📊'
+  },
+  {
+    id: 'k8', type: 'faq',
+    trigger: ['link', 'casa', 'plataforma', 'onde jogar', 'qual casa'],
+    question: 'Qual a casa de apostas?',
+    answer: 'Trabalhamos com casas parceiras regulamentadas. Me manda mensagem que te passo o link com o bônus de cadastro! 🔗'
+  },
+  {
+    id: 'k9', type: 'faq',
+    trigger: ['dobra', 'dobra de banca', 'operar junto', 'garantia de banca', 'opera comigo', 'operar comigo', 'sessao ao vivo', 'dobrar banca', 'quero dobra', 'dobra banca'],
+    question: 'O que é a Dobra de Banca?',
+    answer: 'A Dobra de Banca é um programa exclusivo e bem diferente. Não é um grupo — é uma seleção individual. Eu escolho pessoalmente quem vai operar comigo ao vivo. Você opera com seu capital, eu com o meu, usando minhas análises em tempo real. E o diferencial: se você perder na sessão, eu devolvo o valor. Eu assumo o risco. As vagas são bem limitadas porque eu preciso acompanhar cada pessoa de perto. Pra ser avaliado, você precisa se cadastrar na casa parceira, fazer um depósito e me mandar o print do saldo aqui.',
+    context: 'A Dobra de Banca NÃO é um grupo. É um programa de seleção individual feita pelo Rodrigo. Cada pessoa é escolhida pessoalmente. O aluno opera com seu próprio capital, Rodrigo opera com o dele. Rodrigo dá garantia: se o aluno perder na sessão, Rodrigo devolve o valor perdido. As vagas são extremamente limitadas porque Rodrigo precisa operar junto com cada pessoa selecionada.',
+    objective: 'Fazer o lead entender que é algo exclusivo e pessoal, não um grupo. Gerar desejo e senso de privilégio por ser selecionado. Levar o lead a querer ser avaliado e mandar o print do saldo para participar da seleção.'
+  },
+  {
+    id: 'k10', type: 'faq',
+    trigger: ['como participar', 'quero participar', 'como entrar dobra', 'quero operar', 'proxima sessao', 'como sou selecionado'],
+    question: 'Como participar da Dobra de Banca?',
+    answer: 'Pra ser avaliado para a Dobra é simples: se cadastra na casa parceira pelo meu link, faz o depósito e me manda o print do saldo aqui. Eu analiso o perfil e, se você for selecionado, te chamo pessoalmente para a próxima sessão.',
+    context: 'A seleção é feita pelo Rodrigo com base no perfil do lead. Não é automático — Rodrigo avalia cada pessoa individualmente antes de selecionar.',
+    objective: 'Levar o lead ao próximo passo concreto: se cadastrar na casa parceira e mandar o print do saldo para ser avaliado por Rodrigo.'
+  }
+];
+
+const FIXED_SETTINGS = {
+  agentName: 'Rodrigo ZK00',
+  agentActive: true,
+  humanModeChats: [],
+  liveSchedule: 'Segunda a Sexta, 20h',
+  welcomeMessage: 'Oi! Tamo junto 👊 Vi que você chegou aqui, como posso te ajudar?',
+  offlineMessage: 'Oi! Estou offline agora mas já volto. Pode deixar sua mensagem que respondo em breve! 🤝',
+  escalationTriggers: [
+    'problema financeiro', 'conta bloqueada', 'bloqueou', 'bloquearam',
+    'parceria', 'patrocínio', 'jurídico', 'advogado', 'processo',
+    'reclamação grave', 'me enganou', 'golpe', 'fraude', 'chargeBack'
+  ],
+  followupRules: [
     {
-      id: 'k1',
-      type: 'faq',
-      trigger: ['como funciona', 'o que é', 'robô', 'sinais', 'bac bo'],
-      question: 'Como funciona o robô de sinais?',
-      answer: 'O robô analisa padrões em tempo real no Bac Bo e manda os sinais direto aqui, 24h por dia. Você só segue e aposta. Tamo junto! 🎯'
+      id: 'fu1',
+      name: 'Print não enviado — Dobra de Banca',
+      active: true,
+      triggerKnowledgeIds: ['k9', 'k10'],
+      cancelOn: 'photo',
+      delay: 10,
+      message: 'Oi! Só passando pra lembrar que ainda preciso do print com seu saldo pra te avaliar pra Dobra. Me manda aqui quando puder! 📲'
     },
     {
-      id: 'k2',
-      type: 'faq',
-      trigger: ['deposito', 'depósito', 'como entrar', 'cadastro', 'cadastrar'],
-      question: 'Como faço o depósito e entro no grupo?',
-      answer: 'Simples! Você se cadastra na casa parceira pelo meu link, faz o depósito e me manda o print do saldo. Aí te coloco no VIP na hora. Fica tranquilo que te explico tudo! 📲'
-    },
-    {
-      id: 'k3',
-      type: 'faq',
-      trigger: ['vip', 'grupo vip', 'grupo'],
-      question: 'O que é o Grupo VIP?',
-      answer: 'No VIP você recebe os sinais em primeira mão, análise completa das entradas e suporte direto. É onde estão os membros mais ativos. Bora pra cima! 🏆'
-    },
-    {
-      id: 'k4',
-      type: 'faq',
-      trigger: ['live', 'horario', 'horário', 'quando', 'transmissão'],
-      question: 'Qual o horário das lives?',
-      answer: 'As lives acontecem de segunda a sexta a partir das 20h no canal do Telegram. Fica de olho lá que aviso sempre antes de começar! 🕐'
-    },
-    {
-      id: 'k5',
-      type: 'faq',
-      trigger: ['saque', 'retirar', 'sacar'],
-      question: 'Como faço o saque?',
-      answer: 'O saque é direto pela plataforma da casa. Normalmente cai em até 24h úteis. Qualquer problema me chama que ajudamos! 💰'
-    },
-    {
-      id: 'k6',
-      type: 'faq',
-      trigger: ['gratis', 'gratuito', 'free', 'grupo free'],
-      question: 'Tem grupo gratuito?',
-      answer: 'Sim! Temos o grupo free onde mando alguns sinais e conteúdo. Mas no VIP a qualidade e quantidade de sinais é muito maior. Me manda mensagem que te passo o link do free! 👊'
-    },
-    {
-      id: 'k7',
-      type: 'faq',
-      trigger: ['seguro', 'confiavel', 'funciona mesmo', 'prova'],
-      question: 'É confiável?',
-      answer: 'Vou ser direto: todo jogo tem risco e eu nunca prometo ganho garantido. O que posso te mostrar são os resultados reais dos membros que seguem os sinais. Quer ver os prints? 📊'
-    },
-    {
-      id: 'k8',
-      type: 'faq',
-      trigger: ['link', 'casa', 'plataforma', 'onde jogar', 'qual casa'],
-      question: 'Qual a casa de apostas?',
-      answer: 'Trabalhamos com casas parceiras regulamentadas. Me manda mensagem que te passo o link com o bônus de cadastro! 🔗'
-    },
-    {
-      id: 'k9',
-      type: 'faq',
-      trigger: ['dobra', 'dobra de banca', 'operar junto', 'garantia de banca', 'opera comigo', 'operar comigo', 'sessao ao vivo', 'dobrar banca', 'quero dobra', 'dobra banca'],
-      question: 'O que e a Dobra de Banca?',
-      answer: 'A Dobra de Banca e um programa exclusivo e bem diferente. Nao e um grupo — e uma selecao individual. Eu escolho pessoalmente quem vai operar comigo ao vivo. Voce opera com seu capital, eu com o meu, usando minhas analises em tempo real. E o diferencial: se voce perder na sessao, eu devolvo o valor. Eu assumo o risco. As vagas sao bem limitadas porque eu preciso acompanhar cada pessoa de perto. Pra ser avaliado, voce precisa se cadastrar na casa parceira, fazer um deposito e me mandar o print do saldo aqui.',
-      context: 'A Dobra de Banca NAO e um grupo. E um programa de selecao individual feita pelo Rodrigo. Cada pessoa e escolhida pessoalmente. O aluno opera com seu proprio capital, Rodrigo opera com o dele. Rodrigo da garantia: se o aluno perder na sessao, Rodrigo devolve o valor perdido. As vagas sao extremamente limitadas porque Rodrigo precisa operar junto com cada pessoa selecionada.',
-      objective: 'Fazer o lead entender que e algo exclusivo e pessoal, nao um grupo. Gerar desejo e senso de privilegio por ser selecionado. Levar o lead a querer ser avaliado e mandar o print do saldo para participar da selecao.'
-    },
-    {
-      id: 'k10',
-      type: 'faq',
-      trigger: ['como participar', 'quero participar', 'como entrar dobra', 'quero operar', 'proxima sessao', 'como sou selecionado'],
-      question: 'Como participar da Dobra de Banca?',
-      answer: 'Pra ser avaliado para a Dobra e simples: se cadastra na casa parceira pelo meu link, faz o deposito e me manda o print do saldo aqui. Eu analiso o perfil e, se voce for selecionado, te chamo pessoalmente para a proxima sessao.',
-      context: 'A selecao e feita pelo Rodrigo com base no perfil do lead. Nao e automatico — Rodrigo avalia cada pessoa individualmente antes de selecionar.',
-      objective: 'Levar o lead ao proximo passo concreto: se cadastrar na casa parceira e mandar o print do saldo para ser avaliado por Rodrigo.'
+      id: 'fu2',
+      name: 'Print não enviado — VIP',
+      active: true,
+      triggerKnowledgeIds: ['k2', 'k3'],
+      cancelOn: 'photo',
+      delay: 10,
+      message: 'Ei, tudo certo? Lembra que pra entrar no VIP só precisamos do print do saldo. Me manda aqui e já te coloco na lista! 🔗'
     }
   ],
-  settings: {
-    agentName: 'Rodrigo ZK00',
-    agentActive: true,
-    humanModeChats: [],
-    liveSchedule: 'Segunda a Sexta, 20h',
-    welcomeMessage: 'Oi! Tamo junto 👊 Vi que você chegou aqui, como posso te ajudar?',
-    offlineMessage: 'Oi! Estou offline agora mas já volto. Pode deixar sua mensagem que respondo em breve! 🤝',
-    escalationTriggers: [
-      'problema financeiro', 'conta bloqueada', 'bloqueou', 'bloquearam',
-      'parceria', 'patrocínio', 'jurídico', 'advogado', 'processo',
-      'reclamação grave', 'me enganou', 'golpe', 'fraude', 'chargeBack'
-    ],
-    followupRules: [
-      {
-        id: 'fu1',
-        name: 'Print não enviado — Dobra de Banca',
-        active: true,
-        triggerKnowledgeIds: ['k9', 'k10'],
-        cancelOn: 'photo',
-        delay: 10,
-        message: 'Oi! Só passando pra lembrar que ainda preciso do print com seu saldo pra te avaliar pra Dobra. Me manda aqui quando puder! 📲'
-      },
-      {
-        id: 'fu2',
-        name: 'Print não enviado — VIP',
-        active: true,
-        triggerKnowledgeIds: ['k2', 'k3'],
-        cancelOn: 'photo',
-        delay: 10,
-        message: 'Ei, tudo certo? Lembra que pra entrar no VIP só precisamos do print do saldo. Me manda aqui e já te coloco na lista! 🔗'
-      }
-    ],
-    photoResponses: [
-      {
-        id: 'pr1',
-        name: 'Print recebido — Dobra de Banca',
-        active: true,
-        linkedKnowledgeIds: ['k9', 'k10'],
-        message: 'Boa! Print recebido ✅ Agora é só aguardar — vou avaliar seu perfil e, se você for selecionado, te chamo pessoalmente antes da próxima sessão. Fique de olho!'
-      },
-      {
-        id: 'pr2',
-        name: 'Print recebido — VIP',
-        active: true,
-        linkedKnowledgeIds: ['k2', 'k3'],
-        message: 'Print recebido! ✅ Perfeito. Já vou confirmar e te adicionar no VIP. Fique ligado que te chamo em breve!'
-      }
-    ]
-  }
+  photoResponses: [
+    {
+      id: 'pr1',
+      name: 'Print recebido — Dobra de Banca',
+      active: true,
+      linkedKnowledgeIds: ['k9', 'k10'],
+      message: 'Boa! Print recebido ✅ Agora é só aguardar — vou avaliar seu perfil e, se você for selecionado, te chamo pessoalmente antes da próxima sessão. Fique de olho!'
+    },
+    {
+      id: 'pr2',
+      name: 'Print recebido — VIP',
+      active: true,
+      linkedKnowledgeIds: ['k2', 'k3'],
+      message: 'Print recebido! ✅ Perfeito. Já vou confirmar e te adicionar no VIP. Fique ligado que te chamo em breve!'
+    }
+  ]
 };
 
-// Carrega o banco
-function loadDB() {
-  try {
-    if (fs.existsSync(DB_PATH)) {
-      const raw = fs.readFileSync(DB_PATH, 'utf8');
-      return JSON.parse(raw);
-    }
-  } catch (e) {}
-  return JSON.parse(JSON.stringify(DEFAULT_DB));
+// Estrutura base do banco
+function getDefaultDB() {
+  return {
+    clients: {},
+    conversations: {},
+    knowledge: JSON.parse(JSON.stringify(FIXED_KNOWLEDGE)),
+    settings: JSON.parse(JSON.stringify(FIXED_SETTINGS))
+  };
 }
 
-// Salva o banco
+// ==============================
+// CARREGA O BANCO
+// ==============================
+function loadDB() {
+  if (DB_PATH) {
+    try {
+      if (fs.existsSync(DB_PATH)) {
+        const raw = fs.readFileSync(DB_PATH, 'utf8');
+        const saved = JSON.parse(raw);
+
+        // Garante que o knowledge fixo sempre está presente
+        // Adiciona itens fixos que não existem no banco salvo
+        const savedIds = (saved.knowledge || []).map(k => k.id);
+        for (const item of FIXED_KNOWLEDGE) {
+          if (!savedIds.includes(item.id)) {
+            saved.knowledge = saved.knowledge || [];
+            saved.knowledge.push(item);
+          }
+        }
+
+        // Garante estrutura de settings com fallback para valores fixos
+        saved.settings = { ...FIXED_SETTINGS, ...saved.settings };
+
+        console.log(`[DB] Banco carregado: ${saved.knowledge.length} conhecimentos, ${Object.keys(saved.clients || {}).length} clientes`);
+        return saved;
+      }
+    } catch (e) {
+      console.error('[DB] Erro ao carregar banco:', e.message);
+    }
+  }
+  console.log('[DB] Iniciando banco novo com dados padrão');
+  return getDefaultDB();
+}
+
+// ==============================
+// SALVA O BANCO
+// ==============================
 function saveDB(db) {
+  if (!DB_PATH) {
+    // Sem diretório gravável — só memória
+    return;
+  }
   try {
     fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
   } catch (e) {
-    console.error('Erro ao salvar banco:', e.message);
+    console.error('[DB] Erro ao salvar:', e.message);
   }
 }
 
-// Inicializa o banco em memória
+// Banco em memória
 let db = loadDB();
+
+// Salva a cada 30 segundos automaticamente (proteção extra)
+setInterval(() => saveDB(db), 30000);
 
 // ==============================
 // CLIENTS
 // ==============================
-
 function getClient(platform, userId) {
-  const key = `${platform}_${userId}`;
-  return db.clients[key] || null;
+  return db.clients[`${platform}_${userId}`] || null;
 }
 
 function saveClient(platform, userId, data) {
@@ -187,98 +235,82 @@ function saveClient(platform, userId, data) {
     userId,
     updatedAt: new Date().toISOString()
   };
-  if (!db.clients[key].createdAt) {
-    db.clients[key].createdAt = new Date().toISOString();
-  }
+  if (!db.clients[key].createdAt) db.clients[key].createdAt = new Date().toISOString();
   saveDB(db);
   return db.clients[key];
 }
 
 function getAllClients() {
-  return Object.values(db.clients).sort((a, b) =>
-    new Date(b.updatedAt) - new Date(a.updatedAt)
-  );
+  return Object.values(db.clients).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 }
 
 // ==============================
 // CONVERSATIONS
 // ==============================
-
 function getHistory(platform, userId) {
-  const key = `${platform}_${userId}`;
-  return db.conversations[key] || [];
+  return db.conversations[`${platform}_${userId}`] || [];
 }
 
 function addMessage(platform, userId, role, content) {
   const key = `${platform}_${userId}`;
   if (!db.conversations[key]) db.conversations[key] = [];
-
-  db.conversations[key].push({
-    role,
-    content,
-    timestamp: new Date().toISOString()
-  });
-
-  // Mantém apenas as últimas 40 mensagens por conversa
+  db.conversations[key].push({ role, content, timestamp: new Date().toISOString() });
   if (db.conversations[key].length > 40) {
     db.conversations[key] = db.conversations[key].slice(-40);
   }
-
   saveDB(db);
 }
 
 function getRecentConversations(limit = 20) {
   const result = [];
   for (const [key, msgs] of Object.entries(db.conversations)) {
-    if (msgs.length === 0) continue;
+    if (!msgs.length) continue;
     const [platform, ...rest] = key.split('_');
     const userId = rest.join('_');
     const client = db.clients[key] || {};
     const last = msgs[msgs.length - 1];
     result.push({
-      key,
-      platform,
-      userId,
+      key, platform, userId,
       clientName: client.name || userId,
       lastMessage: last.content,
       lastRole: last.role,
       lastTime: last.timestamp,
       unread: msgs.filter(m => m.role === 'user' && !m.read).length,
-      isHumanMode: db.settings.humanModeChats.includes(key),
+      isHumanMode: (db.settings.humanModeChats || []).includes(key),
       flag: client.flag || null
     });
   }
-  return result
-    .sort((a, b) => new Date(b.lastTime) - new Date(a.lastTime))
-    .slice(0, limit);
+  return result.sort((a, b) => new Date(b.lastTime) - new Date(a.lastTime)).slice(0, limit);
 }
 
 // ==============================
 // KNOWLEDGE
 // ==============================
-
 function searchKnowledge(text) {
   const lower = text.toLowerCase();
   for (const item of db.knowledge) {
-    if (item.trigger && item.trigger.some(t => lower.includes(t))) {
-      return item; // retorna o item completo (answer + context + objective)
+    if (item.trigger && item.trigger.some(t => lower.includes(t.toLowerCase()))) {
+      return item;
     }
   }
   return null;
 }
 
-function getAllKnowledge() {
-  return db.knowledge;
-}
+function getAllKnowledge() { return db.knowledge; }
 
 function addKnowledge(item) {
   const newItem = {
-    id: item.id || ('k' + Date.now()), // preserva ID se for edição
+    id: item.id || ('k' + Date.now()),
     ...item,
     updatedAt: new Date().toISOString()
   };
   if (!newItem.createdAt) newItem.createdAt = new Date().toISOString();
-  db.knowledge.push(newItem);
+
+  // Se tem ID existente, substitui
+  const idx = db.knowledge.findIndex(k => k.id === newItem.id);
+  if (idx >= 0) db.knowledge[idx] = newItem;
+  else db.knowledge.push(newItem);
+
   saveDB(db);
   return newItem;
 }
@@ -291,10 +323,7 @@ function deleteKnowledge(id) {
 // ==============================
 // SETTINGS
 // ==============================
-
-function getSettings() {
-  return db.settings;
-}
+function getSettings() { return db.settings; }
 
 function updateSettings(updates) {
   db.settings = { ...db.settings, ...updates };
@@ -303,12 +332,12 @@ function updateSettings(updates) {
 }
 
 function isHumanMode(platform, userId) {
-  const key = `${platform}_${userId}`;
-  return db.settings.humanModeChats.includes(key);
+  return (db.settings.humanModeChats || []).includes(`${platform}_${userId}`);
 }
 
 function setHumanMode(platform, userId, active) {
   const key = `${platform}_${userId}`;
+  if (!db.settings.humanModeChats) db.settings.humanModeChats = [];
   if (active && !db.settings.humanModeChats.includes(key)) {
     db.settings.humanModeChats.push(key);
   } else if (!active) {
@@ -317,23 +346,22 @@ function setHumanMode(platform, userId, active) {
   saveDB(db);
 }
 
-// Flag de atenção — marca conversa em vermelho quando sem gatilho
 function flagConversation(platform, userId, flag) {
   const key = `${platform}_${userId}`;
-  if (!db.clients[key]) return;
-  db.clients[key].flag = flag; // 'attention' ou null
+  if (!db.clients[key]) db.clients[key] = { platform, userId };
+  db.clients[key].flag = flag;
   saveDB(db);
 }
 
-// Estatísticas
+// ==============================
+// STATS
+// ==============================
 function getStats() {
-  const clients = Object.values(db.clients);
   const allMsgs = Object.values(db.conversations).flat();
   const today = new Date().toDateString();
   const todayMsgs = allMsgs.filter(m => new Date(m.timestamp).toDateString() === today);
-
   return {
-    totalClients: clients.length,
+    totalClients: Object.keys(db.clients).length,
     totalConversations: Object.keys(db.conversations).length,
     totalMessages: allMsgs.length,
     todayMessages: todayMsgs.length,
@@ -341,8 +369,22 @@ function getStats() {
       msgs.some(m => new Date(m.timestamp).toDateString() === today)
     ).length,
     agentActive: db.settings.agentActive,
-    humanModeCount: db.settings.humanModeChats.length
+    humanModeCount: (db.settings.humanModeChats || []).length
   };
+}
+
+// Exporta backup completo
+function exportBackup() {
+  return JSON.parse(JSON.stringify(db));
+}
+
+// Importa backup
+function importBackup(data) {
+  if (data.knowledge) db.knowledge = data.knowledge;
+  if (data.settings) db.settings = { ...FIXED_SETTINGS, ...data.settings };
+  if (data.clients) db.clients = data.clients;
+  if (data.conversations) db.conversations = data.conversations;
+  saveDB(db);
 }
 
 module.exports = {
@@ -350,5 +392,5 @@ module.exports = {
   getHistory, addMessage, getRecentConversations,
   searchKnowledge, getAllKnowledge, addKnowledge, deleteKnowledge,
   getSettings, updateSettings, isHumanMode, setHumanMode,
-  flagConversation, getStats
+  flagConversation, getStats, exportBackup, importBackup
 };
