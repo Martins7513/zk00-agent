@@ -58,8 +58,13 @@ function needsEscalation(text) {
 }
 
 // Gera resposta variada via Claude API
-async function generateResponse(platform, userId, userMessage, knowledgeBase) {
+async function generateResponse(platform, userId, userMessage, knowledgeItem) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
+
+  // Extrai campos do item de conhecimento
+  const knowledgeBase = typeof knowledgeItem === 'string' ? knowledgeItem : (knowledgeItem.answer || '');
+  const context = knowledgeItem.context || '';
+  const objective = knowledgeItem.objective || '';
 
   // Sem API key — retorna a resposta base diretamente
   if (!apiKey || apiKey.includes('COLOQUE')) {
@@ -74,6 +79,15 @@ async function generateResponse(platform, userId, userMessage, knowledgeBase) {
     clientContext = `\n[NOME DO LEAD: ${client.name}]`;
   }
 
+  // Contexto e objetivo do gatilho
+  let knowledgeContext = `\n\n[RESPOSTA BASE — reescreva com suas palavras]: ${knowledgeBase}`;
+  if (context) {
+    knowledgeContext += `\n[CONTEXTO DO ASSUNTO]: ${context}`;
+  }
+  if (objective) {
+    knowledgeContext += `\n[OBJETIVO DESTA CONVERSA]: ${objective}`;
+  }
+
   // Histórico recente para variar respostas
   const recentHistory = history.slice(-16);
   const messages = [];
@@ -86,8 +100,7 @@ async function generateResponse(platform, userId, userMessage, knowledgeBase) {
   messages.push({ role: 'user', content: userMessage });
 
   // Instrução clara: use a base, varie naturalmente
-  const systemFinal = SYSTEM_PROMPT + clientContext +
-    `\n\n[RESPOSTA BASE — use como referência, reescreva com suas palavras]: ${knowledgeBase}`;
+  const systemFinal = SYSTEM_PROMPT + clientContext + knowledgeContext;
 
   try {
     const response = await axios.post(
