@@ -175,6 +175,49 @@ app.get('/api/integrations/whatsapp/qr', authMiddleware, async (req, res) => {
 });
 
 // ==============================
+// ANALISADOR DE CONVERSAS
+// ==============================
+app.post('/api/analyze-conversations', authMiddleware, async (req, res) => {
+  const { prompt, messageCount } = req.body;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+
+  if (!apiKey || apiKey.includes('COLOQUE')) {
+    return res.status(400).json({ error: 'API key não configurada' });
+  }
+
+  try {
+    const axios = require('axios');
+    const response = await axios.post(
+      'https://api.anthropic.com/v1/messages',
+      {
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }]
+      },
+      {
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json'
+        },
+        timeout: 30000
+      }
+    );
+
+    const text = response.data.content[0].text;
+    // Extrai JSON da resposta
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(500).json({ error: 'Formato inválido na resposta da IA' });
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    res.json(parsed);
+  } catch (err) {
+    console.error('[ANALYZER]', err.response?.data || err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==============================
 // BACKUP & RESTORE
 // ==============================
 app.get('/api/backup', authMiddleware, (req, res) => {
