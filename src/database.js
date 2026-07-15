@@ -106,6 +106,42 @@ const DEFAULT_DB = {
       'problema financeiro', 'conta bloqueada', 'bloqueou', 'bloquearam',
       'parceria', 'patrocínio', 'jurídico', 'advogado', 'processo',
       'reclamação grave', 'me enganou', 'golpe', 'fraude', 'chargeBack'
+    ],
+    followupRules: [
+      {
+        id: 'fu1',
+        name: 'Print não enviado — Dobra de Banca',
+        active: true,
+        triggerKnowledgeIds: ['k9', 'k10'],
+        cancelOn: 'photo',
+        delay: 10,
+        message: 'Oi! Só passando pra lembrar que ainda preciso do print com seu saldo pra te avaliar pra Dobra. Me manda aqui quando puder! 📲'
+      },
+      {
+        id: 'fu2',
+        name: 'Print não enviado — VIP',
+        active: true,
+        triggerKnowledgeIds: ['k2', 'k3'],
+        cancelOn: 'photo',
+        delay: 10,
+        message: 'Ei, tudo certo? Lembra que pra entrar no VIP só precisamos do print do saldo. Me manda aqui e já te coloco na lista! 🔗'
+      }
+    ],
+    photoResponses: [
+      {
+        id: 'pr1',
+        name: 'Print recebido — Dobra de Banca',
+        active: true,
+        linkedKnowledgeIds: ['k9', 'k10'],
+        message: 'Boa! Print recebido ✅ Agora é só aguardar — vou avaliar seu perfil e, se você for selecionado, te chamo pessoalmente antes da próxima sessão. Fique de olho!'
+      },
+      {
+        id: 'pr2',
+        name: 'Print recebido — VIP',
+        active: true,
+        linkedKnowledgeIds: ['k2', 'k3'],
+        message: 'Print recebido! ✅ Perfeito. Já vou confirmar e te adicionar no VIP. Fique ligado que te chamo em breve!'
+      }
     ]
   }
 };
