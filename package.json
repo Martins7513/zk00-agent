@@ -1,0 +1,18 @@
+{
+  "name": "zk00-agent",
+  "version": "1.0.0",
+  "description": "Agente IA — Rodrigo ZK00 (Telegram + WhatsApp)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.0",
+    "node-telegram-bot-api": "^0.64.0",
+    "better-sqlite3": "^9.4.3"
+  }
+}
