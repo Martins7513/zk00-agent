@@ -1,8 +1,0 @@
-# Railway deployment configuration
-[build]
-builder = "nixpacks"
-
-[deploy]
-startCommand = "node src/server.js"
-restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 3
