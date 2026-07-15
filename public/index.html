@@ -687,17 +687,17 @@ function renderConvList(convs) {
     return;
   }
   el.innerHTML = convs.map(c => `
-    <div class="conv-item ${currentChat?.key===c.key?'active':''}" onclick="selectConv(${JSON.stringify(c).replace(/"/g,'&quot;')})">
-      <div class="avatar" style="background:${c.platform==='telegram'?'rgba(42,171,238,.15)':'rgba(37,211,102,.15)'};color:${c.platform==='telegram'?'var(--tg)':'var(--wa)'}">
+    <div class="conv-item ${currentChat?.key===c.key?'active':''}" onclick="selectConv(${JSON.stringify(c).replace(/"/g,'&quot;')})" style="${c.flag==='attention'?'border-left:3px solid var(--red);':''}">
+      <div class="avatar" style="background:${c.flag==='attention'?'rgba(239,68,68,.15)':c.platform==='telegram'?'rgba(42,171,238,.15)':'rgba(37,211,102,.15)'};color:${c.flag==='attention'?'var(--red)':c.platform==='telegram'?'var(--tg)':'var(--wa)'}">
         ${c.clientName?.charAt(0)?.toUpperCase()||'?'}
       </div>
       <div class="conv-info">
-        <div class="conv-name">${c.clientName} <span style="font-size:10px;color:${c.isHumanMode?'var(--yellow)':'var(--text3)'}">${c.isHumanMode?'👤 Humano':c.platform==='telegram'?'TG':'WA'}</span></div>
-        <div class="conv-last">${c.lastMessage?.substring(0,40)||''}</div>
+        <div class="conv-name">${c.clientName} <span style="font-size:10px;color:${c.flag==='attention'?'var(--red)':c.isHumanMode?'var(--yellow)':'var(--text3)'}">${c.flag==='attention'?'⚠️ Atenção':c.isHumanMode?'👤 Humano':c.platform==='telegram'?'TG':'WA'}</span></div>
+        <div class="conv-last" style="${c.flag==='attention'?'color:var(--red);':''}">${c.lastMessage?.substring(0,40)||''}</div>
       </div>
       <div class="conv-meta">
         <span class="conv-time">${timeAgo(c.lastTime)}</span>
-        ${c.unread>0?`<span class="unread-badge">${c.unread}</span>`:''}
+        ${c.flag==='attention'?'<span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block"></span>':c.unread>0?`<span class="unread-badge">${c.unread}</span>`:''}
       </div>
     </div>
   `).join('');
