@@ -25,7 +25,7 @@ function authMiddleware(req, res, next) {
 
   // 1. Senha admin direta
   if (token === adminPass) {
-    req.user = { id: 'admin', username: 'admin', name: 'Rodrigo ZK00', role: 'admin', isAdmin: true };
+    req.user = { id: 'admin', username: 'admin', name: 'FM', role: 'admin', isAdmin: true };
     return next();
   }
 
