@@ -328,7 +328,14 @@
         <div class="kb-card" onclick="openModal('add-knowledge')"><div class="kb-icon">➕</div><div class="kb-title">Adicionar novo</div><div class="kb-count">Clique para adicionar</div></div>
       </div>
       <div class="card" style="margin:0">
-        <div class="card-title">Base de Conhecimento <span>o agente usa essas respostas</span></div>
+        <div class="card-title">Base de Conhecimento <span>o agente usa essas respostas</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="exportKnowledge()" title="Baixar base de conhecimento">⬇️ Exportar</button>
+            <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('kb-import-input').click()" title="Importar base de conhecimento">⬆️ Importar</button>
+            <input type="file" id="kb-import-input" accept=".json" style="display:none" onchange="importKnowledge(this)">
+            <button class="btn ghost" style="font-size:11px;padding:4px 10px;color:var(--purple);border-color:rgba(139,92,246,.3)" onclick="openModal('transfer-knowledge')" title="Copiar para outro usuário">🔄 Transferir</button>
+          </div>
+        </div>
         <div id="knowledge-list"><div class="loading">Carregando...</div></div>
       </div>
     </div>
@@ -728,6 +735,30 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="closeModal('add-knowledge')">Cancelar</button>
       <button class="btn primary" onclick="saveKnowledge()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: TRANSFER KNOWLEDGE -->
+<div class="modal-overlay" id="modal-transfer-knowledge">
+  <div class="modal">
+    <div class="modal-title">🔄 Transferir Base de Conhecimento <button class="close-btn" onclick="closeModal('transfer-knowledge')">✕</button></div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.7">
+      Copia todos os gatilhos da sua base de conhecimento para outro usuário do sistema.<br>
+      O usuário de destino já precisa ter feito login pelo menos uma vez.
+    </p>
+    <div class="form-group">
+      <label class="form-label">Usuário de destino</label>
+      <select class="form-select" id="transfer-target-user">
+        <option value="">Selecione um usuário...</option>
+      </select>
+    </div>
+    <div style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--purple);margin-bottom:14px">
+      ⚡ A base de conhecimento é compartilhada entre todos os usuários do sistema.<br>
+      Todos já têm acesso aos mesmos gatilhos automaticamente!
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('transfer-knowledge')">Fechar</button>
     </div>
   </div>
 </div>
@@ -1903,6 +1934,70 @@ async function sendNewAccPassword() {
     showNotif('✅ Conta conectada com 2FA!', 'green');
     setTimeout(() => { closeModal('add-account'); loadAccounts(); }, 1500);
   } else showNotif('Erro: ' + res.error, 'red');
+}
+
+// ============================================
+// EXPORTAR / IMPORTAR BASE DE CONHECIMENTO
+// ============================================
+async function exportKnowledge() {
+  const items = await api('GET', '/api/knowledge');
+  if (!items || items.error) return showNotif('Erro ao carregar base de conhecimento', 'red');
+
+  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'base-conhecimento-zk00-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showNotif(`✅ ${items.length} gatilhos exportados!`, 'green');
+}
+
+async function importKnowledge(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const items = JSON.parse(text);
+
+    if (!Array.isArray(items)) return showNotif('Arquivo inválido — deve ser um array JSON', 'red');
+
+    const ok = confirm(
+      `Importar ${items.length} gatilhos?
+
+` +
+      `Isso vai ADICIONAR os gatilhos à base atual (não apaga os existentes).
+
+` +
+      `Gatilhos que já existem com mesmo ID serão atualizados.`
+    );
+    if (!ok) { input.value = ''; return; }
+
+    showNotif('Importando...', '');
+    let saved = 0;
+    let failed = 0;
+
+    for (const item of items) {
+      try {
+        const res = await fetch('/api/knowledge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-token': TOKEN },
+          body: JSON.stringify(item)
+        });
+        if (res.ok) saved++;
+        else failed++;
+      } catch(e) { failed++; }
+    }
+
+    input.value = '';
+    await loadKnowledge();
+    showNotif(`✅ ${saved} gatilhos importados${failed > 0 ? `, ${failed} falhas` : ''}!`, 'green');
+
+  } catch(e) {
+    showNotif('Erro ao ler arquivo: ' + e.message, 'red');
+    input.value = '';
+  }
 }
 
 // ============================================
