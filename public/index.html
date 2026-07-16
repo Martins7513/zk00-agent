@@ -232,6 +232,12 @@
     <div class="nav-item" onclick="showTab('test',this)">🧪 Testar Agente</div>
     <div class="nav-item" onclick="window.location.href='/analyzer.html'" style="color:var(--purple)">🔍 Analisar Conversas</div>
   </nav>
+  <div style="padding:12px;border-top:1px solid var(--border)">
+    <div style="font-size:11px;color:var(--text3);margin-bottom:6px" id="sidebar-username">Carregando...</div>
+    <button onclick="doLogout()" style="width:100%;background:transparent;border:1px solid var(--border);color:var(--text2);padding:7px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+      🚪 Sair
+    </button>
+  </div>
 </aside>
 
 <!-- MAIN -->
@@ -896,9 +902,10 @@ async function doLogin() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('main-app').style.display = 'flex';
-    // Mostra nome do usuário logado
     if (data.user) {
       document.querySelector('.logo-sub').textContent = data.user.name || data.user.username;
+      const sidebarUser = document.getElementById('sidebar-username');
+      if (sidebarUser) sidebarUser.textContent = '👤 ' + (data.user.name || data.user.username);
     }
     initApp();
   } else {
@@ -906,11 +913,28 @@ async function doLogin() {
   }
 }
 
+function doLogout() {
+  if (!confirm('Deseja sair do painel?')) return;
+  localStorage.removeItem('zk00_token');
+  localStorage.removeItem('zk00_user');
+  window.location.reload();
+}
+
 // Auto-login se já tiver token
 if (TOKEN) {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('main-app').style.display = 'flex';
+  // Restaura nome do usuário
+  const savedUser = localStorage.getItem('zk00_user');
+  if (savedUser) {
+    try {
+      const u = JSON.parse(savedUser);
+      document.querySelector('.logo-sub').textContent = u.name || u.username || 'Rodrigo ZK00';
+      const sidebarUser = document.getElementById('sidebar-username');
+      if (sidebarUser) sidebarUser.textContent = '👤 ' + (u.name || u.username);
+    } catch(e) {}
+  }
   setTimeout(initApp, 100);
 }
 
