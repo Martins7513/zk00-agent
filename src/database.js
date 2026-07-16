@@ -590,7 +590,7 @@ function getUserByCredentials(username, password) {
   // Admin master sempre funciona
   const adminPass = process.env.ADMIN_PASSWORD || 'zk00admin123';
   if (password === adminPass && (username === 'admin' || username === 'rodrigo' || !username)) {
-    return { id: 'admin', username: 'admin', name: 'Rodrigo ZK00', role: 'admin', isAdmin: true };
+    return { id: 'admin', username: 'admin', name: 'FM', role: 'admin', isAdmin: true };
   }
   // Busca nos usuários cadastrados
   const users = getUsers();
