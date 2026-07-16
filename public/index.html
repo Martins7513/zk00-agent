@@ -1661,14 +1661,12 @@ async function loadLeadsIntoList() {
 
   // Monta a lista com userId (identificador único por plataforma)
   const lines = filtered.map(c => c.userId);
-  document.getElementById('bc-manual').value = lines.join('
-');
+  document.getElementById('bc-manual').value = lines.join('\n');
   document.getElementById('bc-manual-count').textContent = `✅ ${lines.length} leads carregados`;
 
   // Atualiza contador quando editar manualmente
   document.getElementById('bc-manual').oninput = () => {
-    const count = document.getElementById('bc-manual').value.split('
-').filter(l => l.trim()).length;
+    const count = document.getElementById('bc-manual').value.split('\n').filter(l => l.trim()).length;
     document.getElementById('bc-manual-count').textContent = `${count} leads na lista`;
   };
 
