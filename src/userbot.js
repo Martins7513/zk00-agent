@@ -72,6 +72,36 @@ let isConnected = false;
 // IDs que o agente NUNCA responde (seus contatos VIP, você mesmo, etc)
 const IGNORE_IDS = [];
 
+// Agrupa mensagens rápidas do mesmo usuário antes de responder
+const pendingMessages = {};
+
+// Fila de envio — evita responder muitos usuários ao mesmo tempo
+// (protege contra ban do Telegram)
+const sendQueue = [];
+let sendingQueue = false;
+
+async function processSendQueue() {
+  if (sendingQueue || sendQueue.length === 0) return;
+  sendingQueue = true;
+  while (sendQueue.length > 0) {
+    const task = sendQueue.shift();
+    try {
+      await task();
+    } catch (e) {
+      console.error('[USERBOT] Erro na fila de envio:', e.message);
+    }
+    // Intervalo entre envios para diferentes usuários (anti-ban)
+    const interval = 2000 + Math.random() * 2000;
+    await new Promise(r => setTimeout(r, interval));
+  }
+  sendingQueue = false;
+}
+
+function queueSend(fn) {
+  sendQueue.push(fn);
+  processSendQueue();
+}
+
 // ==============================
 // INICIALIZA O CLIENT
 // ==============================
@@ -186,11 +216,12 @@ function startMessageListener() {
 
         const response = await processPhoto('telegram', userId, userName);
         if (response) {
-          await new Promise(r => setTimeout(r, 1500));
+          // Delay mínimo de 5s para foto também
+          await new Promise(r => setTimeout(r, 5000 + Math.random() * 2000));
           await client.invoke(new Api.messages.SetTyping({
             peer, action: new Api.SendMessageTypingAction()
           }));
-          await new Promise(r => setTimeout(r, 1200));
+          await new Promise(r => setTimeout(r, 1500));
           await client.sendMessage(peer, { message: response });
         }
         return;
@@ -202,25 +233,54 @@ function startMessageListener() {
 
       console.log(`[USERBOT] Mensagem de ${userName} (${userId}): ${text.substring(0, 60)}`);
 
-      // Marca mensagem como LIDA (2 setinhas azuis) antes de responder
-      try {
-        await client.invoke(new Api.messages.ReadHistory({
-          peer: peer,
-          maxId: message.id
-        }));
-      } catch (e) {}
-
-      const response = await processMessage('telegram', userId, userName, text);
-      if (response) {
-        const delay = Math.min(text.length * 60, 3000) + Math.random() * 1000;
-        await new Promise(r => setTimeout(r, delay));
-        await client.invoke(new Api.messages.SetTyping({
-          peer, action: new Api.SendMessageTypingAction()
-        }));
-        await new Promise(r => setTimeout(r, 1500));
-        await client.sendMessage(peer, { message: response });
-        console.log(`[USERBOT] Respondido: ${response.substring(0, 60)}`);
+      // Agrupa mensagens rápidas do mesmo usuário (espera 3s por mais mensagens)
+      if (pendingMessages[userId]) {
+        clearTimeout(pendingMessages[userId].timer);
+        pendingMessages[userId].texts.push(text);
+        pendingMessages[userId].msgId = message.id;
+      } else {
+        pendingMessages[userId] = { texts: [text], msgId: message.id, peer };
       }
+
+      pendingMessages[userId].timer = setTimeout(async () => {
+        const batch = pendingMessages[userId];
+        delete pendingMessages[userId];
+
+        // Junta todas as mensagens em uma só para a IA processar
+        const fullText = batch.texts.join(' | ');
+        const lastMsgId = batch.msgId;
+
+        // Marca como lida
+        try {
+          await client.invoke(new Api.messages.ReadHistory({
+            peer: batch.peer,
+            maxId: lastMsgId
+          }));
+        } catch (e) {}
+
+        const response = await processMessage('telegram', userId, userName, fullText);
+        if (response) {
+          // Delay mínimo de 5s + tempo proporcional ao texto (mais humano)
+          const minDelay = 5000;
+          const extraDelay = Math.min(fullText.length * 40, 4000);
+          const randomDelay = Math.random() * 2000;
+          const totalDelay = minDelay + extraDelay + randomDelay;
+
+          console.log(`[USERBOT] Aguardando ${Math.round(totalDelay/1000)}s antes de responder...`);
+          await new Promise(r => setTimeout(r, totalDelay));
+
+          // Mostra "digitando..." por tempo proporcional à resposta
+          await client.invoke(new Api.messages.SetTyping({
+            peer: batch.peer, action: new Api.SendMessageTypingAction()
+          }));
+
+          const typingTime = Math.min(response.length * 50, 4000) + 1000;
+          await new Promise(r => setTimeout(r, typingTime));
+
+          await client.sendMessage(batch.peer, { message: response });
+          console.log(`[USERBOT] Respondido após ${Math.round(totalDelay/1000)}s: ${response.substring(0, 60)}`);
+        }
+      }, 3000); // aguarda 3s por mais mensagens antes de processar
     } catch (err) {
       console.error('[USERBOT] Erro no handler:', err.message);
     }
