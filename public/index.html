@@ -224,6 +224,8 @@
     <div class="nav-item" onclick="showTab('agent',this)">⚙️ Configurar Agente</div>
     <div class="nav-item" onclick="showTab('integrations',this)">🔌 Integrações</div>
     <div class="nav-section">Ferramentas</div>
+    <div class="nav-item" onclick="showTab('accounts',this)">📱 Contas Telegram</div>
+    <div class="nav-item" onclick="showTab('broadcast',this)" style="color:var(--yellow)">📣 Disparo em Massa</div>
     <div class="nav-item" onclick="showTab('followup',this)">⏰ Follow-ups</div>
     <div class="nav-item" onclick="showTab('test',this)">🧪 Testar Agente</div>
     <div class="nav-item" onclick="window.location.href='/analyzer.html'" style="color:var(--purple)">🔍 Analisar Conversas</div>
@@ -469,6 +471,125 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
       </div>
     </div>
 
+    <!-- BROADCAST -->
+    <div class="tab" id="tab-broadcast" style="flex-direction:column;padding:20px;overflow-y:auto;gap:14px">
+
+      <!-- COMPOSER -->
+      <div class="card" style="margin:0" id="broadcast-composer">
+        <div class="card-title">📣 Disparo em Massa</div>
+
+        <!-- FILTROS -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div>
+            <label class="form-label">Plataforma</label>
+            <select class="form-select" id="bc-platform">
+              <option value="all">Todas</option>
+              <option value="telegram">Telegram</option>
+              <option value="whatsapp">WhatsApp</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Data de cadastro — De</label>
+            <input class="form-input" id="bc-date-from" type="date">
+          </div>
+          <div>
+            <label class="form-label">Data de cadastro — Até</label>
+            <input class="form-input" id="bc-date-to" type="date">
+          </div>
+          <div>
+            <label class="form-label">Filtrar por tag</label>
+            <input class="form-input" id="bc-tag" placeholder="Ex: VIP, interessado..." type="text">
+          </div>
+        </div>
+
+        <!-- LISTA MANUAL -->
+        <div class="form-group">
+          <label class="form-label">Lista manual <span style="color:var(--text3)">(opcional — substitui os filtros acima)</span></label>
+          <textarea class="form-textarea" id="bc-manual" placeholder="Cole usernames ou IDs, um por linha:&#10;@usuario1&#10;@usuario2&#10;123456789" style="min-height:80px;font-family:monospace;font-size:11px"></textarea>
+        </div>
+
+        <button class="btn ghost" style="width:100%;margin-bottom:14px;font-size:12px" onclick="previewBroadcast()">🔍 Ver quantos leads serão atingidos</button>
+        <div id="bc-preview" style="display:none;background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:14px"></div>
+
+        <!-- MENSAGEM -->
+        <div class="form-group">
+          <label class="form-label">Mensagem</label>
+          <textarea class="form-textarea" id="bc-message" placeholder="Digite a mensagem do disparo..." style="min-height:100px"></textarea>
+        </div>
+
+        <!-- IMAGEM -->
+        <div class="form-group">
+          <label class="form-label">URL da imagem <span style="color:var(--text3)">(opcional)</span></label>
+          <input class="form-input" id="bc-image" placeholder="https://..." type="url">
+          <div style="font-size:10px;color:var(--text3);margin-top:3px">Cole a URL de uma imagem (JPG, PNG) para enviar junto com a mensagem</div>
+        </div>
+
+        <!-- AVISO -->
+        <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--yellow);margin-bottom:14px;line-height:1.7">
+          ⚠️ O disparo usa delay de 8-20 segundos entre cada mensagem para evitar ban.<br>
+          Não feche o painel enquanto o disparo estiver ativo.
+        </div>
+
+        <button class="btn primary" style="width:100%;font-size:13px;padding:10px" onclick="startBroadcast()">📣 Iniciar Disparo</button>
+      </div>
+
+      <!-- PROGRESSO -->
+      <div class="card" style="margin:0;display:none" id="broadcast-progress">
+        <div class="card-title">📊 Progresso do Disparo <span id="bc-status-label" style="color:var(--green)">Em andamento</span></div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+          <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:22px;font-weight:700;color:var(--accent)" id="bc-total">0</div>
+            <div style="font-size:11px;color:var(--text2)">Total</div>
+          </div>
+          <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:22px;font-weight:700;color:var(--green)" id="bc-sent">0</div>
+            <div style="font-size:11px;color:var(--text2)">Enviados</div>
+          </div>
+          <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:22px;font-weight:700;color:var(--red)" id="bc-failed">0</div>
+            <div style="font-size:11px;color:var(--text2)">Falhas</div>
+          </div>
+          <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:22px;font-weight:700;color:var(--text2)" id="bc-remaining">0</div>
+            <div style="font-size:11px;color:var(--text2)">Restantes</div>
+          </div>
+        </div>
+
+        <!-- BARRA DE PROGRESSO -->
+        <div style="background:var(--bg4);border-radius:6px;height:8px;margin-bottom:14px;overflow:hidden">
+          <div id="bc-progress-bar" style="height:100%;background:var(--green);border-radius:6px;width:0%;transition:width .5s"></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <button class="btn ghost" style="font-size:12px" onclick="abortBroadcast()" id="bc-abort-btn">⛔ Interromper</button>
+          <button class="btn primary" style="font-size:12px;display:none" onclick="resetBroadcast()" id="bc-new-btn">+ Novo disparo</button>
+        </div>
+
+        <!-- LOG -->
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Log de envios</div>
+        <div id="bc-log" style="background:var(--bg);border-radius:8px;padding:10px;max-height:200px;overflow-y:auto;font-size:11px;font-family:monospace;color:var(--text2)"></div>
+      </div>
+    </div>
+
+    <!-- ACCOUNTS -->
+    <div class="tab" id="tab-accounts" style="flex-direction:column;padding:20px;overflow-y:auto;gap:14px">
+      <div class="card" style="margin:0">
+        <div class="card-title">📱 Contas Telegram conectadas <span>cada conta tem dados separados</span></div>
+        <div id="accounts-list"><div class="loading">Carregando...</div></div>
+        <button class="btn primary" style="margin-top:12px;font-size:12px" onclick="openModal('add-account')">+ Adicionar conta</button>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title">ℹ️ Como funciona</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.9">
+          • Cada conta Telegram tem sua própria sessão e conversas separadas<br>
+          • No painel de Conversas, você filtra por conta<br>
+          • Os gatilhos e base de conhecimento são compartilhados entre todas<br>
+          • Você pode ter sua conta pessoal + conta de suporte ao mesmo tempo
+        </div>
+      </div>
+    </div>
+
     <!-- FOLLOWUP -->
     <div class="tab" id="tab-followup" style="flex-direction:column;padding:20px;overflow-y:auto;gap:16px">
       <div class="card" style="margin:0">
@@ -575,6 +696,58 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="closeModal('add-knowledge')">Cancelar</button>
       <button class="btn primary" onclick="saveKnowledge()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD ACCOUNT -->
+<div class="modal-overlay" id="modal-add-account">
+  <div class="modal">
+    <div class="modal-title">📱 Adicionar Conta Telegram <button class="close-btn" onclick="closeModal('add-account')">✕</button></div>
+
+    <div id="new-acc-step1">
+      <div class="form-group">
+        <label class="form-label">Nome desta conta</label>
+        <input class="form-input" id="new-acc-name" placeholder="Ex: Suporte ZK00" type="text">
+      </div>
+      <div class="form-group">
+        <label class="form-label">API ID <span style="color:var(--text3)">(my.telegram.org)</span></label>
+        <input class="form-input" id="new-acc-apiid" placeholder="12345678" type="text">
+      </div>
+      <div class="form-group">
+        <label class="form-label">API Hash</label>
+        <input class="form-input" id="new-acc-apihash" placeholder="abc123..." type="text">
+      </div>
+      <button class="btn primary" style="width:100%" onclick="startNewAccount()">Iniciar conexão</button>
+    </div>
+
+    <div id="new-acc-step2" style="display:none">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Digite o número de telefone desta conta com código do país:</div>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="new-acc-phone" placeholder="+5511999999999" style="flex:1">
+        <button class="btn primary" onclick="sendNewAccPhone()">Enviar</button>
+      </div>
+    </div>
+
+    <div id="new-acc-step3" style="display:none">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Digite o código que chegou no Telegram desta conta:</div>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="new-acc-code" placeholder="12345" style="flex:1" onkeydown="if(event.key==='Enter')sendNewAccCode()">
+        <button class="btn primary" onclick="sendNewAccCode()">Verificar</button>
+      </div>
+    </div>
+
+    <div id="new-acc-step4" style="display:none">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Esta conta tem 2FA. Digite a senha:</div>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="new-acc-pwd" type="password" placeholder="Senha 2FA" style="flex:1" onkeydown="if(event.key==='Enter')sendNewAccPassword()">
+        <button class="btn primary" onclick="sendNewAccPassword()">Confirmar</button>
+      </div>
+    </div>
+
+    <div id="new-acc-step-done" style="display:none;text-align:center;padding:16px">
+      <div style="font-size:28px">✅</div>
+      <div style="font-size:14px;font-weight:600;color:var(--green);margin-top:8px">Conta conectada!</div>
     </div>
   </div>
 </div>
@@ -1138,6 +1311,8 @@ function showTab(id, el) {
   if (id === 'conversations') loadConversations();
     if (id === 'integrations') { loadIntegrationStatus(); checkUserbotStatus(); }
     if (id === 'followup') loadFollowups();
+    if (id === 'accounts') loadAccounts();
+    if (id === 'broadcast') { updateBroadcastStatus(); }
 }
 
 function openModal(id) { document.getElementById('modal-' + id).classList.add('open'); }
@@ -1255,6 +1430,220 @@ async function sendUbPassword() {
   } else {
     showNotif('Erro: ' + res.error, 'red');
   }
+}
+
+// ============================================
+// BROADCAST — DISPARO EM MASSA
+// ============================================
+let broadcastInterval = null;
+
+function getBroadcastFilters() {
+  const manual = document.getElementById('bc-manual').value.trim();
+  const filters = {
+    platform: document.getElementById('bc-platform').value,
+    dateFrom: document.getElementById('bc-date-from').value,
+    dateTo: document.getElementById('bc-date-to').value,
+    tag: document.getElementById('bc-tag').value.trim()
+  };
+  if (manual) {
+    filters.manualList = manual.split('\n').map(l => l.trim()).filter(Boolean);
+  }
+  return filters;
+}
+
+async function previewBroadcast() {
+  const filters = getBroadcastFilters();
+  const res = await api('POST', '/api/broadcast/preview', { filters });
+  const el = document.getElementById('bc-preview');
+  el.style.display = 'block';
+  if (res.error) {
+    el.innerHTML = `<span style="color:var(--red)">${res.error}</span>`;
+    return;
+  }
+  el.innerHTML = `
+    <strong style="color:var(--green)">${res.total} leads</strong> serão atingidos.
+    ${res.preview.length ? '<div style="margin-top:8px;color:var(--text3)">Primeiros ' + res.preview.length + ':</div>' : ''}
+    ${res.preview.map(l => `<div style="color:var(--text2)">• ${l.name} (${l.platform})</div>`).join('')}
+    ${res.total > 20 ? `<div style="color:var(--text3)">... e mais ${res.total - 20}</div>` : ''}
+  `;
+}
+
+async function startBroadcast() {
+  const message = document.getElementById('bc-message').value.trim();
+  if (!message) return showNotif('Digite a mensagem!', 'red');
+
+  const total = parseInt(document.getElementById('bc-preview').textContent) || 0;
+  const confirm_msg = `Confirmar disparo para os leads filtrados?\n\nIsso vai enviar mensagens reais no Telegram/WhatsApp.`;
+  if (!confirm(confirm_msg)) return;
+
+  const res = await api('POST', '/api/broadcast/start', {
+    message,
+    imageUrl: document.getElementById('bc-image').value.trim() || null,
+    filters: getBroadcastFilters()
+  });
+
+  if (res.error) return showNotif(res.error, 'red');
+
+  document.getElementById('broadcast-composer').style.display = 'none';
+  document.getElementById('broadcast-progress').style.display = 'block';
+  document.getElementById('bc-total').textContent = res.total;
+  showNotif('Disparo iniciado!', 'green');
+
+  // Polling do status
+  broadcastInterval = setInterval(updateBroadcastStatus, 3000);
+}
+
+async function updateBroadcastStatus() {
+  const s = await api('GET', '/api/broadcast/status');
+  if (!s || s.error) return;
+
+  document.getElementById('bc-sent').textContent = s.sent;
+  document.getElementById('bc-failed').textContent = s.failed;
+  document.getElementById('bc-total').textContent = s.total;
+  document.getElementById('bc-remaining').textContent = Math.max(0, s.total - s.sent - s.failed);
+
+  const pct = s.total > 0 ? Math.round((s.sent + s.failed) / s.total * 100) : 0;
+  document.getElementById('bc-progress-bar').style.width = pct + '%';
+
+  // Log
+  const log = document.getElementById('bc-log');
+  log.innerHTML = (s.log || []).slice(-30).reverse().map(l =>
+    `<div style="color:${l.status === 'sent' ? 'var(--green)' : l.status === 'failed' ? 'var(--red)' : 'var(--yellow)'}">` +
+    `${l.status === 'sent' ? '✅' : l.status === 'failed' ? '❌' : '⛔'} ${l.name}` +
+    `${l.error ? ' — ' + l.error : ''}</div>`
+  ).join('');
+
+  if (!s.active) {
+    clearInterval(broadcastInterval);
+    const label = document.getElementById('bc-status-label');
+    label.textContent = s.aborted ? 'Interrompido' : 'Concluído ✅';
+    label.style.color = s.aborted ? 'var(--yellow)' : 'var(--green)';
+    document.getElementById('bc-abort-btn').style.display = 'none';
+    document.getElementById('bc-new-btn').style.display = 'inline-flex';
+    showNotif(`Disparo finalizado! ${s.sent} enviados, ${s.failed} falhas.`, 'green');
+  }
+}
+
+async function abortBroadcast() {
+  if (!confirm('Interromper o disparo?')) return;
+  await api('POST', '/api/broadcast/abort');
+  showNotif('Disparo interrompido!', 'yellow');
+}
+
+function resetBroadcast() {
+  clearInterval(broadcastInterval);
+  document.getElementById('broadcast-composer').style.display = 'block';
+  document.getElementById('broadcast-progress').style.display = 'none';
+  document.getElementById('bc-abort-btn').style.display = 'inline-flex';
+  document.getElementById('bc-new-btn').style.display = 'none';
+  document.getElementById('bc-preview').style.display = 'none';
+  document.getElementById('bc-message').value = '';
+  document.getElementById('bc-image').value = '';
+  document.getElementById('bc-log').innerHTML = '';
+}
+
+// ============================================
+// MULTI-CONTA TELEGRAM
+// ============================================
+async function loadAccounts() {
+  const accounts = await api('GET', '/api/accounts');
+  const el = document.getElementById('accounts-list');
+  if (!accounts || accounts.error || !accounts.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:8px 0">Nenhuma conta conectada ainda.</div>';
+    return;
+  }
+  el.innerHTML = accounts.map(acc => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg3);border-radius:10px;margin-bottom:8px;border:1px solid ${acc.connected ? 'rgba(16,185,129,.3)' : 'var(--border)'}">
+      <div style="width:38px;height:38px;border-radius:50%;background:rgba(42,171,238,.15);color:var(--tg);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📱</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${acc.name}</div>
+        <div style="font-size:11px;color:${acc.connected ? 'var(--green)' : 'var(--text3)'}">
+          ${acc.connected ? '● Conectado' : '○ Desconectado'}
+          <span style="color:var(--text3);margin-left:8px">ID: ${acc.id}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <div class="toggle-switch ${acc.active ? '' : 'off'}" onclick="toggleAccount('${acc.id}', ${!acc.active})" style="width:28px;height:16px"></div>
+        <button class="icon-btn" onclick="deleteAccount('${acc.id}', '${acc.name}')" style="color:var(--red)">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function toggleAccount(id, active) {
+  await api('PATCH', `/api/accounts/${id}`, { active });
+  await loadAccounts();
+  showNotif(active ? 'Conta ativada!' : 'Conta desativada!', active ? 'green' : '');
+}
+
+async function deleteAccount(id, name) {
+  if (!confirm(`Remover a conta "${name}"? Esta ação desconecta e apaga a sessão.`)) return;
+  await api('DELETE', `/api/accounts/${id}`);
+  await loadAccounts();
+  showNotif('Conta removida!', '');
+}
+
+// Auth de nova conta — estado
+let newAccAuth = { step: 'idle', accountId: null };
+
+async function startNewAccount() {
+  const name = document.getElementById('new-acc-name').value.trim();
+  const apiId = document.getElementById('new-acc-apiid').value.trim();
+  const apiHash = document.getElementById('new-acc-apihash').value.trim();
+  if (!name || !apiId || !apiHash) return showNotif('Preencha todos os campos!', 'red');
+
+  const accountId = 'acc_' + Date.now();
+  newAccAuth.accountId = accountId;
+
+  showNotif('Conectando...', '');
+  const res = await api('POST', '/api/accounts/start', { accountId, apiId, apiHash, name });
+  if (res.success) {
+    document.getElementById('new-acc-step1').style.display = 'none';
+    document.getElementById('new-acc-step2').style.display = 'block';
+    showNotif('Conectado! Digite o número da conta.', 'green');
+  } else {
+    showNotif('Erro: ' + res.error, 'red');
+  }
+}
+
+async function sendNewAccPhone() {
+  const phone = document.getElementById('new-acc-phone').value.trim();
+  if (!phone) return showNotif('Digite o número!', 'red');
+  const res = await api('POST', `/api/accounts/${newAccAuth.accountId}/phone`, { phone });
+  if (res.success) {
+    document.getElementById('new-acc-step2').style.display = 'none';
+    document.getElementById('new-acc-step3').style.display = 'block';
+    showNotif('Código enviado!', 'green');
+  } else showNotif('Erro: ' + res.error, 'red');
+}
+
+async function sendNewAccCode() {
+  const code = document.getElementById('new-acc-code').value.trim();
+  if (!code) return showNotif('Digite o código!', 'red');
+  const res = await api('POST', `/api/accounts/${newAccAuth.accountId}/code`, { code });
+  if (res.success) {
+    if (res.step === 'waiting_password') {
+      document.getElementById('new-acc-step3').style.display = 'none';
+      document.getElementById('new-acc-step4').style.display = 'block';
+    } else {
+      document.getElementById('new-acc-step3').style.display = 'none';
+      document.getElementById('new-acc-step-done').style.display = 'block';
+      showNotif('✅ Conta conectada!', 'green');
+      setTimeout(() => { closeModal('add-account'); loadAccounts(); }, 1500);
+    }
+  } else showNotif('Erro: ' + res.error, 'red');
+}
+
+async function sendNewAccPassword() {
+  const pwd = document.getElementById('new-acc-pwd').value.trim();
+  if (!pwd) return showNotif('Digite a senha!', 'red');
+  const res = await api('POST', `/api/accounts/${newAccAuth.accountId}/password`, { password: pwd });
+  if (res.success) {
+    document.getElementById('new-acc-step4').style.display = 'none';
+    document.getElementById('new-acc-step-done').style.display = 'block';
+    showNotif('✅ Conta conectada com 2FA!', 'green');
+    setTimeout(() => { closeModal('add-account'); loadAccounts(); }, 1500);
+  } else showNotif('Erro: ' + res.error, 'red');
 }
 
 // ============================================
