@@ -2025,22 +2025,23 @@ async function restoreBackup(input) {
   const file = input.files[0];
   if (!file) return;
 
-  // Confirmação antes de restaurar
   const ok = confirm(
-    '⚠️ Restaurar backup vai substituir:\n\n' +
-    '• Base de conhecimento\n' +
-    '• Configurações e follow-ups\n' +
-    '• Histórico de conversas\n' +
-    '• Dados dos clientes\n\n' +
-    'Tem certeza? Esta ação não pode ser desfeita.'
+    'Restaurar backup vai substituir todos os dados atuais.\n\nTem certeza?'
   );
   if (!ok) { input.value = ''; return; }
 
+  showNotif('Restaurando backup...', '');
+
   try {
     const text = await file.text();
-    const data = JSON.parse(text);
-
-    showNotif('Restaurando backup...', '');
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch(e) {
+      showNotif('Arquivo JSON inválido: ' + e.message, 'red');
+      input.value = '';
+      return;
+    }
 
     const res = await fetch('/api/restore', {
       method: 'POST',
@@ -2051,19 +2052,26 @@ async function restoreBackup(input) {
       body: JSON.stringify(data)
     });
 
-    const result = await res.json();
+    let result;
+    try {
+      result = await res.json();
+    } catch(e) {
+      showNotif('Erro na resposta do servidor: ' + e.message, 'red');
+      input.value = '';
+      return;
+    }
 
-    if (result.success) {
-      showNotif('✅ Backup restaurado com sucesso! Recarregando...', 'green');
+    if (res.ok && result.success) {
+      showNotif('✅ Backup restaurado! Recarregando...', 'green');
       setTimeout(() => window.location.reload(), 2000);
     } else {
-      showNotif('Erro ao restaurar: ' + (result.error || 'desconhecido'), 'red');
+      showNotif('Erro: ' + (result.error || 'Desconhecido'), 'red');
     }
   } catch (e) {
-    showNotif('Arquivo inválido: ' + e.message, 'red');
+    showNotif('Erro: ' + e.message, 'red');
   }
 
-  input.value = ''; // limpa o input para permitir reimportar o mesmo arquivo
+  input.value = '';
 }
 
 // ============================================
