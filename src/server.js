@@ -450,9 +450,14 @@ app.get('/api/backup', authMiddleware, (req, res) => {
 
 app.post('/api/restore', authMiddleware, (req, res) => {
   try {
-    db.importBackup(req.body);
+    const data = req.body;
+    if (!data || typeof data !== 'object') {
+      return res.status(400).json({ error: 'Dados inválidos' });
+    }
+    db.importBackup(data);
     res.json({ success: true, message: 'Backup restaurado com sucesso!' });
   } catch (e) {
+    console.error('[RESTORE]', e);
     res.status(500).json({ error: e.message });
   }
 });
