@@ -328,12 +328,12 @@
         <div class="kb-card" onclick="openModal('add-knowledge')"><div class="kb-icon">➕</div><div class="kb-title">Adicionar novo</div><div class="kb-count">Clique para adicionar</div></div>
       </div>
       <div class="card" style="margin:0">
-        <div class="card-title">Base de Conhecimento <span>o agente usa essas respostas</span>
-          <div style="display:flex;gap:6px">
-            <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="exportKnowledge()" title="Baixar base de conhecimento">⬇️ Exportar</button>
-            <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('kb-import-input').click()" title="Importar base de conhecimento">⬆️ Importar</button>
+        <div class="card-title" style="flex-wrap:wrap;gap:8px">
+          <span>Base de Conhecimento <span style="color:var(--text2);font-weight:400;font-size:11px">o agente usa essas respostas</span></span>
+          <div style="display:flex;gap:6px;margin-left:auto">
+            <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="exportKnowledge()">⬇️ Exportar</button>
+            <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('kb-import-input').click()">⬆️ Importar</button>
             <input type="file" id="kb-import-input" accept=".json" style="display:none" onchange="importKnowledge(this)">
-            <button class="btn ghost" style="font-size:11px;padding:4px 10px;color:var(--purple);border-color:rgba(139,92,246,.3)" onclick="openModal('transfer-knowledge')" title="Copiar para outro usuário">🔄 Transferir</button>
           </div>
         </div>
         <div id="knowledge-list"><div class="loading">Carregando...</div></div>
@@ -1627,36 +1627,43 @@ async function resetUserPassword(id, name) {
 }
 
 async function saveNewUser() {
-  const name = document.getElementById('new-user-name').value.trim();
-  const username = document.getElementById('new-user-username').value.trim();
-  const password = document.getElementById('new-user-pass').value.trim();
-  const accountId = document.getElementById('new-user-account')?.value || '';
+  var name = document.getElementById('new-user-name').value.trim();
+  var username = document.getElementById('new-user-username').value.trim();
+  var password = document.getElementById('new-user-pass').value.trim();
 
-  if (!name) return showNotif('Preencha o nome!', 'red');
-  if (!username) return showNotif('Preencha o username!', 'red');
-  if (!password) return showNotif('Preencha a senha!', 'red');
-  if (password.length < 4) return showNotif('Senha deve ter pelo menos 4 caracteres!', 'red');
+  if (!name) { showNotif('Preencha o nome!', 'red'); return; }
+  if (!username) { showNotif('Preencha o username!', 'red'); return; }
+  if (!password) { showNotif('Preencha a senha!', 'red'); return; }
+  if (password.length < 4) { showNotif('Senha precisa ter pelo menos 4 caracteres!', 'red'); return; }
+
+  showNotif('Salvando...', '');
 
   try {
-    const res = await fetch('/api/users', {
+    var res = await fetch('/api/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-admin-token': TOKEN },
-      body: JSON.stringify({
-        name, username, password,
-        accountIds: accountId ? [accountId] : []
-      })
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': TOKEN
+      },
+      body: JSON.stringify({ name: name, username: username, password: password, accountIds: [] })
     });
-    const data = await res.json();
-    if (!res.ok || data.error) return showNotif('Erro: ' + (data.error || res.status), 'red');
 
+    var data = await res.json();
+
+    if (data.error) {
+      showNotif('Erro: ' + data.error, 'red');
+      return;
+    }
+
+    document.getElementById('new-user-name').value = '';
+    document.getElementById('new-user-username').value = '';
+    document.getElementById('new-user-pass').value = '';
     closeModal('add-user');
-    ['new-user-name','new-user-username','new-user-pass'].forEach(id => {
-      document.getElementById(id).value = '';
-    });
     await loadUsers();
-    showNotif('✅ Usuário @' + username + ' criado!', 'green');
+    showNotif('Usuario ' + username + ' criado com sucesso!', 'green');
+
   } catch(e) {
-    showNotif('Erro: ' + e.message, 'red');
+    showNotif('Erro de conexao: ' + e.message, 'red');
   }
 }
 
