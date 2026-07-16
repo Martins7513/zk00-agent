@@ -236,6 +236,8 @@
     <h1 id="page-title">Dashboard</h1>
     <button class="topbar-btn" onclick="refreshData()">🔄 Atualizar</button>
     <button class="topbar-btn" onclick="downloadBackup()" title="Baixar backup de todos os dados">💾 Backup</button>
+    <button class="topbar-btn" onclick="document.getElementById('restore-input').click()" title="Restaurar backup">♻️ Restaurar</button>
+    <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreBackup(this)">
     <button class="topbar-btn primary" onclick="openModal('add-knowledge')">+ Conhecimento</button>
   </div>
 
@@ -1256,7 +1258,7 @@ async function sendUbPassword() {
 }
 
 // ============================================
-// BACKUP
+// BACKUP & RESTORE
 // ============================================
 async function downloadBackup() {
   const res = await fetch('/api/backup', { headers: { 'x-admin-token': TOKEN } });
@@ -1267,6 +1269,51 @@ async function downloadBackup() {
   a.download = 'zk00-backup-' + new Date().toISOString().slice(0,10) + '.json';
   a.click();
   showNotif('Backup baixado!', 'green');
+}
+
+async function restoreBackup(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Confirmação antes de restaurar
+  const ok = confirm(
+    '⚠️ Restaurar backup vai substituir:\n\n' +
+    '• Base de conhecimento\n' +
+    '• Configurações e follow-ups\n' +
+    '• Histórico de conversas\n' +
+    '• Dados dos clientes\n\n' +
+    'Tem certeza? Esta ação não pode ser desfeita.'
+  );
+  if (!ok) { input.value = ''; return; }
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    showNotif('Restaurando backup...', '');
+
+    const res = await fetch('/api/restore', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': TOKEN
+      },
+      body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+
+    if (result.success) {
+      showNotif('✅ Backup restaurado com sucesso! Recarregando...', 'green');
+      setTimeout(() => window.location.reload(), 2000);
+    } else {
+      showNotif('Erro ao restaurar: ' + (result.error || 'desconhecido'), 'red');
+    }
+  } catch (e) {
+    showNotif('Arquivo inválido: ' + e.message, 'red');
+  }
+
+  input.value = ''; // limpa o input para permitir reimportar o mesmo arquivo
 }
 
 // ============================================
