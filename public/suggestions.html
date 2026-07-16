@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZK00 — Sugestões de Gatilhos</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  :root{--bg:#080c14;--bg2:#0d1320;--bg3:#111827;--bg4:#1a2235;--border:#1e2d45;--accent:#3b82f6;--green:#10b981;--yellow:#f59e0b;--red:#ef4444;--purple:#8b5cf6;--text:#f1f5f9;--text2:#94a3b8;--text3:#475569}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);padding:24px}
+  .container{max-width:860px;margin:0 auto}
+  .header{margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between}
+  .header h1{font-size:18px;font-weight:700}
+  .header p{font-size:12px;color:var(--text2);margin-top:4px;line-height:1.6}
+  .back-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 12px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit;text-decoration:none;white-space:nowrap;margin-left:16px}
+  .back-btn:hover{color:var(--text);border-color:var(--accent)}
+  .stats-bar{display:flex;gap:12px;margin-bottom:16px;font-size:12px}
+  .stat-pill{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:4px 12px}
+  .approve-all-btn{background:var(--green);color:#fff;border:none;padding:6px 14px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;margin-left:auto}
+  .suggestion{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;transition:all .15s}
+  .suggestion.approved{border-color:var(--green);background:rgba(16,185,129,.05)}
+  .suggestion.rejected{opacity:.35;border-style:dashed}
+  .suggestion.editing{border-color:var(--accent)}
+  .sug-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+  .sug-question{font-size:14px;font-weight:600;flex:1}
+  .sug-actions{display:flex;gap:6px;flex-shrink:0}
+  .btn-approve{background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.3);padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s}
+  .btn-approve:hover,.btn-approve.active{background:var(--green);color:#fff;border-color:var(--green)}
+  .btn-edit{background:rgba(59,130,246,.12);color:var(--accent);border:1px solid rgba(59,130,246,.25);padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit}
+  .btn-reject{background:transparent;color:var(--text3);border:1px solid var(--border);padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit}
+  .btn-reject:hover{border-color:var(--red);color:var(--red)}
+  .sug-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;margin-top:8px}
+  .tag-list{display:flex;flex-wrap:wrap;gap:4px}
+  .tag{background:var(--bg4);border:1px solid var(--border);font-size:10px;padding:2px 7px;border-radius:5px;color:var(--text2)}
+  .answer-box{background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text);line-height:1.6;margin-top:4px}
+  .edit-area{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:12px;display:none}
+  .edit-label{font-size:11px;color:var(--text2);margin-bottom:4px;margin-top:8px;display:block}
+  .edit-label:first-child{margin-top:0}
+  .edit-input,.edit-textarea{width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;font-family:inherit;outline:none;margin-bottom:2px}
+  .edit-input:focus,.edit-textarea:focus{border-color:var(--accent)}
+  .edit-textarea{resize:vertical;min-height:65px}
+  .bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
+  .bottom-info{font-size:12px;color:var(--text2)}
+  .bottom-info strong{color:var(--green);font-size:16px}
+  .save-btn{background:var(--accent);color:#fff;border:none;padding:9px 22px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:600}
+  .save-btn:disabled{opacity:.4;cursor:not-allowed}
+  .notif{position:fixed;top:16px;right:16px;background:var(--bg2);border:1px solid var(--green);border-radius:10px;padding:10px 16px;font-size:12px;animation:slideIn .3s ease;z-index:999}
+  @keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+  .spacer{height:70px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>🎯 Sugestões de Gatilhos — Baseadas em 306 mil mensagens reais</h1>
+      <p>Analisamos suas conversas do Telegram e montamos 12 gatilhos no seu estilo.<br>Aprove, edite ou pule cada um. Os aprovados vão direto para a base de conhecimento.</p>
+    </div>
+    <a href="/" class="back-btn">← Painel</a>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-pill">📊 12 sugestões</div>
+    <div class="stat-pill">💬 306.601 mensagens analisadas</div>
+    <div class="stat-pill">👥 8.388 conversas</div>
+    <div class="stat-pill" id="approved-pill" style="border-color:var(--green);color:var(--green)">✅ 0 aprovadas</div>
+    <button class="approve-all-btn" onclick="approveAll()">✅ Aprovar todas</button>
+  </div>
+
+  <div id="suggestions-container"></div>
+  <div class="spacer"></div>
+</div>
+
+<div class="bottom-bar">
+  <div class="bottom-info"><strong id="count-approved">0</strong> gatilhos prontos para salvar</div>
+  <button class="save-btn" id="save-btn" onclick="saveAll()" disabled>💾 Salvar na base de conhecimento</button>
+</div>
+
+<script>
+const TOKEN = localStorage.getItem('zk00_token') || '';
+const ITEMS = [{"id": "g1", "type": "faq", "question": "Dobra de Banca / Alavancagem", "trigger": ["dobra", "dobra minha", "dobra a minha", "dobra minha banca", "alavancagem", "quero a dobra", "operar junto", "dobrar minha banca", "faz a dobra", "dobra irmão"], "answer": "Bora pra cima! Cria sua conta na plataforma, deposita e me manda o print da sua banca com saldo. Aí eu avalio e te chamo pra próxima sessão.", "context": "A Dobra de Banca (também chamada de Alavancagem) NÃO é um grupo. É uma seleção individual feita pelo Rodrigo. Ele escolhe pessoalmente quem vai operar ao vivo com ele. Cada um opera com seu próprio capital. Se o lead perder na sessão, Rodrigo devolve o valor. As vagas são extremamente limitadas.", "objective": "Fazer o lead entender que é uma seleção exclusiva e levá-lo a mandar o print do saldo para ser avaliado."}, {"id": "g2", "type": "faq", "question": "Live / Horário das lives", "trigger": ["live", "horario", "horário", "que horas", "quando tem live", "vai ter live", "live hoje", "que hora", "hora da live", "live on", "tá ao vivo"], "answer": "A live de hoje começa às 20h no grupo. Fica de olho que aviso antes de começar! 🔥", "context": "Rodrigo faz lives regulares no grupo Free e VIP. O horário padrão é às 20h mas pode variar. Muita gente pergunta sobre horário antes de entrar no grupo.", "objective": "Informar o horário e aproveitar para convidar o lead a entrar no grupo VIP para ter acesso preferencial às lives."}, {"id": "g3", "type": "faq", "question": "Grupo VIP — como funciona e valor", "trigger": ["vip", "grupo vip", "quanto custa vip", "valor vip", "quero vip", "entrar no vip", "vip mensal", "vip trimestral", "assinar vip"], "answer": "O VIP tem acesso às lives ao vivo, sinais em primeira mão e suporte direto. R$100 mensal ou R$200 trimestral. Chama meu suporte @SuporteZKDADOS00 que ele te explica tudo!", "context": "O VIP custa R$100/mês ou R$200/trimestral. O pagamento é via Pix. O suporte é o @SuporteZKDADOS00. O VIP dá acesso às lives exclusivas, sinais antes do grupo free e suporte direto com Rodrigo.", "objective": "Passar os valores do VIP e direcionar o lead para o suporte @SuporteZKDADOS00 para fechar a venda."}, {"id": "g4", "type": "faq", "question": "Como entrar no grupo / Free", "trigger": ["como entro", "como faço para entrar", "quero entrar", "grupo free", "grupo gratuito", "link do grupo", "como participar", "quero o grupo", "me add no grupo", "entrar no grupo"], "answer": "O grupo free é por aqui mesmo! Me manda mensagem que te passo o link. No free tem sinais e lives abertas. Se quiser algo mais completo, temos o VIP também.", "context": "Existe um grupo Free gratuito com sinais limitados e um grupo VIP pago com mais recursos. Muita gente quer entrar no grupo sem saber qual é o certo. O objetivo é dar o link do free e apresentar o VIP como upgrade.", "objective": "Enviar o link do grupo free e apresentar o VIP como opção superior para converter o lead."}, {"id": "g5", "type": "faq", "question": "Link da plataforma / Casa de apostas", "trigger": ["link", "plataforma", "qual site", "qual casa", "cadastro", "onde me cadastro", "link pra cadastrar", "qual plataforma", "me manda o link", "onde jogar"], "answer": "Cria sua conta pela plataforma que operamos e já deposita. Me manda o print da banca depois! O link é: COLOQUE_SEU_LINK_AQUI", "context": "Rodrigo tem um link de afiliado da casa parceira. O lead precisa se cadastrar por esse link específico para garantir o bônus e permitir que Rodrigo acompanhe. Após cadastrar e depositar, o lead deve mandar o print da banca.", "objective": "Passar o link de afiliado e pedir que o lead mande o print da banca após depositar."}, {"id": "g6", "type": "faq", "question": "Saque / Como sacar", "trigger": ["saque", "sacar", "retirar", "como saco", "demora pra sacar", "quanto demora saque", "saque demorou", "não consigo sacar", "problema no saque"], "answer": "O saque é direto pela plataforma, normalmente cai rápido. Se tiver algum problema, me manda aqui que verifico pra você!", "context": "Os saques são feitos diretamente na plataforma parceira. Às vezes demoram um pouco dependendo do método. Rodrigo costuma verificar situações problemáticas pessoalmente.", "objective": "Tranquilizar o lead sobre o saque e se oferecer para ajudar caso haja problema."}, {"id": "g7", "type": "faq", "question": "Robô de sinais / Como funciona", "trigger": ["robô", "robo", "sinais", "como funciona o robô", "como funciona", "o que é", "me explica", "funciona mesmo", "é confiável", "testado"], "answer": "O robô analisa os padrões do Bac Bo em tempo real e manda os sinais direto aqui. Funciona 24h e tamo sempre de olho nos resultados. Cria sua conta e entra no grupo pra acompanhar!", "context": "O robô de sinais analisa padrões do jogo Bac Bo e envia alertas automáticos. Funciona 24 horas. Os resultados são mostrados nas lives. Rodrigo não promete ganho garantido.", "objective": "Explicar o robô de forma simples e levar o lead a criar conta na plataforma e entrar no grupo."}, {"id": "g8", "type": "faq", "question": "Senha / Login da plataforma", "trigger": ["senha", "login", "usuário", "usuario", "manda senha", "manda login", "esqueci senha", "recuperar senha", "manda meu login"], "answer": "Irmão, nunca mando senha de ninguém aqui não! Por segurança, acessa o site da plataforma e clica em esqueci minha senha. Qualquer problema me fala!", "context": "IMPORTANTE: Rodrigo NUNCA deve mandar senhas ou logins de clientes. Isso é golpe clássico. Se alguém pedir senha, orientar a recuperar diretamente no site. Rodrigo não tem acesso às senhas dos clientes.", "objective": "Recusar educadamente o pedido de senha e orientar o lead a recuperar diretamente no site da plataforma."}, {"id": "g9", "type": "faq", "question": "Lead perdeu dinheiro", "trigger": ["perdi", "perder", "perda", "tô no prejuízo", "tô no preju", "perdi tudo", "fui de base", "zerou", "perdi minha banca", "tô perdendo"], "answer": "Cara, isso faz parte do jogo. Todo mundo passa por isso. O importante é não forçar quando a maré tá ruim. Para, respira, e volta quando sentir que tá no momento certo. Tamo junto!", "context": "Quando um lead perde dinheiro é um momento delicado. Rodrigo nunca prometeu ganho garantido. A resposta deve ser empática mas honesta — perdas fazem parte de apostas. Não incentivar a continuar apostando quando emocionado.", "objective": "Acolher o lead, ser honesto sobre os riscos e recomendar uma pausa para não tomar decisões por impulso."}, {"id": "g10", "type": "faq", "question": "Devolução / Garantia de banca", "trigger": ["devolução", "devolucao", "garantia", "reembolso", "prometeu devolver", "disse que devolve", "cadê meu dinheiro", "me devolve", "garantiu"], "answer": "A garantia da Dobra é válida apenas para as sessões ao vivo que fazemos juntos. Me manda os detalhes aqui pra eu verificar a situação!", "context": "A garantia de devolução existe APENAS na Dobra de Banca — quando o lead foi selecionado e operou ao vivo com Rodrigo numa sessão oficial. Não vale para operações independentes do lead. Situações de garantia precisam ser verificadas pelo próprio Rodrigo.", "objective": "Esclarecer os termos da garantia e pedir os detalhes para verificar. Escalonar para Rodrigo se necessário."}, {"id": "g11", "type": "faq", "question": "Print / Comprovante recebido", "trigger": ["mandei", "mandei o print", "mandei comprovante", "já mandei", "enviei", "ta la", "tá lá", "acabei de mandar", "pronto mandei"], "answer": "Recebi! Vou verificar e já te retorno. Fica de olho aqui!", "context": "Quando o lead confirma que mandou o print ou comprovante, Rodrigo deve confirmar o recebimento rapidamente e informar que vai verificar. Isso dá segurança ao lead.", "objective": "Confirmar recebimento e informar que vai verificar em breve para manter o lead engajado."}, {"id": "g12", "type": "faq", "question": "Ajuda / Suporte geral", "trigger": ["ajuda", "preciso de ajuda", "me ajuda", "help", "suporte", "problema", "não consigo", "tô com problema", "me ajude"], "answer": "Pode falar! Me diz o que tá acontecendo que resolvo pra você. Tamo junto!", "context": "Pedidos genéricos de ajuda precisam de mais contexto. O agente deve perguntar o que está acontecendo para entender melhor e direcionar para a solução correta.", "objective": "Entender o problema específico do lead para direcionar para a solução correta ou escalar para Rodrigo."}];
+let states = ITEMS.map(() => 'pending'); // pending, approved, rejected
+let edited = ITEMS.map(item => ({ ...item }));
+
+function render() {
+  const el = document.getElementById('suggestions-container');
+  el.innerHTML = ITEMS.map((item, i) => {
+    const st = states[i];
+    const ed = edited[i];
+    const trigsHtml = (ed.trigger || []).slice(0,7).map(t => `<span class="tag">${t}</span>`).join('');
+    const extra = ed.trigger.length > 7 ? `<span class="tag" style="color:var(--text3)">+${ed.trigger.length-7}</span>` : '';
+    return `
+    <div class="suggestion ${st}" id="sug-${i}">
+      <div class="sug-header">
+        <div class="sug-question">${ed.question}</div>
+        <div class="sug-actions">
+          <button class="btn-approve ${st==='approved'?'active':''}" onclick="approve(${i})">${st==='approved'?'✅ Aprovado':'✅ Aprovar'}</button>
+          <button class="btn-edit" onclick="toggleEdit(${i})">✏️ Editar</button>
+          <button class="btn-reject" onclick="reject(${i})">${st==='rejected'?'↩ Desfazer':'✕ Pular'}</button>
+        </div>
+      </div>
+      <div>
+        <div class="sug-label">Gatilhos</div>
+        <div class="tag-list">${trigsHtml}${extra}</div>
+        <div class="sug-label">Resposta do agente</div>
+        <div class="answer-box">${ed.answer}</div>
+        <div class="sug-label" style="color:var(--accent)">🎯 Contexto para a IA</div>
+        <div style="font-size:11px;color:var(--text2);line-height:1.6;margin-top:3px">${ed.context}</div>
+        <div class="sug-label" style="color:var(--green)">🏁 Objetivo</div>
+        <div style="font-size:11px;color:var(--text2);line-height:1.6;margin-top:3px">${ed.objective}</div>
+      </div>
+      <div class="edit-area" id="edit-${i}">
+        <label class="edit-label">Gatilhos (separados por vírgula)</label>
+        <input class="edit-input" id="et-${i}" value="${ed.trigger.join(', ')}">
+        <label class="edit-label">Resposta</label>
+        <textarea class="edit-textarea" id="ea-${i}">${ed.answer}</textarea>
+        <label class="edit-label">Contexto para a IA</label>
+        <textarea class="edit-textarea" id="ec-${i}">${ed.context}</textarea>
+        <label class="edit-label">Objetivo</label>
+        <textarea class="edit-textarea" id="eo-${i}">${ed.objective}</textarea>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <button class="btn-approve" onclick="saveEdit(${i})">✅ Salvar e aprovar</button>
+          <button class="btn-reject" onclick="toggleEdit(${i})">Cancelar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  updateBar();
+}
+
+function approve(i) {
+  states[i] = states[i] === 'approved' ? 'pending' : 'approved';
+  render();
+}
+
+function reject(i) {
+  states[i] = states[i] === 'rejected' ? 'pending' : 'rejected';
+  render();
+}
+
+function approveAll() {
+  states = states.map((s, i) => s === 'rejected' ? 'rejected' : 'approved');
+  render();
+}
+
+function toggleEdit(i) {
+  const el = document.getElementById(`edit-${i}`);
+  const open = el.style.display === 'block';
+  el.style.display = open ? 'none' : 'block';
+  document.getElementById(`sug-${i}`).classList.toggle('editing', !open);
+}
+
+function saveEdit(i) {
+  edited[i].trigger = document.getElementById(`et-${i}`).value.split(',').map(t => t.trim()).filter(Boolean);
+  edited[i].answer = document.getElementById(`ea-${i}`).value;
+  edited[i].context = document.getElementById(`ec-${i}`).value;
+  edited[i].objective = document.getElementById(`eo-${i}`).value;
+  states[i] = 'approved';
+  render();
+}
+
+function updateBar() {
+  const n = states.filter(s => s === 'approved').length;
+  document.getElementById('count-approved').textContent = n;
+  document.getElementById('approved-pill').textContent = `✅ ${n} aprovadas`;
+  document.getElementById('save-btn').disabled = n === 0;
+}
+
+async function saveAll() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  let saved = 0;
+  for (let i = 0; i < ITEMS.length; i++) {
+    if (states[i] !== 'approved') continue;
+    const item = { ...edited[i], type: 'faq' };
+    try {
+      const res = await fetch('/api/knowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': TOKEN },
+        body: JSON.stringify(item)
+      });
+      if (res.ok) saved++;
+    } catch(e) {}
+  }
+  btn.textContent = `✅ ${saved} salvos!`;
+  const n = document.createElement('div');
+  n.className = 'notif';
+  n.textContent = `✅ ${saved} gatilhos salvos! Redirecionando...`;
+  document.body.appendChild(n);
+  setTimeout(() => window.location.href = '/', 2000);
+}
+
+render();
+</script>
+</body>
+</html>
