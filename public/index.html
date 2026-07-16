@@ -744,11 +744,17 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
     </div>
     <div class="form-group">
       <label class="form-label">Senha</label>
-      <input class="form-input" id="new-user-pass" placeholder="Mínimo 6 caracteres" type="password" autocomplete="new-password">
+      <input class="form-input" id="new-user-pass" placeholder="Mínimo 4 caracteres" type="password" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Vincular à conta Telegram <span style="color:var(--text3)">(define quais conversas este usuário vê)</span></label>
+      <select class="form-select" id="new-user-account">
+        <option value="">Todas as conversas (igual ao admin)</option>
+      </select>
     </div>
     <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--text2);margin-bottom:14px;line-height:1.7">
-      ℹ️ O usuário vai fazer login com <strong>usuário + senha</strong>.<br>
-      Terá acesso completo ao painel mas não poderá alterar outros usuários.
+      ℹ️ Login com <strong>usuário + senha</strong>.<br>
+      Se vincular a uma conta, o usuário vê só as conversas daquela conta.
     </div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="closeModal('add-user')">Cancelar</button>
@@ -1397,7 +1403,10 @@ function showTab(id, el) {
     if (id === 'users') loadUsers();
 }
 
-function openModal(id) { document.getElementById('modal-' + id).classList.add('open'); }
+function openModal(id) {
+  document.getElementById('modal-' + id).classList.add('open');
+  if (id === 'add-user') populateAccountSelector();
+}
 function closeModal(id) { document.getElementById('modal-' + id).classList.remove('open'); }
 
 document.querySelectorAll('.modal-overlay').forEach(m => {
@@ -1517,6 +1526,18 @@ async function sendUbPassword() {
 // ============================================
 // USUÁRIOS DO PAINEL
 // ============================================
+async function populateAccountSelector() {
+  const sel = document.getElementById('new-user-account');
+  if (!sel) return;
+  const accounts = await api('GET', '/api/accounts');
+  sel.innerHTML = '<option value="">Todas as conversas (igual ao admin)</option>';
+  if (accounts && !accounts.error) {
+    accounts.forEach(acc => {
+      sel.innerHTML += `<option value="${acc.id}">${acc.name} ${acc.connected ? '● Online' : '○ Offline'}</option>`;
+    });
+  }
+}
+
 async function loadUsers() {
   const users = await api('GET', '/api/users');
   const el = document.getElementById('users-list');
@@ -1575,6 +1596,7 @@ async function saveNewUser() {
   const name = document.getElementById('new-user-name').value.trim();
   const username = document.getElementById('new-user-username').value.trim();
   const password = document.getElementById('new-user-pass').value.trim();
+  const accountId = document.getElementById('new-user-account')?.value || '';
 
   if (!name) return showNotif('Preencha o nome!', 'red');
   if (!username) return showNotif('Preencha o username!', 'red');
@@ -1584,27 +1606,23 @@ async function saveNewUser() {
   try {
     const res = await fetch('/api/users', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-token': TOKEN
-      },
-      body: JSON.stringify({ name, username, password })
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': TOKEN },
+      body: JSON.stringify({
+        name, username, password,
+        accountIds: accountId ? [accountId] : []
+      })
     });
-
     const data = await res.json();
-
-    if (!res.ok || data.error) {
-      return showNotif('Erro: ' + (data.error || res.status), 'red');
-    }
+    if (!res.ok || data.error) return showNotif('Erro: ' + (data.error || res.status), 'red');
 
     closeModal('add-user');
-    document.getElementById('new-user-name').value = '';
-    document.getElementById('new-user-username').value = '';
-    document.getElementById('new-user-pass').value = '';
+    ['new-user-name','new-user-username','new-user-pass'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
     await loadUsers();
-    showNotif('✅ Usuário @' + username + ' criado com sucesso!', 'green');
+    showNotif('✅ Usuário @' + username + ' criado!', 'green');
   } catch(e) {
-    showNotif('Erro de conexão: ' + e.message, 'red');
+    showNotif('Erro: ' + e.message, 'red');
   }
 }
 
