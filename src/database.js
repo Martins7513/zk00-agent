@@ -240,8 +240,21 @@ function saveClient(platform, userId, data) {
   return db.clients[key];
 }
 
-function getAllClients() {
-  return Object.values(db.clients).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+function getAllClients(accountId = null) {
+  const clients = Object.values(db.clients);
+  if (!accountId || accountId === 'admin') {
+    return clients.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  }
+  // Filtra por conta vinculada ao usuário
+  const user = (db.settings.panelUsers || []).find(u => u.id === accountId);
+  if (!user || !user.accountIds || !user.accountIds.length) {
+    return clients.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  }
+  return clients
+    .filter(c => user.accountIds.some(aid =>
+      c.platform === `telegram_${aid}` || c.platform === `whatsapp_${aid}`
+    ))
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 }
 
 // ==============================
@@ -261,12 +274,25 @@ function addMessage(platform, userId, role, content) {
   saveDB(db);
 }
 
-function getRecentConversations(limit = 20) {
+function getRecentConversations(limit = 20, accountId = null) {
   const result = [];
   for (const [key, msgs] of Object.entries(db.conversations)) {
     if (!msgs.length) continue;
-    const [platform, ...rest] = key.split('_');
-    const userId = rest.join('_');
+
+    // Filtra por conta se accountId fornecido
+    if (accountId && accountId !== 'admin') {
+      // Conta específica — só mostra conversas da plataforma dela
+      // platform format: "telegram_acc_123" ou "whatsapp"
+      const user = (db.settings.panelUsers || []).find(u => u.id === accountId);
+      if (user && user.accountIds && user.accountIds.length > 0) {
+        const belongsToUser = user.accountIds.some(aid => key.startsWith(`telegram_${aid}`) || key.startsWith(`whatsapp_${aid}`));
+        if (!belongsToUser) continue;
+      }
+    }
+
+    const parts = key.split('_');
+    const platform = parts[0];
+    const userId = parts.slice(1).join('_');
     const client = db.clients[key] || {};
     const last = msgs[msgs.length - 1];
     result.push({
@@ -356,16 +382,36 @@ function flagConversation(platform, userId, flag) {
 // ==============================
 // STATS
 // ==============================
-function getStats() {
-  const allMsgs = Object.values(db.conversations).flat();
+function getStats(accountId = null) {
+  let conversations = db.conversations;
+  let clients = db.clients;
+
+  // Filtra por conta do usuário
+  if (accountId && accountId !== 'admin') {
+    const user = (db.settings.panelUsers || []).find(u => u.id === accountId);
+    if (user && user.accountIds && user.accountIds.length > 0) {
+      const filteredConvs = {};
+      const filteredClients = {};
+      for (const [key, msgs] of Object.entries(conversations)) {
+        if (user.accountIds.some(aid => key.startsWith(`telegram_${aid}`) || key.startsWith(`whatsapp_${aid}`))) {
+          filteredConvs[key] = msgs;
+          if (clients[key]) filteredClients[key] = clients[key];
+        }
+      }
+      conversations = filteredConvs;
+      clients = filteredClients;
+    }
+  }
+
+  const allMsgs = Object.values(conversations).flat();
   const today = new Date().toDateString();
   const todayMsgs = allMsgs.filter(m => new Date(m.timestamp).toDateString() === today);
   return {
-    totalClients: Object.keys(db.clients).length,
-    totalConversations: Object.keys(db.conversations).length,
+    totalClients: Object.keys(clients).length,
+    totalConversations: Object.keys(conversations).length,
     totalMessages: allMsgs.length,
     todayMessages: todayMsgs.length,
-    todayConversations: Object.values(db.conversations).filter(msgs =>
+    todayConversations: Object.values(conversations).filter(msgs =>
       msgs.some(m => new Date(m.timestamp).toDateString() === today)
     ).length,
     agentActive: db.settings.agentActive,
@@ -410,6 +456,7 @@ function addUser(user) {
     password: user.password,
     name: user.name || user.username,
     role: user.role || 'operator',
+    accountIds: user.accountIds || [],
     active: true,
     createdAt: new Date().toISOString()
   };
