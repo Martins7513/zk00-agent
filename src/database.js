@@ -397,7 +397,10 @@ function getUserByCredentials(username, password) {
 }
 
 function addUser(user) {
-  const users = getUsers();
+  // Garante que panelUsers existe no settings
+  if (!db.settings.panelUsers) db.settings.panelUsers = [];
+
+  const users = db.settings.panelUsers;
   if (users.find(u => u.username === user.username)) {
     return { error: 'Username já existe' };
   }
@@ -410,23 +413,25 @@ function addUser(user) {
     active: true,
     createdAt: new Date().toISOString()
   };
-  users.push(newUser);
-  saveUsers(users);
+  db.settings.panelUsers.push(newUser);
+  saveDB(db);
+  console.log('[DB] Usuário criado:', newUser.username);
   return newUser;
 }
 
 function updateUser(id, data) {
-  const users = getUsers();
-  const idx = users.findIndex(u => u.id === id);
+  if (!db.settings.panelUsers) db.settings.panelUsers = [];
+  const idx = db.settings.panelUsers.findIndex(u => u.id === id);
   if (idx < 0) return { error: 'Usuário não encontrado' };
-  users[idx] = { ...users[idx], ...data };
-  saveUsers(users);
-  return users[idx];
+  db.settings.panelUsers[idx] = { ...db.settings.panelUsers[idx], ...data };
+  saveDB(db);
+  return db.settings.panelUsers[idx];
 }
 
 function deleteUser(id) {
-  const users = getUsers().filter(u => u.id !== id);
-  saveUsers(users);
+  if (!db.settings.panelUsers) return;
+  db.settings.panelUsers = db.settings.panelUsers.filter(u => u.id !== id);
+  saveDB(db);
 }
 
 // Exporta backup completo
