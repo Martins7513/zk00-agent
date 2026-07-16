@@ -504,8 +504,12 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
 
         <!-- LISTA MANUAL -->
         <div class="form-group">
-          <label class="form-label">Lista manual <span style="color:var(--text3)">(opcional — substitui os filtros acima)</span></label>
-          <textarea class="form-textarea" id="bc-manual" placeholder="Cole usernames ou IDs, um por linha:&#10;@usuario1&#10;@usuario2&#10;123456789" style="min-height:80px;font-family:monospace;font-size:11px"></textarea>
+          <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+            Lista manual <span style="color:var(--text3);font-weight:400">(opcional — substitui os filtros acima)</span>
+            <button class="btn ghost" style="font-size:10px;padding:3px 8px" onclick="loadLeadsIntoList()">📋 Carregar do painel</button>
+          </label>
+          <textarea class="form-textarea" id="bc-manual" placeholder="Cole usernames ou IDs, um por linha:&#10;@usuario1&#10;@usuario2&#10;123456789&#10;&#10;Ou clique em 'Carregar do painel' para importar seus leads automaticamente" style="min-height:100px;font-family:monospace;font-size:11px"></textarea>
+          <div id="bc-manual-count" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
         </div>
 
         <button class="btn ghost" style="width:100%;margin-bottom:14px;font-size:12px" onclick="previewBroadcast()">🔍 Ver quantos leads serão atingidos</button>
@@ -1449,6 +1453,54 @@ function getBroadcastFilters() {
     filters.manualList = manual.split('\n').map(l => l.trim()).filter(Boolean);
   }
   return filters;
+}
+
+async function loadLeadsIntoList() {
+  const platform = document.getElementById('bc-platform').value;
+  const dateFrom = document.getElementById('bc-date-from').value;
+  const dateTo = document.getElementById('bc-date-to').value;
+
+  showNotif('Carregando leads...', '');
+
+  const clients = await api('GET', '/api/clients');
+  if (!clients || clients.error) return showNotif('Erro ao carregar leads', 'red');
+
+  let filtered = clients;
+
+  // Filtra por plataforma
+  if (platform && platform !== 'all') {
+    filtered = filtered.filter(c => c.platform === platform || c.platform?.startsWith(platform));
+  }
+
+  // Filtra por data
+  if (dateFrom) {
+    filtered = filtered.filter(c => new Date(c.createdAt) >= new Date(dateFrom));
+  }
+  if (dateTo) {
+    const to = new Date(dateTo);
+    to.setHours(23,59,59);
+    filtered = filtered.filter(c => new Date(c.createdAt) <= to);
+  }
+
+  if (!filtered.length) {
+    showNotif('Nenhum lead encontrado com esses filtros', 'yellow');
+    return;
+  }
+
+  // Monta a lista com userId (identificador único por plataforma)
+  const lines = filtered.map(c => c.userId);
+  document.getElementById('bc-manual').value = lines.join('
+');
+  document.getElementById('bc-manual-count').textContent = `✅ ${lines.length} leads carregados`;
+
+  // Atualiza contador quando editar manualmente
+  document.getElementById('bc-manual').oninput = () => {
+    const count = document.getElementById('bc-manual').value.split('
+').filter(l => l.trim()).length;
+    document.getElementById('bc-manual-count').textContent = `${count} leads na lista`;
+  };
+
+  showNotif(`${lines.length} leads carregados!`, 'green');
 }
 
 async function previewBroadcast() {
