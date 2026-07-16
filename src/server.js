@@ -19,9 +19,28 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 function authMiddleware(req, res, next) {
   const token = req.headers['x-admin-token'] || req.query.token;
-  const password = process.env.ADMIN_PASSWORD || 'zk00admin123';
-  if (token !== password) return res.status(401).json({ error: 'Não autorizado' });
-  next();
+  if (!token) return res.status(401).json({ error: 'Não autorizado' });
+
+  // Tenta autenticar como usuário do painel
+  // Token formato: "username:password" em base64
+  try {
+    const decoded = Buffer.from(token, 'base64').toString('utf8');
+    const [username, password] = decoded.split(':');
+    const user = db.getUserByCredentials(username, password);
+    if (user) {
+      req.user = user;
+      return next();
+    }
+  } catch(e) {}
+
+  // Fallback: token direto (senha do admin)
+  const adminPass = process.env.ADMIN_PASSWORD || 'zk00admin123';
+  if (token === adminPass) {
+    req.user = { id: 'admin', username: 'admin', name: 'Rodrigo ZK00', role: 'admin', isAdmin: true };
+    return next();
+  }
+
+  return res.status(401).json({ error: 'Não autorizado' });
 }
 
 // ==============================
@@ -40,10 +59,51 @@ app.get('/health', (req, res) => {
 // AUTH
 // ==============================
 app.post('/api/login', (req, res) => {
-  const { password } = req.body;
-  const adminPass = process.env.ADMIN_PASSWORD || 'zk00admin123';
-  if (password === adminPass) res.json({ token: adminPass, success: true });
-  else res.status(401).json({ error: 'Senha incorreta' });
+  const { username, password } = req.body;
+  if (!password) return res.status(400).json({ error: 'Senha obrigatória' });
+
+  const user = db.getUserByCredentials(username || 'admin', password);
+  if (!user) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
+
+  // Gera token base64: "username:password"
+  const token = Buffer.from(`${user.username}:${password}`).toString('base64');
+  res.json({
+    success: true,
+    token,
+    user: { id: user.id, name: user.name, username: user.username, role: user.role }
+  });
+});
+
+// ==============================
+// USUÁRIOS DO PAINEL
+// ==============================
+app.get('/api/users', authMiddleware, (req, res) => {
+  const users = db.getUsers().map(u => ({ ...u, password: undefined }));
+  res.json(users);
+});
+
+app.post('/api/users', authMiddleware, (req, res) => {
+  const { username, password, name } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Username e senha obrigatórios' });
+  const result = db.addUser({ username, password, name });
+  if (result.error) return res.status(400).json(result);
+  res.json({ ...result, password: undefined });
+});
+
+app.patch('/api/users/:id', authMiddleware, (req, res) => {
+  const result = db.updateUser(req.params.id, req.body);
+  if (result.error) return res.status(404).json(result);
+  res.json({ ...result, password: undefined });
+});
+
+app.delete('/api/users/:id', authMiddleware, (req, res) => {
+  db.deleteUser(req.params.id);
+  res.json({ success: true });
+});
+
+// Retorna dados do usuário logado
+app.get('/api/me', authMiddleware, (req, res) => {
+  res.json(req.user);
 });
 
 // ==============================
