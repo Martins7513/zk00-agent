@@ -175,6 +175,15 @@ function startMessageListener() {
 
       if (hasPhoto) {
         console.log(`[USERBOT] 📸 Foto recebida de ${userName} (${userId})`);
+
+        // Marca como lida
+        try {
+          await client.invoke(new Api.messages.ReadHistory({
+            peer: peer,
+            maxId: message.id
+          }));
+        } catch (e) {}
+
         const response = await processPhoto('telegram', userId, userName);
         if (response) {
           await new Promise(r => setTimeout(r, 1500));
@@ -192,6 +201,14 @@ function startMessageListener() {
       if (!text || text.trim() === '') return;
 
       console.log(`[USERBOT] Mensagem de ${userName} (${userId}): ${text.substring(0, 60)}`);
+
+      // Marca mensagem como LIDA (2 setinhas azuis) antes de responder
+      try {
+        await client.invoke(new Api.messages.ReadHistory({
+          peer: peer,
+          maxId: message.id
+        }));
+      } catch (e) {}
 
       const response = await processMessage('telegram', userId, userName, text);
       if (response) {
