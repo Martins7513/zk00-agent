@@ -1468,15 +1468,14 @@ document.getElementById('login-pass').addEventListener('keydown', e => {
 const _origLoadInt = typeof loadIntegrationStatus === 'function' ? loadIntegrationStatus : null;
 
 async function loadUserbotStatus() {
-  const res = await api('GET', '/api/accounts'));
+  const res = await api('GET', '/api/accounts');
   const tgStatus = document.getElementById('tg-int-status');
   const tgSide = document.getElementById('tg-status');
-  if (!res || res.error) return;
-  if (res.connected) {
-    if (tgStatus) { tgStatus.textContent = '✅ Userbot Ativo'; tgStatus.className = 'int-status connected'; }
+  if (!res || res.error || !Array.isArray(res)) return;
+  const connected = res.some(a => a.connected);
+  if (connected) {
+    if (tgStatus) { tgStatus.textContent = '✅ Conectado'; tgStatus.className = 'int-status connected'; }
     if (tgSide) { tgSide.textContent = '● Online'; tgSide.style.color = 'var(--green)'; }
-  } else if (res.hasSession) {
-    if (tgStatus) { tgStatus.textContent = '⏳ Reconectando'; tgStatus.className = 'int-status pending'; }
   }
 }
 
@@ -2273,7 +2272,7 @@ async function sendUbPassword() {
 
 // Verifica status do userbot ao carregar integrações
 async function checkUserbotStatus() {
-  const res = await api('GET', '/api/accounts'));
+  const res = await api('GET', '/api/accounts');
   if (!res || res.error) return;
   if (res.connected) {
     document.getElementById('ub-step1').style.display = 'none';
