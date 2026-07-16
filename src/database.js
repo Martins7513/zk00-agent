@@ -39,117 +39,272 @@ for (const dir of DATA_DIRS) {
 // ==============================
 const FIXED_KNOWLEDGE = [
   {
-    id: 'k1', type: 'faq',
-    trigger: ['como funciona', 'o que é', 'robô', 'sinais', 'bac bo'],
-    question: 'Como funciona o robô de sinais?',
-    answer: 'O robô analisa padrões em tempo real no Bac Bo e manda os sinais direto aqui, 24h por dia. Você só segue e aposta. Tamo junto! 🎯'
+    "id": "g1",
+    "type": "faq",
+    "trigger": [
+      "dobra",
+      "dobra minha",
+      "dobra a minha",
+      "dobra minha banca",
+      "alavancagem",
+      "quero a dobra",
+      "operar junto",
+      "dobrar minha banca",
+      "faz a dobra",
+      "dobra irmão"
+    ],
+    "question": "Dobra de Banca / Alavancagem",
+    "answer": "Bora pra cima! Cria sua conta na plataforma, deposita e me manda o print da sua banca com saldo. Quando eu selecionar eu aviso.\n\nAqui ta o link que deve se cadastrar -\n\nhttps://cadastroplataforma.com/telegram",
+    "context": "A Dobra de Banca (também chamada de Alavancagem) NÃO é um grupo. Ele escolhe pessoalmente quem vai participar da dobra. Se o lead perder na sessão, Zk devolve o valor. As vagas são extremamente limitadas.",
+    "objective": "Fazer o lead entender que é uma seleção exclusiva e levá-lo a mandar o print do saldo para participar.",
+    "followup": null,
+    "updatedAt": "2026-07-16T02:36:00.386Z",
+    "createdAt": "2026-07-16T02:36:00.386Z"
   },
   {
-    id: 'k2', type: 'faq',
-    trigger: ['deposito', 'depósito', 'como entrar', 'cadastro', 'cadastrar'],
-    question: 'Como faço o depósito e entro no grupo?',
-    answer: 'Simples! Você se cadastra na casa parceira pelo meu link, faz o depósito e me manda o print do saldo. Aí te coloco no VIP na hora. Fica tranquilo que te explico tudo! 📲'
+    "id": "g2",
+    "type": "faq",
+    "question": "Live / Horário das lives",
+    "trigger": [
+      "live",
+      "horario",
+      "horário",
+      "que horas",
+      "quando tem live",
+      "vai ter live",
+      "live hoje",
+      "que hora",
+      "hora da live",
+      "live on",
+      "tá ao vivo"
+    ],
+    "answer": "A live de  é às 11h e 19h no grupo Free. Fica de olho que aviso antes de começar! 🔥",
+    "context": "Zk faz lives regulares no grupo Free e VIP. O horário padrão é  às 11h e 19h no grupo Free. Muita gente pergunta sobre horário antes de entrar no grupo.",
+    "objective": "Informar o horário e aproveitar para convidar o lead a entrar no grupo VIP para ter acesso preferencial às lives.",
+    "updatedAt": "2026-07-16T02:03:35.633Z",
+    "createdAt": "2026-07-16T02:03:35.633Z"
   },
   {
-    id: 'k3', type: 'faq',
-    trigger: ['vip', 'grupo vip', 'grupo'],
-    question: 'O que é o Grupo VIP?',
-    answer: 'No VIP você recebe os sinais em primeira mão, análise completa das entradas e suporte direto. É onde estão os membros mais ativos. Bora pra cima! 🏆'
+    "id": "g3",
+    "type": "faq",
+    "question": "Grupo VIP — como funciona e valor",
+    "trigger": [
+      "vip",
+      "grupo vip",
+      "quanto custa vip",
+      "valor vip",
+      "quero vip",
+      "entrar no vip",
+      "vip mensal",
+      "vip trimestral",
+      "assinar vip"
+    ],
+    "answer": "O VIP tem acesso às lives ao vivo, sinais em primeira mão e suporte direto. R$100 mensal ou R$200 trimestral. Chama meu suporte @SuporteZKDADOS00 que ele te explica tudo!",
+    "context": "O VIP custa R$100/mês ou R$200/trimestral. O pagamento é via Pix. O suporte é o @SuporteZKDADOS00. O VIP dá acesso às lives exclusivas, sinais antes do grupo free e suporte direto com Rodrigo.",
+    "objective": "Passar os valores do VIP e direcionar o lead para o suporte @SuporteZKDADOS00 para fechar a venda.",
+    "updatedAt": "2026-07-16T02:03:35.836Z",
+    "createdAt": "2026-07-16T02:03:35.836Z"
   },
   {
-    id: 'k4', type: 'faq',
-    trigger: ['live', 'horario', 'horário', 'quando', 'transmissão'],
-    question: 'Qual o horário das lives?',
-    answer: 'As lives acontecem de segunda a sexta a partir das 20h no canal do Telegram. Fica de olho lá que aviso sempre antes de começar! 🕐'
+    "id": "g4",
+    "type": "faq",
+    "question": "Como entrar no grupo / Free",
+    "trigger": [
+      "como entro",
+      "como faço para entrar",
+      "quero entrar",
+      "grupo free",
+      "grupo gratuito",
+      "link do grupo",
+      "como participar",
+      "quero o grupo",
+      "me add no grupo",
+      "entrar no grupo"
+    ],
+    "answer": "O grupo free é por aqui mesmo! Me manda mensagem que te passo o link. No free tem sinais e lives abertas. Se quiser algo mais completo, temos o VIP também.",
+    "context": "Existe um grupo Free gratuito com sinais limitados e um grupo VIP pago com mais recursos. Muita gente quer entrar no grupo sem saber qual é o certo. O objetivo é dar o link do free e apresentar o VIP como upgrade.",
+    "objective": "Enviar o link do grupo free e apresentar o VIP como opção superior para converter o lead.",
+    "updatedAt": "2026-07-16T02:03:36.040Z",
+    "createdAt": "2026-07-16T02:03:36.040Z"
   },
   {
-    id: 'k5', type: 'faq',
-    trigger: ['saque', 'retirar', 'sacar'],
-    question: 'Como faço o saque?',
-    answer: 'O saque é direto pela plataforma da casa. Normalmente cai em até 24h úteis. Qualquer problema me chama que ajudamos! 💰'
+    "id": "g9",
+    "type": "faq",
+    "question": "Lead perdeu dinheiro",
+    "trigger": [
+      "perdi",
+      "perder",
+      "perda",
+      "tô no prejuízo",
+      "tô no preju",
+      "perdi tudo",
+      "fui de base",
+      "zerou",
+      "perdi minha banca",
+      "tô perdendo"
+    ],
+    "answer": "Cara, isso faz parte do jogo. Todo mundo passa por isso. O importante é não forçar quando a maré tá ruim. Para, respira, e volta quando sentir que tá no momento certo. Tamo junto!",
+    "context": "Quando um lead perde dinheiro é um momento delicado. Rodrigo nunca prometeu ganho garantido. A resposta deve ser empática mas honesta — perdas fazem parte de apostas. Não incentivar a continuar apostando quando emocionado.",
+    "objective": "Acolher o lead, ser honesto sobre os riscos e recomendar uma pausa para não tomar decisões por impulso.",
+    "updatedAt": "2026-07-16T02:03:36.240Z",
+    "createdAt": "2026-07-16T02:03:36.240Z"
   },
   {
-    id: 'k6', type: 'faq',
-    trigger: ['gratis', 'gratuito', 'free', 'grupo free'],
-    question: 'Tem grupo gratuito?',
-    answer: 'Sim! Temos o grupo free onde mando alguns sinais e conteúdo. Mas no VIP a qualidade e quantidade de sinais é muito maior. Me manda mensagem que te passo o link do free! 👊'
+    "id": "g10",
+    "type": "faq",
+    "question": "Devolução / Garantia de banca",
+    "trigger": [
+      "devolução",
+      "devolucao",
+      "garantia",
+      "reembolso",
+      "prometeu devolver",
+      "disse que devolve",
+      "cadê meu dinheiro",
+      "me devolve",
+      "garantiu"
+    ],
+    "answer": "A garantia da Dobra é válida apenas para as pessoas que participam da dobra e da errado. Me manda os detalhes aqui pra eu verificar a situação!",
+    "context": "A garantia de devolução existe APENAS na Dobra de Banca — quando o lead foi selecionado e deu errado. Não vale para operações independentes do lead. Situações de garantia precisam ser verificadas pelo próprio Zk.",
+    "objective": "Esclarecer os termos da garantia e pedir os detalhes para verificar. Escalonar para Rodrigo se necessário.",
+    "updatedAt": "2026-07-16T02:03:36.442Z",
+    "createdAt": "2026-07-16T02:03:36.442Z"
   },
   {
-    id: 'k7', type: 'faq',
-    trigger: ['seguro', 'confiavel', 'funciona mesmo', 'prova'],
-    question: 'É confiável?',
-    answer: 'Vou ser direto: todo jogo tem risco e eu nunca prometo ganho garantido. O que posso te mostrar são os resultados reais dos membros que seguem os sinais. Quer ver os prints? 📊'
+    "id": "g11",
+    "type": "faq",
+    "question": "Print / Comprovante recebido",
+    "trigger": [
+      "mandei",
+      "mandei o print",
+      "mandei comprovante",
+      "já mandei",
+      "enviei",
+      "ta la",
+      "tá lá",
+      "acabei de mandar",
+      "pronto mandei"
+    ],
+    "answer": "Recebi! Vou verificar e já te retorno. Fica de olho aqui!",
+    "context": "Quando o lead confirma que mandou o print ou comprovante, Rodrigo deve confirmar o recebimento rapidamente e informar que vai verificar. Isso dá segurança ao lead.",
+    "objective": "Confirmar recebimento e informar que vai verificar em breve para manter o lead engajado.",
+    "updatedAt": "2026-07-16T02:03:36.667Z",
+    "createdAt": "2026-07-16T02:03:36.667Z"
   },
   {
-    id: 'k8', type: 'faq',
-    trigger: ['link', 'casa', 'plataforma', 'onde jogar', 'qual casa'],
-    question: 'Qual a casa de apostas?',
-    answer: 'Trabalhamos com casas parceiras regulamentadas. Me manda mensagem que te passo o link com o bônus de cadastro! 🔗'
+    "id": "g12",
+    "type": "faq",
+    "question": "Ajuda / Suporte geral",
+    "trigger": [
+      "ajuda",
+      "preciso de ajuda",
+      "me ajuda",
+      "help",
+      "suporte",
+      "problema",
+      "não consigo",
+      "tô com problema",
+      "me ajude"
+    ],
+    "answer": "Pode falar! Me diz o que tá acontecendo que resolvo pra você. Tamo junto!",
+    "context": "Pedidos genéricos de ajuda precisam de mais contexto. O agente deve perguntar o que está acontecendo para entender melhor e direcionar para a solução correta.",
+    "objective": "Entender o problema específico do lead para direcionar para a solução correta ou escalar para Rodrigo.",
+    "updatedAt": "2026-07-16T02:03:36.872Z",
+    "createdAt": "2026-07-16T02:03:36.872Z"
   },
   {
-    id: 'k9', type: 'faq',
-    trigger: ['dobra', 'dobra de banca', 'operar junto', 'garantia de banca', 'opera comigo', 'operar comigo', 'sessao ao vivo', 'dobrar banca', 'quero dobra', 'dobra banca'],
-    question: 'O que é a Dobra de Banca?',
-    answer: 'A Dobra de Banca é um programa exclusivo e bem diferente. Não é um grupo — é uma seleção individual. Eu escolho pessoalmente quem vai operar comigo ao vivo. Você opera com seu capital, eu com o meu, usando minhas análises em tempo real. E o diferencial: se você perder na sessão, eu devolvo o valor. Eu assumo o risco. As vagas são bem limitadas porque eu preciso acompanhar cada pessoa de perto. Pra ser avaliado, você precisa se cadastrar na casa parceira, fazer um depósito e me mandar o print do saldo aqui.',
-    context: 'A Dobra de Banca NÃO é um grupo. É um programa de seleção individual feita pelo Rodrigo. Cada pessoa é escolhida pessoalmente. O aluno opera com seu próprio capital, Rodrigo opera com o dele. Rodrigo dá garantia: se o aluno perder na sessão, Rodrigo devolve o valor perdido. As vagas são extremamente limitadas porque Rodrigo precisa operar junto com cada pessoa selecionada.',
-    objective: 'Fazer o lead entender que é algo exclusivo e pessoal, não um grupo. Gerar desejo e senso de privilégio por ser selecionado. Levar o lead a querer ser avaliado e mandar o print do saldo para participar da seleção.'
-  },
-  {
-    id: 'k10', type: 'faq',
-    trigger: ['como participar', 'quero participar', 'como entrar dobra', 'quero operar', 'proxima sessao', 'como sou selecionado'],
-    question: 'Como participar da Dobra de Banca?',
-    answer: 'Pra ser avaliado para a Dobra é simples: se cadastra na casa parceira pelo meu link, faz o depósito e me manda o print do saldo aqui. Eu analiso o perfil e, se você for selecionado, te chamo pessoalmente para a próxima sessão.',
-    context: 'A seleção é feita pelo Rodrigo com base no perfil do lead. Não é automático — Rodrigo avalia cada pessoa individualmente antes de selecionar.',
-    objective: 'Levar o lead ao próximo passo concreto: se cadastrar na casa parceira e mandar o print do saldo para ser avaliado por Rodrigo.'
+    "id": "k1784167597923",
+    "type": "faq",
+    "trigger": [
+      "oi",
+      "olá",
+      "Oi",
+      "Olá",
+      "Bom dia",
+      "Boa tarde",
+      "boa tarde",
+      "fala cmg",
+      "alguem ai"
+    ],
+    "question": "OI, BOM DIA, BOA TARDE",
+    "answer": "Fala meu amigo, minha amiga, otimo dia, otima tarde, otima noite, qual sua duvida ?",
+    "context": "É pra apenas responder o lead, seja bom dia, boa tarde, Oi, olá.",
+    "objective": "Objetivo é responder o seu contacto, e ver qual sua duvida.",
+    "followup": null,
+    "updatedAt": "2026-07-16T02:06:37.923Z",
+    "createdAt": "2026-07-16T02:06:37.923Z"
   }
 ];
 
 const FIXED_SETTINGS = {
-  agentName: 'Rodrigo ZK00',
-  agentActive: true,
-  humanModeChats: [],
-  liveSchedule: 'Segunda a Sexta, 20h',
-  welcomeMessage: 'Oi! Tamo junto 👊 Vi que você chegou aqui, como posso te ajudar?',
-  offlineMessage: 'Oi! Estou offline agora mas já volto. Pode deixar sua mensagem que respondo em breve! 🤝',
-  escalationTriggers: [
-    'problema financeiro', 'conta bloqueada', 'bloqueou', 'bloquearam',
-    'parceria', 'patrocínio', 'jurídico', 'advogado', 'processo',
-    'reclamação grave', 'me enganou', 'golpe', 'fraude', 'chargeBack'
+  "agentName": "Rodrigo ZK00",
+  "agentActive": true,
+  "humanModeChats": [],
+  "liveSchedule": "Segunda a Sexta, 20h",
+  "welcomeMessage": "Oi! Tamo junto 👊 Vi que você chegou aqui, como posso te ajudar?",
+  "offlineMessage": "Oi! Estou offline agora mas já volto. Pode deixar sua mensagem que respondo em breve! 🤝",
+  "escalationTriggers": [
+    "problema financeiro",
+    "conta bloqueada",
+    "bloqueou",
+    "bloquearam",
+    "parceria",
+    "patrocínio",
+    "jurídico",
+    "advogado",
+    "processo",
+    "reclamação grave",
+    "me enganou",
+    "golpe",
+    "fraude",
+    "chargeBack"
   ],
-  followupRules: [
+  "followupRules": [
     {
-      id: 'fu1',
-      name: 'Print não enviado — Dobra de Banca',
-      active: true,
-      triggerKnowledgeIds: ['k9', 'k10'],
-      cancelOn: 'photo',
-      delay: 10,
-      message: 'Oi! Só passando pra lembrar que ainda preciso do print com seu saldo pra te avaliar pra Dobra. Me manda aqui quando puder! 📲'
+      "id": "fu1",
+      "name": "Print não enviado — Dobra de Banca",
+      "active": true,
+      "triggerKnowledgeIds": [
+        "k9",
+        "k10"
+      ],
+      "cancelOn": "photo",
+      "delay": 10,
+      "message": "Oi! Só passando pra lembrar que ainda preciso do print com seu saldo pra te avaliar pra Dobra. Me manda aqui quando puder! 📲"
     },
     {
-      id: 'fu2',
-      name: 'Print não enviado — VIP',
-      active: true,
-      triggerKnowledgeIds: ['k2', 'k3'],
-      cancelOn: 'photo',
-      delay: 10,
-      message: 'Ei, tudo certo? Lembra que pra entrar no VIP só precisamos do print do saldo. Me manda aqui e já te coloco na lista! 🔗'
+      "id": "fu2",
+      "name": "Print não enviado — VIP",
+      "active": true,
+      "triggerKnowledgeIds": [
+        "k2",
+        "k3"
+      ],
+      "cancelOn": "photo",
+      "delay": 10,
+      "message": "Ei, tudo certo? Lembra que pra entrar no VIP só precisamos do print do saldo. Me manda aqui e já te coloco na lista! 🔗"
     }
   ],
-  photoResponses: [
+  "photoResponses": [
     {
-      id: 'pr1',
-      name: 'Print recebido — Dobra de Banca',
-      active: true,
-      linkedKnowledgeIds: ['k9', 'k10'],
-      message: 'Boa! Print recebido ✅ Agora é só aguardar — vou avaliar seu perfil e, se você for selecionado, te chamo pessoalmente antes da próxima sessão. Fique de olho!'
+      "id": "pr1",
+      "name": "Print recebido — Dobra de Banca",
+      "active": true,
+      "linkedKnowledgeIds": [
+        "k9",
+        "k10"
+      ],
+      "message": "Boa! Print recebido ✅ Agora é só aguardar — vou avaliar seu perfil e, se você for selecionado, te chamo pessoalmente antes da próxima sessão. Fique de olho!"
     },
     {
-      id: 'pr2',
-      name: 'Print recebido — VIP',
-      active: true,
-      linkedKnowledgeIds: ['k2', 'k3'],
-      message: 'Print recebido! ✅ Perfeito. Já vou confirmar e te adicionar no VIP. Fique ligado que te chamo em breve!'
+      "id": "pr2",
+      "name": "Print recebido — VIP",
+      "active": true,
+      "linkedKnowledgeIds": [
+        "k2",
+        "k3"
+      ],
+      "message": "Print recebido! ✅ Perfeito. Já vou confirmar e te adicionar no VIP. Fique ligado que te chamo em breve!"
     }
   ]
 };
