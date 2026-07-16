@@ -21,26 +21,45 @@ function authMiddleware(req, res, next) {
   const token = req.headers['x-admin-token'] || req.query.token;
   if (!token) return res.status(401).json({ error: 'Não autorizado' });
 
-  // Tenta autenticar como usuário do painel
-  // Token formato: "username:password" em base64
-  try {
-    const decoded = Buffer.from(token, 'base64').toString('utf8');
-    const [username, password] = decoded.split(':');
-    const user = db.getUserByCredentials(username, password);
-    if (user) {
-      req.user = user;
-      return next();
-    }
-  } catch(e) {}
-
-  // Fallback: token direto (senha do admin)
   const adminPass = process.env.ADMIN_PASSWORD || 'zk00admin123';
+
+  // 1. Senha admin direta
   if (token === adminPass) {
     req.user = { id: 'admin', username: 'admin', name: 'Rodrigo ZK00', role: 'admin', isAdmin: true };
     return next();
   }
 
-  return res.status(401).json({ error: 'Não autorizado' });
+  // 2. Token base64 "username:password"
+  try {
+    const decoded = Buffer.from(token, 'base64').toString('utf8');
+    const colonIdx = decoded.indexOf(':');
+    if (colonIdx > 0) {
+      const username = decoded.substring(0, colonIdx);
+      const password = decoded.substring(colonIdx + 1);
+      const user = db.getUserByCredentials(username, password);
+      if (user) {
+        req.user = user;
+        return next();
+      }
+    }
+  } catch(e) {}
+
+  // 3. Token = "username:password" texto puro (fallback)
+  try {
+    const colonIdx = token.indexOf(':');
+    if (colonIdx > 0) {
+      const username = token.substring(0, colonIdx);
+      const password = token.substring(colonIdx + 1);
+      const user = db.getUserByCredentials(username, password);
+      if (user) {
+        req.user = user;
+        return next();
+      }
+    }
+  } catch(e) {}
+
+  console.log('[AUTH] Token rejeitado:', token.substring(0, 20) + '...');
+  return res.status(401).json({ error: 'Não autorizado — faça login novamente' });
 }
 
 // ==============================
