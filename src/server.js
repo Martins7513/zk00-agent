@@ -5,8 +5,10 @@ const path = require('path');
 
 const db = require('./database');
 const userbot = require('./userbot');
+const userbotManager = require('./userbot-manager');
 const { handleWebhook: handleWAWebhook, setupWebhook: setupWAWebhook, sendManual: sendWA, getQRCode } = require('./whatsapp');
 const { processMessage } = require('./agent');
+const broadcast = require('./broadcast');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -109,7 +111,60 @@ app.get('/api/settings', authMiddleware, (req, res) => res.json(db.getSettings()
 app.patch('/api/settings', authMiddleware, (req, res) => res.json(db.updateSettings(req.body)));
 
 // ==============================
-// USERBOT TELEGRAM — AUTENTICAÇÃO
+// MULTI-CONTA TELEGRAM
+// ==============================
+
+// Lista todas as contas
+app.get('/api/accounts', authMiddleware, (req, res) => {
+  res.json(userbotManager.getStatus());
+});
+
+// Inicia auth de uma nova conta
+app.post('/api/accounts/start', authMiddleware, async (req, res) => {
+  const { accountId, apiId, apiHash, name } = req.body;
+  if (!accountId || !apiId || !apiHash) return res.status(400).json({ error: 'accountId, apiId e apiHash obrigatórios' });
+  res.json(await userbotManager.startAuth(accountId, apiId, apiHash, name));
+});
+
+// Envia telefone
+app.post('/api/accounts/:accountId/phone', authMiddleware, async (req, res) => {
+  res.json(await userbotManager.sendPhone(req.params.accountId, req.body.phone));
+});
+
+// Envia código
+app.post('/api/accounts/:accountId/code', authMiddleware, async (req, res) => {
+  res.json(await userbotManager.sendCode(req.params.accountId, req.body.code));
+});
+
+// Envia senha 2FA
+app.post('/api/accounts/:accountId/password', authMiddleware, async (req, res) => {
+  res.json(await userbotManager.sendPassword(req.params.accountId, req.body.password));
+});
+
+// Remove uma conta
+app.delete('/api/accounts/:accountId', authMiddleware, (req, res) => {
+  userbotManager.removeAccount(req.params.accountId);
+  res.json({ success: true });
+});
+
+// Toggle ativo/inativo
+app.patch('/api/accounts/:accountId', authMiddleware, (req, res) => {
+  const accounts = userbotManager.getAccounts();
+  const acc = accounts.find(a => a.id === req.params.accountId);
+  if (!acc) return res.status(404).json({ error: 'Conta não encontrada' });
+  userbotManager.addOrUpdateAccount({ ...acc, active: req.body.active });
+  res.json({ success: true });
+});
+
+// Envia mensagem manual por conta específica
+app.post('/api/accounts/:accountId/send', authMiddleware, async (req, res) => {
+  const { userId, message } = req.body;
+  await userbotManager.sendManual(req.params.accountId, userId, message);
+  res.json({ success: true });
+});
+
+// ==============================
+// USERBOT TELEGRAM — AUTENTICAÇÃO (legado — conta principal)
 // ==============================
 app.get('/api/userbot/status', authMiddleware, (req, res) => {
   res.json(userbot.getStatus());
@@ -218,6 +273,64 @@ app.post('/api/analyze-conversations', authMiddleware, async (req, res) => {
 });
 
 // ==============================
+// BROADCAST — DISPARO EM MASSA
+// ==============================
+
+// Função de envio unificada (Telegram + WhatsApp)
+async function broadcastSendFn(platform, userId, message, imageUrl) {
+  if (platform.startsWith('telegram')) {
+    // Pega o cliente certo pelo accountId
+    const accountId = platform.replace('telegram_', '');
+    const ac = userbotManager.activeClients[accountId];
+    const legacyClient = userbot.getClient ? userbot.getClient() : null;
+
+    const client = (ac?.client) || legacyClient;
+    if (!client) throw new Error('Cliente Telegram não conectado');
+
+    if (imageUrl) {
+      await client.sendFile(parseInt(userId), {
+        file: imageUrl,
+        caption: message
+      });
+    } else {
+      await client.sendMessage(parseInt(userId), { message });
+    }
+  } else if (platform === 'whatsapp') {
+    const { sendManual } = require('./whatsapp');
+    await sendManual(userId, message);
+  }
+}
+
+// Preview dos leads antes de disparar
+app.post('/api/broadcast/preview', authMiddleware, (req, res) => {
+  const result = broadcast.previewLeads(req.body.filters || {});
+  res.json(result);
+});
+
+// Inicia o disparo
+app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
+  const { message, imageUrl, filters } = req.body;
+  if (!message) return res.status(400).json({ error: 'Mensagem obrigatória' });
+  const result = await broadcast.startBroadcast({
+    message,
+    imageUrl,
+    filters: filters || {},
+    sendFn: broadcastSendFn
+  });
+  res.json(result);
+});
+
+// Status do disparo em andamento
+app.get('/api/broadcast/status', authMiddleware, (req, res) => {
+  res.json(broadcast.getStatus());
+});
+
+// Aborta o disparo
+app.post('/api/broadcast/abort', authMiddleware, (req, res) => {
+  res.json(broadcast.abort());
+});
+
+// ==============================
 // BACKUP & RESTORE
 // ==============================
 app.get('/api/backup', authMiddleware, (req, res) => {
@@ -266,15 +379,16 @@ app.listen(PORT, async () => {
 ╚══════════════════════════════════════╝
   `);
 
-  // Tenta iniciar userbot — busca sessão de todas as fontes automaticamente
+  // Inicia todas as contas do manager
+  await userbotManager.initAll();
+
+  // Fallback: conta legada (sessão única)
   const settings = db.getSettings();
   const savedSession = process.env.TELEGRAM_SESSION || settings.telegramSession || '';
-  if (savedSession && savedSession.length > 10) {
+  if (savedSession && savedSession.length > 10 && userbotManager.getAccounts().length === 0) {
     process.env.TELEGRAM_SESSION = savedSession;
-    console.log('[SERVER] Sessão do Telegram encontrada — iniciando userbot...');
+    console.log('[SERVER] Sessão legada encontrada — iniciando userbot principal...');
     await userbot.initUserbot();
-  } else {
-    console.log('[SERVER] Sem sessão do Telegram — acesse o painel → Integrações para autenticar');
   }
 
   // WhatsApp
