@@ -389,8 +389,8 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
         <div style="display:flex;align-items:center;gap:14px">
           <div class="int-logo" style="background:rgba(42,171,238,.15)">📱</div>
           <div class="int-info">
-            <div class="int-name">Telegram Userbot (Conta Pessoal)</div>
-            <div class="int-desc">Conecta diretamente na sua conta pessoal — responde como você</div>
+            <div class="int-name">Telegram — Sua Conta Pessoal</div>
+            <div class="int-desc">Conecte seu Telegram aqui. O sistema vai responder como você quando estiver offline.</div>
           </div>
           <span class="int-status pending" id="tg-int-status">Aguardando</span>
         </div>
@@ -605,17 +605,19 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
     <!-- ACCOUNTS -->
     <div class="tab" id="tab-accounts" style="flex-direction:column;padding:20px;overflow-y:auto;gap:14px">
       <div class="card" style="margin:0">
-        <div class="card-title">📱 Contas Telegram conectadas <span>cada conta tem dados separados</span></div>
+        <div class="card-title">📱 Minha Conta Telegram <span>conecte seu número aqui</span></div>
         <div id="accounts-list"><div class="loading">Carregando...</div></div>
-        <button class="btn primary" style="margin-top:12px;font-size:12px" onclick="openModal('add-account')">+ Adicionar conta</button>
+        <div id="accounts-add-btn">
+          <button class="btn primary" style="margin-top:12px;font-size:12px" onclick="openModal('add-account')">+ Conectar minha conta Telegram</button>
+        </div>
       </div>
       <div class="card" style="margin:0">
         <div class="card-title">ℹ️ Como funciona</div>
         <div style="font-size:12px;color:var(--text2);line-height:1.9">
-          • Cada conta Telegram tem sua própria sessão e conversas separadas<br>
-          • No painel de Conversas, você filtra por conta<br>
-          • Os gatilhos e base de conhecimento são compartilhados entre todas<br>
-          • Você pode ter sua conta pessoal + conta de suporte ao mesmo tempo
+          • Conecte seu número de Telegram aqui<br>
+          • O sistema vai responder suas mensagens automaticamente quando você estiver offline<br>
+          • Suas conversas ficam separadas das de outros usuários<br>
+          • Você precisará do API ID e API Hash do seu Telegram (my.telegram.org)
         </div>
       </div>
     </div>
@@ -1435,7 +1437,7 @@ document.getElementById('login-pass').addEventListener('keydown', e => {
 const _origLoadInt = typeof loadIntegrationStatus === 'function' ? loadIntegrationStatus : null;
 
 async function loadUserbotStatus() {
-  const res = await api('GET', '/api/userbot/status');
+  const res = await api('GET', '/api/accounts'));
   const tgStatus = document.getElementById('tg-int-status');
   const tgSide = document.getElementById('tg-status');
   if (!res || res.error) return;
@@ -1461,7 +1463,8 @@ async function startUserbot() {
   const apiHash = document.getElementById('ub-api-hash').value.trim();
   if (!apiId || !apiHash) return showNotif('Preencha API ID e API Hash!', 'red');
   showNotif('Conectando ao Telegram...', '');
-  const res = await api('POST', '/api/userbot/start', { apiId, apiHash });
+  const currentUser = JSON.parse(localStorage.getItem('zk00_user') || '{}');
+  const res = await api('POST', '/api/accounts/start', { apiId, apiHash, name: currentUser.name || 'Minha Conta' });
   if (res.success) {
     ubStep = res.step;
     document.getElementById('ub-step1').style.display = 'none';
@@ -1476,7 +1479,7 @@ async function sendUbPhone() {
   const phone = document.getElementById('ub-phone').value.trim();
   if (!phone) return showNotif('Digite seu número!', 'red');
   showNotif('Enviando código...', '');
-  const res = await api('POST', '/api/userbot/phone', { phone });
+  const res = await api('POST', `/api/accounts/${localStorage.getItem('ub_accountId') || 'main'}/phone`, { phone });
   if (res.success) {
     ubStep = res.step;
     document.getElementById('ub-step2').style.display = 'none';
@@ -1491,7 +1494,7 @@ async function sendUbCode() {
   const code = document.getElementById('ub-code').value.trim();
   if (!code) return showNotif('Digite o código!', 'red');
   showNotif('Verificando código...', '');
-  const res = await api('POST', '/api/userbot/code', { code });
+  const res = await api('POST', `/api/accounts/${localStorage.getItem('ub_accountId') || 'main'}/code`, { code });
   if (res.success) {
     if (res.step === 'waiting_password') {
       document.getElementById('ub-step3').style.display = 'none';
@@ -1512,7 +1515,7 @@ async function sendUbPassword() {
   const password = document.getElementById('ub-password').value.trim();
   if (!password) return showNotif('Digite a senha!', 'red');
   showNotif('Verificando senha 2FA...', '');
-  const res = await api('POST', '/api/userbot/password', { password });
+  const res = await api('POST', `/api/accounts/${localStorage.getItem('ub_accountId') || 'main'}/password`, { password });
   if (res.success) {
     document.getElementById('ub-step4').style.display = 'none';
     document.getElementById('ub-step-done').style.display = 'block';
@@ -1788,26 +1791,42 @@ function resetBroadcast() {
 async function loadAccounts() {
   const accounts = await api('GET', '/api/accounts');
   const el = document.getElementById('accounts-list');
+  const addBtn = document.getElementById('accounts-add-btn');
+
   if (!accounts || accounts.error || !accounts.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:8px 0">Nenhuma conta conectada ainda.</div>';
+    el.innerHTML = `
+      <div style="text-align:center;padding:20px;color:var(--text2)">
+        <div style="font-size:32px;margin-bottom:8px">📱</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:4px">Nenhuma conta conectada</div>
+        <div style="font-size:12px;color:var(--text3)">Conecte seu Telegram para começar a receber mensagens automaticamente</div>
+      </div>`;
+    if (addBtn) addBtn.style.display = 'block';
     return;
   }
+
   el.innerHTML = accounts.map(acc => `
-    <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg3);border-radius:10px;margin-bottom:8px;border:1px solid ${acc.connected ? 'rgba(16,185,129,.3)' : 'var(--border)'}">
-      <div style="width:38px;height:38px;border-radius:50%;background:rgba(42,171,238,.15);color:var(--tg);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📱</div>
+    <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--bg3);border-radius:10px;margin-bottom:8px;border:1px solid ${acc.connected ? 'rgba(16,185,129,.3)' : 'var(--border)'}">
+      <div style="width:42px;height:42px;border-radius:50%;background:${acc.connected ? 'rgba(16,185,129,.15)' : 'rgba(42,171,238,.15)'};color:${acc.connected ? 'var(--green)' : 'var(--tg)'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📱</div>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:600">${acc.name}</div>
+        <div style="font-size:14px;font-weight:600">${acc.name}</div>
         <div style="font-size:11px;color:${acc.connected ? 'var(--green)' : 'var(--text3)'}">
-          ${acc.connected ? '● Conectado' : '○ Desconectado'}
-          <span style="color:var(--text3);margin-left:8px">ID: ${acc.id}</span>
+          ${acc.connected ? '● Online — respondendo automaticamente' : '○ Desconectado'}
         </div>
       </div>
-      <div style="display:flex;gap:6px">
-        <div class="toggle-switch ${acc.active ? '' : 'off'}" onclick="toggleAccount('${acc.id}', ${!acc.active})" style="width:28px;height:16px"></div>
-        <button class="icon-btn" onclick="deleteAccount('${acc.id}', '${acc.name}')" style="color:var(--red)">🗑</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        ${acc.connected ? '<span style="font-size:10px;background:rgba(16,185,129,.15);color:var(--green);padding:3px 8px;border-radius:5px;border:1px solid rgba(16,185,129,.3)">✅ Ativo</span>' : ''}
+        <div class="toggle-switch ${acc.active ? '' : 'off'}" onclick="toggleAccount('${acc.id}', ${!acc.active})" style="width:28px;height:16px" title="Ativar/Desativar"></div>
+        <button class="icon-btn" onclick="deleteAccount('${acc.id}', '${acc.name}')" style="color:var(--red)" title="Remover">🗑</button>
       </div>
     </div>
   `).join('');
+
+  // Esconde botão de adicionar se já tem conta conectada (usuário comum)
+  const currentUser = JSON.parse(localStorage.getItem('zk00_user') || '{}');
+  if (addBtn) {
+    const isAdmin = !currentUser.id || currentUser.id === 'admin';
+    addBtn.style.display = (isAdmin || accounts.length === 0) ? 'block' : 'none';
+  }
 }
 
 async function toggleAccount(id, active) {
@@ -2073,8 +2092,11 @@ async function startUserbot() {
   const apiHash = document.getElementById('ub-api-hash').value.trim();
   if (!apiId || !apiHash) return showNotif('Preencha API ID e API Hash!', 'red');
   showNotif('Conectando ao Telegram...', '');
-  const res = await api('POST', '/api/userbot/start', { apiId, apiHash });
+  const currentUser = JSON.parse(localStorage.getItem('zk00_user') || '{}');
+  const res = await api('POST', '/api/accounts/start', { apiId, apiHash, name: currentUser.name || 'Minha Conta' });
   if (res.success) {
+    // Salva o accountId para usar nas próximas etapas
+    localStorage.setItem('ub_accountId', res.accountId || ('acc_' + Date.now()));
     document.getElementById('ub-step1').style.display = 'none';
     document.getElementById('ub-step2').style.display = 'block';
     showNotif(res.message || 'Conectado! Digite seu número.', 'green');
@@ -2087,7 +2109,7 @@ async function sendUbPhone() {
   const phone = document.getElementById('ub-phone').value.trim();
   if (!phone) return showNotif('Digite seu número com código do país!', 'red');
   showNotif('Enviando código...', '');
-  const res = await api('POST', '/api/userbot/phone', { phone });
+  const res = await api('POST', `/api/accounts/${localStorage.getItem('ub_accountId') || 'main'}/phone`, { phone });
   if (res.success) {
     document.getElementById('ub-step2').style.display = 'none';
     document.getElementById('ub-step3').style.display = 'block';
@@ -2101,7 +2123,7 @@ async function sendUbCode() {
   const code = document.getElementById('ub-code').value.trim();
   if (!code) return showNotif('Digite o código!', 'red');
   showNotif('Verificando...', '');
-  const res = await api('POST', '/api/userbot/code', { code });
+  const res = await api('POST', `/api/accounts/${localStorage.getItem('ub_accountId') || 'main'}/code`, { code });
   if (res.success) {
     if (res.step === 'waiting_password') {
       document.getElementById('ub-step3').style.display = 'none';
@@ -2125,7 +2147,7 @@ async function sendUbPassword() {
   const password = document.getElementById('ub-password').value.trim();
   if (!password) return showNotif('Digite a senha 2FA!', 'red');
   showNotif('Verificando senha...', '');
-  const res = await api('POST', '/api/userbot/password', { password });
+  const res = await api('POST', `/api/accounts/${localStorage.getItem('ub_accountId') || 'main'}/password`, { password });
   if (res.success) {
     document.getElementById('ub-step4').style.display = 'none';
     document.getElementById('ub-step-done').style.display = 'block';
@@ -2141,7 +2163,7 @@ async function sendUbPassword() {
 
 // Verifica status do userbot ao carregar integrações
 async function checkUserbotStatus() {
-  const res = await api('GET', '/api/userbot/status');
+  const res = await api('GET', '/api/accounts'));
   if (!res || res.error) return;
   if (res.connected) {
     document.getElementById('ub-step1').style.display = 'none';
