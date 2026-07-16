@@ -969,7 +969,7 @@ if (TOKEN) {
   if (savedUser) {
     try {
       const u = JSON.parse(savedUser);
-      document.querySelector('.logo-sub').textContent = u.name || u.username || 'Rodrigo ZK00';
+      document.querySelector('.logo-sub').textContent = u.name || u.username || 'FM';
       const sidebarUser = document.getElementById('sidebar-username');
       if (sidebarUser) sidebarUser.textContent = '👤 ' + (u.name || u.username);
     } catch(e) {}
@@ -1459,11 +1459,11 @@ function showNotif(msg, type) {
 document.getElementById('login-pass').addEventListener('keydown', e => {
   if (e.key === 'Enter') doLogin();
 });
-</script>
-</body>
-</html>
 
-<script>
+
+// ============ continuação ============
+
+
 // USERBOT AUTH — injeta na aba de integrações
 const _origLoadInt = typeof loadIntegrationStatus === 'function' ? loadIntegrationStatus : null;
 
@@ -1583,7 +1583,7 @@ async function loadUsers() {
     <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg3);border-radius:10px;margin-bottom:8px;border:1px solid rgba(59,130,246,.3)">
       <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:700">R</div>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:600">Rodrigo ZK00 (Admin Master)</div>
+        <div style="font-size:13px;font-weight:600">FM (Admin Master)</div>
         <div style="font-size:11px;color:var(--text3)">Login via ADMIN_PASSWORD • Acesso total</div>
       </div>
       <span style="font-size:10px;background:rgba(59,130,246,.2);color:var(--accent);padding:2px 8px;border-radius:5px;border:1px solid rgba(59,130,246,.3)">Admin</span>
@@ -2284,3 +2284,5 @@ async function checkUserbotStatus() {
   }
 }
 </script>
+</body>
+</html>
