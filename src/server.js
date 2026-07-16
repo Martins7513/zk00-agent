@@ -129,12 +129,14 @@ app.get('/api/me', authMiddleware, (req, res) => {
 // DASHBOARD
 // ==============================
 app.get('/api/stats', authMiddleware, (req, res) => {
-  const stats = db.getStats();
+  const accountId = req.user?.isAdmin ? null : req.user?.id;
+  const stats = db.getStats(accountId);
   res.json({ ...stats, uptime: process.uptime() });
 });
 
 app.get('/api/conversations', authMiddleware, (req, res) => {
-  res.json(db.getRecentConversations(30));
+  const accountId = req.user?.isAdmin ? null : req.user?.id;
+  res.json(db.getRecentConversations(30, accountId));
 });
 
 app.get('/api/conversations/:platform/:userId', authMiddleware, (req, res) => {
@@ -168,7 +170,10 @@ app.post('/api/agent/toggle', authMiddleware, (req, res) => {
 // ==============================
 // CLIENTS
 // ==============================
-app.get('/api/clients', authMiddleware, (req, res) => res.json(db.getAllClients()));
+app.get('/api/clients', authMiddleware, (req, res) => {
+  const accountId = req.user?.isAdmin ? null : req.user?.id;
+  res.json(db.getAllClients(accountId));
+});
 app.patch('/api/clients/:platform/:userId', authMiddleware, (req, res) => {
   res.json(db.saveClient(req.params.platform, req.params.userId, req.body));
 });
