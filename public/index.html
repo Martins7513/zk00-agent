@@ -1575,18 +1575,37 @@ async function saveNewUser() {
   const name = document.getElementById('new-user-name').value.trim();
   const username = document.getElementById('new-user-username').value.trim();
   const password = document.getElementById('new-user-pass').value.trim();
-  if (!name || !username || !password) return showNotif('Preencha todos os campos!', 'red');
-  if (password.length < 6) return showNotif('Senha deve ter pelo menos 6 caracteres!', 'red');
 
-  const res = await api('POST', '/api/users', { name, username, password });
-  if (res.error) return showNotif('Erro: ' + res.error, 'red');
+  if (!name) return showNotif('Preencha o nome!', 'red');
+  if (!username) return showNotif('Preencha o username!', 'red');
+  if (!password) return showNotif('Preencha a senha!', 'red');
+  if (password.length < 4) return showNotif('Senha deve ter pelo menos 4 caracteres!', 'red');
 
-  closeModal('add-user');
-  document.getElementById('new-user-name').value = '';
-  document.getElementById('new-user-username').value = '';
-  document.getElementById('new-user-pass').value = '';
-  await loadUsers();
-  showNotif(`Usuário @${username} criado! Senha: ${password}`, 'green');
+  try {
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': TOKEN
+      },
+      body: JSON.stringify({ name, username, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      return showNotif('Erro: ' + (data.error || res.status), 'red');
+    }
+
+    closeModal('add-user');
+    document.getElementById('new-user-name').value = '';
+    document.getElementById('new-user-username').value = '';
+    document.getElementById('new-user-pass').value = '';
+    await loadUsers();
+    showNotif('✅ Usuário @' + username + ' criado com sucesso!', 'green');
+  } catch(e) {
+    showNotif('Erro de conexão: ' + e.message, 'red');
+  }
 }
 
 // ============================================
