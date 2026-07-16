@@ -1508,8 +1508,11 @@ async function startUserbot() {
 async function sendUbPhone() {
   const phone = document.getElementById('ub-phone').value.trim();
   if (!phone) return showNotif('Digite seu número!', 'red');
-  showNotif('Enviando código...', '');
-  const res = await api('POST', `/api/accounts/${localStorage.getItem('ub_accountId') || 'main'}/phone`, { phone });
+  const accountId = localStorage.getItem('ub_accountId') || 'main';
+  console.log('[UB] sendPhone - accountId:', accountId, 'phone:', phone);
+  showNotif('Enviando código para ' + phone + '...', '');
+  const res = await api('POST', `/api/accounts/${accountId}/phone`, { phone });
+  console.log('[UB] sendPhone response:', JSON.stringify(res));
   if (res.success) {
     ubStep = res.step;
     document.getElementById('ub-step2').style.display = 'none';
@@ -1523,8 +1526,11 @@ async function sendUbPhone() {
 async function sendUbCode() {
   const code = document.getElementById('ub-code').value.trim();
   if (!code) return showNotif('Digite o código!', 'red');
+  const accountId = localStorage.getItem('ub_accountId') || 'main';
+  console.log('[UB] sendCode - accountId:', accountId, 'code:', code);
   showNotif('Verificando código...', '');
-  const res = await api('POST', `/api/accounts/${localStorage.getItem('ub_accountId') || 'main'}/code`, { code });
+  const res = await api('POST', `/api/accounts/${accountId}/code`, { code });
+  console.log('[UB] sendCode response:', JSON.stringify(res));
   if (res.success) {
     if (res.step === 'waiting_password') {
       document.getElementById('ub-step3').style.display = 'none';
@@ -2203,9 +2209,12 @@ async function startUserbot() {
   showNotif('Conectando ao Telegram...', '');
   const currentUser = JSON.parse(localStorage.getItem('zk00_user') || '{}');
   const res = await api('POST', '/api/accounts/start', { apiId, apiHash, name: currentUser.name || 'Minha Conta' });
+  console.log('[UB] startAuth response:', JSON.stringify(res));
   if (res.success) {
     // Salva o accountId para usar nas próximas etapas
-    localStorage.setItem('ub_accountId', res.accountId || ('acc_' + Date.now()));
+    const savedId = res.accountId || ('acc_' + Date.now());
+    localStorage.setItem('ub_accountId', savedId);
+    console.log('[UB] Saved accountId:', savedId);
     document.getElementById('ub-step1').style.display = 'none';
     document.getElementById('ub-step2').style.display = 'block';
     showNotif(res.message || 'Conectado! Digite seu número.', 'green');
