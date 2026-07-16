@@ -373,6 +373,62 @@ function getStats() {
   };
 }
 
+// ==============================
+// USUÁRIOS DO PAINEL
+// ==============================
+function getUsers() {
+  return db.settings.panelUsers || [];
+}
+
+function saveUsers(users) {
+  db.settings.panelUsers = users;
+  saveDB(db);
+}
+
+function getUserByCredentials(username, password) {
+  // Admin master sempre funciona
+  const adminPass = process.env.ADMIN_PASSWORD || 'zk00admin123';
+  if (password === adminPass && (username === 'admin' || username === 'rodrigo' || !username)) {
+    return { id: 'admin', username: 'admin', name: 'Rodrigo ZK00', role: 'admin', isAdmin: true };
+  }
+  // Busca nos usuários cadastrados
+  const users = getUsers();
+  return users.find(u => u.username === username && u.password === password && u.active !== false) || null;
+}
+
+function addUser(user) {
+  const users = getUsers();
+  if (users.find(u => u.username === user.username)) {
+    return { error: 'Username já existe' };
+  }
+  const newUser = {
+    id: 'usr_' + Date.now(),
+    username: user.username,
+    password: user.password,
+    name: user.name || user.username,
+    role: user.role || 'operator',
+    active: true,
+    createdAt: new Date().toISOString()
+  };
+  users.push(newUser);
+  saveUsers(users);
+  return newUser;
+}
+
+function updateUser(id, data) {
+  const users = getUsers();
+  const idx = users.findIndex(u => u.id === id);
+  if (idx < 0) return { error: 'Usuário não encontrado' };
+  users[idx] = { ...users[idx], ...data };
+  saveUsers(users);
+  return users[idx];
+}
+
+function deleteUser(id) {
+  const users = getUsers().filter(u => u.id !== id);
+  saveUsers(users);
+}
+
 // Exporta backup completo
 function exportBackup() {
   return JSON.parse(JSON.stringify(db));
@@ -389,6 +445,7 @@ function importBackup(data) {
 
 module.exports = {
   getClient, saveClient, getAllClients,
+  getUsers, getUserByCredentials, addUser, updateUser, deleteUser,
   getHistory, addMessage, getRecentConversations,
   searchKnowledge, getAllKnowledge, addKnowledge, deleteKnowledge,
   getSettings, updateSettings, isHumanMode, setHumanMode,
