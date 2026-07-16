@@ -198,16 +198,27 @@ app.patch('/api/settings', authMiddleware, (req, res) => res.json(db.updateSetti
 // MULTI-CONTA TELEGRAM
 // ==============================
 
-// Lista todas as contas
+// Lista contas — admin vê todas, usuário vê só a dele
 app.get('/api/accounts', authMiddleware, (req, res) => {
-  res.json(userbotManager.getStatus());
+  const all = userbotManager.getStatus();
+  if (req.user?.isAdmin) return res.json(all);
+  // Usuário comum — só vê a conta vinculada a ele
+  const user = db.getUsers().find(u => u.id === req.user?.id);
+  if (!user) return res.json([]);
+  const userAccountIds = user.accountIds || [];
+  res.json(all.filter(a => userAccountIds.includes(a.id)));
 });
 
-// Inicia auth de uma nova conta
+// Inicia auth — gera accountId único por usuário
 app.post('/api/accounts/start', authMiddleware, async (req, res) => {
-  const { accountId, apiId, apiHash, name } = req.body;
-  if (!accountId || !apiId || !apiHash) return res.status(400).json({ error: 'accountId, apiId e apiHash obrigatórios' });
-  res.json(await userbotManager.startAuth(accountId, apiId, apiHash, name));
+  const { apiId, apiHash, name } = req.body;
+  const accountId = req.user?.isAdmin
+    ? (req.body.accountId || ('acc_' + Date.now()))
+    : ('acc_' + req.user.id);
+  if (!apiId || !apiHash) return res.status(400).json({ error: 'apiId e apiHash obrigatórios' });
+  const result = await userbotManager.startAuth(accountId, apiId, apiHash, name || req.user?.name);
+  // Retorna o accountId para o frontend usar nas próximas etapas
+  res.json({ ...result, accountId });
 });
 
 // Envia telefone
@@ -215,14 +226,27 @@ app.post('/api/accounts/:accountId/phone', authMiddleware, async (req, res) => {
   res.json(await userbotManager.sendPhone(req.params.accountId, req.body.phone));
 });
 
-// Envia código
+// Envia código — após autenticar, vincula conta ao usuário
 app.post('/api/accounts/:accountId/code', authMiddleware, async (req, res) => {
-  res.json(await userbotManager.sendCode(req.params.accountId, req.body.code));
+  const result = await userbotManager.sendCode(req.params.accountId, req.body.code);
+  // Se autenticou com sucesso e não é admin, vincula ao usuário
+  if (result.success && result.step === 'done' && !req.user?.isAdmin) {
+    db.updateUser(req.user.id, {
+      accountIds: [req.params.accountId]
+    });
+  }
+  res.json(result);
 });
 
-// Envia senha 2FA
+// Envia senha 2FA — após autenticar, vincula conta ao usuário
 app.post('/api/accounts/:accountId/password', authMiddleware, async (req, res) => {
-  res.json(await userbotManager.sendPassword(req.params.accountId, req.body.password));
+  const result = await userbotManager.sendPassword(req.params.accountId, req.body.password);
+  if (result.success && result.step === 'done' && !req.user?.isAdmin) {
+    db.updateUser(req.user.id, {
+      accountIds: [req.params.accountId]
+    });
+  }
+  res.json(result);
 });
 
 // Remove uma conta
