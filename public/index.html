@@ -1166,7 +1166,10 @@ async function sendManualMsg() {
   const input = document.getElementById('manual-input');
   const text = input.value.trim();
   if (!text) return;
-  await api('POST', '/api/send', { platform: currentChat.platform, userId: currentChat.userId, message: text });
+  console.log('[SEND MANUAL] platform:', currentChat.platform, 'userId:', currentChat.userId);
+  const sendRes = await api('POST', '/api/send', { platform: currentChat.platform, userId: currentChat.userId, message: text });
+  console.log('[SEND MANUAL] response:', JSON.stringify(sendRes));
+  if (sendRes && sendRes.error) return showNotif('Erro ao enviar: ' + sendRes.error, 'red');
   input.value = '';
   await loadChatHistory(currentChat.platform, currentChat.userId);
   if (!currentChat.isHumanMode) {
