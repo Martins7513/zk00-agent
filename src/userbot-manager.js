@@ -282,6 +282,39 @@ async function sendPhone(accountId, phone) {
   }
 }
 
+// Função combinada: inicia auth E envia telefone em uma única chamada
+async function startAuthAndPhone(accountId, apiId, apiHash, accountName, phone) {
+  try {
+    // Passo 1: cria o cliente
+    const client = new TelegramClient(new StringSession(''), parseInt(apiId), apiHash, { connectionRetries: 5 });
+    await client.connect();
+
+    // Passo 2: envia o código imediatamente
+    const result = await client.invoke(new Api.auth.SendCode({
+      phoneNumber: phone,
+      apiId: parseInt(apiId),
+      apiHash: apiHash,
+      settings: new Api.CodeSettings({})
+    }));
+
+    // Salva o estado
+    authStates[accountId] = {
+      step: 'waiting_code',
+      apiId, apiHash,
+      name: accountName,
+      phone,
+      phoneCodeHash: result.phoneCodeHash,
+      tempClient: client
+    };
+
+    console.log(`[MANAGER] startAuthAndPhone OK - ${accountId} - código enviado para ${phone}`);
+    return { success: true, step: 'waiting_code', message: 'Código enviado! Verifique seu Telegram.' };
+  } catch(err) {
+    console.error('[MANAGER] startAuthAndPhone error:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
 async function sendCode(accountId, code) {
   const state = authStates[accountId];
   if (!state) return { success: false, error: 'Estado inválido' };
@@ -364,7 +397,7 @@ async function sendManual(accountId, userId, text) {
 
 module.exports = {
   initAll, connectAccount, removeAccount,
-  startAuth, sendPhone, sendCode, sendPassword,
+  startAuth, startAuthAndPhone, sendPhone, sendCode, sendPassword,
   getStatus, getAccounts, addOrUpdateAccount,
   sendManual, activeClients, authStates
 };
