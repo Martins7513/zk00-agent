@@ -283,11 +283,24 @@ app.post('/api/accounts/:accountId/phone', authMiddleware, async (req, res) => {
 // Envia código — após autenticar, vincula conta ao usuário
 app.post('/api/accounts/:accountId/code', authMiddleware, async (req, res) => {
   const result = await userbotManager.sendCode(req.params.accountId, req.body.code);
-  // Se autenticou com sucesso e não é admin, vincula ao usuário
-  if (result.success && result.step === 'done' && !req.user?.isAdmin) {
-    db.updateUser(req.user.id, {
-      accountIds: [req.params.accountId]
-    });
+  // Se autenticou com sucesso, vincula ao usuário (admin ou não)
+  if (result.success && result.step === 'done') {
+    const accountId = req.params.accountId;
+    if (!req.user?.isAdmin && req.user?.id) {
+      // Usuário comum — vincula à conta dele
+      const user = db.getUsers().find(u => u.id === req.user.id);
+      const currentIds = user?.accountIds || [];
+      if (!currentIds.includes(accountId)) {
+        db.updateUser(req.user.id, { accountIds: [...currentIds, accountId] });
+      }
+      console.log(`[AUTH] Conta ${accountId} vinculada ao usuário ${req.user.username}`);
+    }
+    // Para admin: salva o accountId nas settings para rastreamento
+    const settings = db.getSettings();
+    const adminAccounts = settings.adminAccountIds || [];
+    if (!adminAccounts.includes(accountId)) {
+      db.updateSettings({ adminAccountIds: [...adminAccounts, accountId] });
+    }
   }
   res.json(result);
 });
@@ -490,6 +503,19 @@ app.get('/api/broadcast/status', authMiddleware, (req, res) => {
 // Aborta o disparo
 app.post('/api/broadcast/abort', authMiddleware, (req, res) => {
   res.json(broadcast.abort());
+});
+
+// Vincula uma conta Telegram a um usuário manualmente (admin)
+app.post('/api/users/:userId/link-account', authMiddleware, (req, res) => {
+  const { accountId } = req.body;
+  if (!accountId) return res.status(400).json({ error: 'accountId obrigatório' });
+  const user = db.getUsers().find(u => u.id === req.params.userId);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+  const currentIds = user.accountIds || [];
+  if (!currentIds.includes(accountId)) {
+    db.updateUser(req.params.userId, { accountIds: [...currentIds, accountId] });
+  }
+  res.json({ success: true, accountIds: [...currentIds, accountId] });
 });
 
 // ==============================
