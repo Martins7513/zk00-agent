@@ -1537,17 +1537,24 @@ function openModal(id) {
 }
 
 function resetAccountModal() {
-  // Reset all steps so can add multiple accounts
-  const steps = ['new-acc-step1','new-acc-step2','new-acc-step3','new-acc-step4','new-acc-step-done'];
-  steps.forEach((s,i) => {
-    const el = document.getElementById(s);
-    if (el) el.style.display = i===0 ? 'block' : 'none';
+  // Mostra só o passo 1, esconde todos os outros
+  ['new-acc-step2','new-acc-step3','new-acc-step4','new-acc-step-done'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
   });
+  const step1 = document.getElementById('new-acc-step1');
+  if (step1) step1.style.display = 'block';
+
+  // Limpa todos os campos
   ['new-acc-name','new-acc-apiid','new-acc-apihash','new-acc-phone','new-acc-code','new-acc-pwd'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+
+  // Reseta o estado de auth
   newAccAuth = { step: 'idle', accountId: null };
+  localStorage.removeItem('ub_accountId');
+  console.log('[MODAL] Reset completo — pronto para nova conta');
 }
 function closeModal(id) { document.getElementById('modal-' + id).classList.remove('open'); }
 
@@ -1997,10 +2004,15 @@ async function startNewAccount() {
   const name = document.getElementById('new-acc-name').value.trim();
   const apiId = document.getElementById('new-acc-apiid').value.trim();
   const apiHash = document.getElementById('new-acc-apihash').value.trim();
-  if (!name || !apiId || !apiHash) return showNotif('Preencha todos os campos!', 'red');
+  if (!name) return showNotif('Digite um nome para a conta!', 'red');
+  if (!apiId) return showNotif('Digite o API ID!', 'red');
+  if (!apiHash) return showNotif('Digite o API Hash!', 'red');
 
+  // Gera um accountId único a cada vez
   const accountId = 'acc_' + Date.now();
   newAccAuth.accountId = accountId;
+  newAccAuth.step = 'starting';
+  console.log('[MODAL] Iniciando nova conta:', accountId);
 
   showNotif('Conectando...', '');
   const res = await api('POST', '/api/accounts/start', { accountId, apiId, apiHash, name });
@@ -2016,6 +2028,8 @@ async function startNewAccount() {
 async function sendNewAccPhone() {
   const phone = document.getElementById('new-acc-phone').value.trim();
   if (!phone) return showNotif('Digite o número!', 'red');
+  if (!newAccAuth.accountId) return showNotif('Erro: volte ao Passo 1 e clique em Iniciar conexão', 'red');
+  console.log('[MODAL] sendPhone - accountId:', newAccAuth.accountId);
   const res = await api('POST', `/api/accounts/${newAccAuth.accountId}/phone`, { phone });
   if (res.success) {
     document.getElementById('new-acc-step2').style.display = 'none';
