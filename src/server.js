@@ -148,20 +148,43 @@ app.post('/api/send', authMiddleware, async (req, res) => {
   const { platform, userId, message } = req.body;
   if (!platform || !userId || !message) return res.status(400).json({ error: 'Dados incompletos' });
   try {
-    if (platform.startsWith('telegram_')) {
-      // Multi-conta: platform = "telegram_acc_xxx", userId = número do usuário
-      const accountId = platform.replace('telegram_', '');
-      const ac = userbotManager.activeClients[accountId];
-      if (ac && ac.isConnected) {
+    if (platform.startsWith('telegram_') || platform === 'telegram') {
+      const accountId = platform.startsWith('telegram_') ? platform.replace('telegram_', '') : null;
+      console.log(`[SEND] platform=${platform} accountId=${accountId} userId=${userId}`);
+      console.log(`[SEND] activeClients keys:`, Object.keys(userbotManager.activeClients));
+      console.log(`[SEND] userbot connected:`, userbot.getStatus().connected);
+
+      // Tenta enviar em todas as contas ativas que tiverem esse userId
+      let sent = false;
+
+      // 1. Tenta pela conta específica do manager
+      if (accountId && userbotManager.activeClients[accountId]?.isConnected) {
         await userbotManager.sendManual(accountId, userId, message);
-      } else {
-        // Fallback: usa o userbot principal (conta legada)
-        console.log(`[SEND] Account ${accountId} não encontrada em activeClients, usando userbot legado`);
-        console.log(`[SEND] activeClients keys:`, Object.keys(userbotManager.activeClients));
-        await userbot.sendManual(userId, message);
+        console.log(`[SEND] Enviado via manager account ${accountId}`);
+        sent = true;
       }
-    } else if (platform === 'telegram') {
-      await userbot.sendManual(userId, message);
+
+      // 2. Tenta por qualquer conta ativa no manager
+      if (!sent) {
+        for (const [accId, ac] of Object.entries(userbotManager.activeClients)) {
+          if (ac.isConnected) {
+            try {
+              await ac.client.sendMessage(parseInt(userId), { message });
+              console.log(`[SEND] Enviado via manager conta ${accId}`);
+              sent = true;
+              break;
+            } catch(e) { console.log(`[SEND] Falhou conta ${accId}:`, e.message); }
+          }
+        }
+      }
+
+      // 3. Fallback: userbot legado
+      if (!sent) {
+        console.log(`[SEND] Usando userbot legado`);
+        await userbot.sendManual(userId, message);
+        sent = true;
+      }
+
     } else if (platform === 'whatsapp') {
       await sendWA(userId, message);
     }
@@ -237,6 +260,14 @@ app.post('/api/accounts/start', authMiddleware, async (req, res) => {
   const result = await userbotManager.startAuth(accountId, apiId, apiHash, name || req.user?.name);
   // Retorna o accountId para o frontend usar nas próximas etapas
   res.json({ ...result, accountId });
+});
+
+// Rota combinada: inicia auth + envia telefone em UMA chamada (resolve problema de restart)
+app.post('/api/accounts/:accountId/start-and-phone', authMiddleware, async (req, res) => {
+  const { apiId, apiHash, name, phone } = req.body;
+  if (!apiId || !apiHash || !phone) return res.status(400).json({ error: 'apiId, apiHash e phone obrigatórios' });
+  const result = await userbotManager.startAuthAndPhone(req.params.accountId, apiId, apiHash, name, phone);
+  res.json(result);
 });
 
 // Envia telefone
