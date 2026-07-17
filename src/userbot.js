@@ -68,6 +68,7 @@ function getStoredSession() {
 
 let client = null;
 let isConnected = false;
+let ownUserId = null;
 
 // IDs que o agente NUNCA responde (seus contatos VIP, você mesmo, etc)
 const IGNORE_IDS = [];
@@ -132,7 +133,15 @@ async function initUserbot() {
 
     await client.connect();
     isConnected = true;
-    console.log('[USERBOT] ✅ Conectado à conta pessoal do Telegram!');
+
+    // Salva nosso próprio userId para filtrar mensagens
+    try {
+      const me = await client.getMe();
+      ownUserId = String(me.id);
+      console.log(`[USERBOT] ✅ Conectado como userId: ${ownUserId}`);
+    } catch(e) {
+      console.log('[USERBOT] ✅ Conectado à conta pessoal do Telegram!');
+    }
 
     // Atualiza sessão se mudou (token de sessão pode ser renovado pelo Telegram)
     const newSession = client.session.save();
@@ -191,6 +200,21 @@ function startMessageListener() {
       const userId = String(peer.userId);
       if (IGNORE_IDS.includes(userId)) return;
 
+      // Se tem múltiplas contas ativas, verifica se esta mensagem é para nossa conta
+      // (não para a conta do userbot-manager)
+      const { activeClients } = require('./userbot-manager');
+      if (Object.keys(activeClients).length > 0) {
+        // Tem contas no manager — verifica se essa mensagem chegou via manager
+        // Se o lead está salvo com owner de outra conta, ignora
+        const db = require('./database');
+        const clientData = db.getClient('telegram', userId) || db.getClient(`telegram_legacy`, userId);
+        // Só processa se não tem owner ou owner é legacy
+        if (clientData && clientData.owner && !clientData.owner.includes('legacy') && clientData.platform !== 'telegram') {
+          console.log(`[USERBOT LEGACY] Mensagem de ${userId} pertence à conta ${clientData.owner} — ignorando`);
+          return;
+        }
+      }
+
       // Nome do contato
       let userName = userId;
       try {
@@ -231,7 +255,7 @@ function startMessageListener() {
       const text = message.message;
       if (!text || text.trim() === '') return;
 
-      console.log(`[USERBOT] Mensagem de ${userName} (${userId}): ${text.substring(0, 60)}`);
+      console.log(`[USERBOT LEGACY] userId:${userId} userName:${userName} msg:${text.substring(0, 40)}`);
 
       // Agrupa mensagens rápidas do mesmo usuário (espera 3s por mais mensagens)
       if (pendingMessages[userId]) {
