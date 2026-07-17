@@ -151,9 +151,16 @@ app.post('/api/send', authMiddleware, async (req, res) => {
     if (platform.startsWith('telegram_')) {
       // Multi-conta: platform = "telegram_acc_xxx", userId = número do usuário
       const accountId = platform.replace('telegram_', '');
-      await userbotManager.sendManual(accountId, userId, message);
+      const ac = userbotManager.activeClients[accountId];
+      if (ac && ac.isConnected) {
+        await userbotManager.sendManual(accountId, userId, message);
+      } else {
+        // Fallback: usa o userbot principal (conta legada)
+        console.log(`[SEND] Account ${accountId} não encontrada em activeClients, usando userbot legado`);
+        console.log(`[SEND] activeClients keys:`, Object.keys(userbotManager.activeClients));
+        await userbot.sendManual(userId, message);
+      }
     } else if (platform === 'telegram') {
-      // Conta legada
       await userbot.sendManual(userId, message);
     } else if (platform === 'whatsapp') {
       await sendWA(userId, message);
