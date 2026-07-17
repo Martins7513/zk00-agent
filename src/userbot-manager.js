@@ -222,6 +222,16 @@ async function startAuth(accountId, apiId, apiHash, accountName) {
       tempClient: client
     };
     console.log(`[MANAGER] startAuth OK - accountId: ${accountId}, authStates keys: ${Object.keys(authStates).join(',')}`);
+
+    // Salva no banco para recuperar se servidor reiniciar
+    try {
+      const db = require('./database');
+      const settings = db.getSettings();
+      const pendingAuths = settings.pendingAuths || {};
+      pendingAuths[accountId] = { apiId, apiHash, name: accountName, createdAt: new Date().toISOString() };
+      db.updateSettings({ pendingAuths });
+    } catch(e) { console.error('[MANAGER] Erro ao salvar pendingAuth:', e.message); }
+
     return { success: true, step: 'waiting_phone' };
   } catch (err) {
     return { success: false, error: err.message };
@@ -229,9 +239,33 @@ async function startAuth(accountId, apiId, apiHash, accountName) {
 }
 
 async function sendPhone(accountId, phone) {
-  const state = authStates[accountId];
+  let state = authStates[accountId];
   console.log(`[MANAGER] sendPhone - accountId: ${accountId}, authStates keys: ${Object.keys(authStates).join(',')}`);
-  if (!state) return { success: false, error: 'Inicie a autenticação primeiro' };
+
+  // Se perdeu o estado (ex: reinício do servidor), tenta recriar do banco
+  if (!state) {
+    const db = require('./database');
+    const settings = db.getSettings();
+    const pendingAuth = (settings.pendingAuths || {})[accountId];
+    if (pendingAuth) {
+      console.log(`[MANAGER] Recriando authState do banco para ${accountId}`);
+      try {
+        const client = new TelegramClient(new StringSession(''), parseInt(pendingAuth.apiId), pendingAuth.apiHash, { connectionRetries: 3 });
+        await client.connect();
+        authStates[accountId] = {
+          step: 'waiting_phone',
+          apiId: pendingAuth.apiId,
+          apiHash: pendingAuth.apiHash,
+          name: pendingAuth.name,
+          tempClient: client
+        };
+        state = authStates[accountId];
+      } catch(e) {
+        console.error('[MANAGER] Falhou ao recriar state:', e.message);
+      }
+    }
+    if (!state) return { success: false, error: 'Sessão expirou. Volte ao Passo 1 e clique em Iniciar conexão novamente.' };
+  }
   try {
     const result = await state.tempClient.invoke(new Api.auth.SendCode({
       phoneNumber: phone,
