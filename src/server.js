@@ -135,8 +135,13 @@ app.get('/api/stats', authMiddleware, (req, res) => {
 });
 
 app.get('/api/conversations', authMiddleware, (req, res) => {
-  const accountId = req.user?.isAdmin ? null : req.user?.id;
-  res.json(db.getRecentConversations(30, req.user?.isAdmin ? null : req.user?.id));
+  const isAdmin = req.user?.isAdmin;
+  const ownerId = isAdmin ? null : req.user?.id;
+  const convs = db.getRecentConversations(100, ownerId);
+  console.log(`[CONV API] user:${req.user?.username} isAdmin:${isAdmin} ownerId:${ownerId} returning:${convs.length}`);
+  // Debug: show all conversation keys in DB
+  const allKeys = Object.keys(db.getSettings ? [] : []);
+  res.json(convs);
 });
 
 app.get('/api/conversations/:platform/:userId', authMiddleware, (req, res) => {
