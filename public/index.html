@@ -3,6 +3,1426 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZK00 Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..800;1,14..32,300..800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #050507;
+  --surface: #0c0c10;
+  --surface2: #111116;
+  --surface3: #18181f;
+  --surface4: #222229;
+  --border: rgba(255,255,255,.06);
+  --border2: rgba(255,255,255,.1);
+  --accent: #7c5cfc;
+  --accent-glow: rgba(124,92,252,.35);
+  --accent2: #6344e8;
+  --green: #00d68f;
+  --green-glow: rgba(0,214,143,.3);
+  --yellow: #fbbf24;
+  --red: #f43f5e;
+  --purple: #c084fc;
+  --text: #f0f0f5;
+  --text2: #8b8b9a;
+  --text3: #4a4a58;
+  --tg: #2AABEE;
+  --wa: #25D366;
+  --r: 10px;
+  --r-sm: 7px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========================
+   LOGIN
+======================== */
+.login-screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124,92,252,.15), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(192,132,252,.08), transparent);
+}
+
+.login-box {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-xl);
+  padding: 40px 36px;
+  width: 380px;
+  text-align: center;
+  box-shadow: 0 40px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04);
+  position: relative;
+  overflow: hidden;
+}
+.login-box::before {
+  content: '';
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 200px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.login-logo { font-size: 42px; margin-bottom: 14px; }
+.login-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; letter-spacing: -.4px; }
+.login-sub { font-size: 13px; color: var(--text2); margin-bottom: 28px; }
+.login-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 11px 14px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  margin-bottom: 10px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.login-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.login-btn {
+  width: 100%;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  padding: 11px;
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .2s;
+  box-shadow: 0 4px 20px var(--accent-glow);
+  letter-spacing: .01em;
+}
+.login-btn:hover { background: var(--accent2); box-shadow: 0 6px 28px var(--accent-glow); transform: translateY(-1px); }
+.login-err { color: var(--red); font-size: 12px; margin-top: 8px; }
+
+/* ========================
+   LAYOUT
+======================== */
+.sidebar {
+  width: 220px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  flex-shrink: 0; height: 100vh;
+  position: relative;
+}
+
+.logo {
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  box-shadow: 0 0 24px var(--accent-glow);
+  flex-shrink: 0;
+}
+.logo-text { font-weight: 700; font-size: 14px; letter-spacing: -.2px; }
+.logo-sub { font-size: 11px; color: var(--text2); }
+
+.agent-status {
+  margin: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 10px 12px;
+}
+.status-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px; font-size: 11.5px; color: var(--text2);
+}
+.status-row:last-child { margin-bottom: 0; }
+.dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 5px; flex-shrink:0 }
+.dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.dot.yellow { background: var(--yellow); }
+.dot.red { background: var(--red); }
+
+.toggle-switch {
+  width: 30px; height: 17px;
+  background: var(--green);
+  border-radius: 9px; position: relative;
+  cursor: pointer; transition: background .2s; flex-shrink: 0;
+}
+.toggle-switch::after {
+  content: ''; position: absolute;
+  width: 13px; height: 13px;
+  background: #fff; border-radius: 50%;
+  top: 2px; left: 2px; transition: left .2s;
+}
+.toggle-switch.off { background: var(--surface4); }
+.toggle-switch.off::after { left: 15px; }
+
+nav { flex: 1; padding: 8px; overflow-y: auto; }
+nav::-webkit-scrollbar { width: 3px; }
+nav::-webkit-scrollbar-thumb { background: var(--surface4); border-radius: 2px; }
+
+.nav-section {
+  font-size: 9.5px; font-weight: 600; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 1px;
+  padding: 12px 10px 5px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer; font-size: 12.5px;
+  color: var(--text2); transition: all .15s;
+  margin-bottom: 1px; position: relative;
+}
+.nav-item:hover { background: var(--surface3); color: var(--text); }
+.nav-item.active {
+  background: rgba(124,92,252,.12);
+  color: var(--text);
+}
+.nav-item.active::before {
+  content: ''; position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 2px; background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
+.nav-badge {
+  margin-left: auto; background: var(--red);
+  color: #fff; font-size: 9px; font-weight: 700;
+  padding: 1px 5px; border-radius: 10px; min-width: 16px; text-align: center;
+}
+
+/* Main content */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#main-app { display: flex; flex: 1; overflow: hidden; }
+
+/* ========================
+   TOPBAR
+======================== */
+.topbar {
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 16px; gap: 8px; flex-shrink: 0;
+}
+.topbar-title {
+  font-size: 14px; font-weight: 600;
+  letter-spacing: -.2px; flex: 1;
+  color: var(--text);
+}
+.topbar-btn {
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 5px 12px; border-radius: var(--r-sm);
+  font-size: 11.5px; cursor: pointer;
+  font-family: inherit; transition: all .15s;
+  display: flex; align-items: center; gap: 5px;
+  font-weight: 500; white-space: nowrap;
+}
+.topbar-btn:hover { background: var(--surface4); color: var(--text); border-color: var(--border2); }
+.topbar-btn.primary {
+  background: var(--accent); border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 12px var(--accent-glow);
+}
+.topbar-btn.primary:hover { background: var(--accent2); box-shadow: 0 4px 20px var(--accent-glow); }
+
+/* ========================
+   TABS
+======================== */
+.tab { display: none; flex: 1; overflow: hidden; }
+.tab.active { display: flex; }
+
+/* ========================
+   DASHBOARD
+======================== */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 12px; padding: 20px; flex-shrink: 0;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 18px;
+  position: relative; overflow: hidden;
+  transition: border-color .2s, transform .2s;
+  cursor: default;
+}
+.stat-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+.stat-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(124,92,252,.4), transparent);
+  opacity: 0; transition: opacity .2s;
+}
+.stat-card:hover::before { opacity: 1; }
+.stat-icon { font-size: 22px; margin-bottom: 12px; }
+.stat-val {
+  font-size: 28px; font-weight: 800;
+  letter-spacing: -1px; margin-bottom: 4px;
+  background: linear-gradient(135deg, var(--text), var(--text2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.stat-label { font-size: 12px; color: var(--text3); font-weight: 500; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 16px;
+}
+.card-title {
+  font-size: 13px; font-weight: 600;
+  margin-bottom: 14px; display: flex;
+  align-items: center; justify-content: space-between;
+  letter-spacing: -.1px;
+}
+.card-title span { font-size: 11px; color: var(--text3); font-weight: 400; }
+
+/* ========================
+   CONVERSATIONS
+======================== */
+.conv-list {
+  width: 280px; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0; height: 100%;
+  background: var(--surface);
+}
+.conv-search { padding: 12px; border-bottom: 1px solid var(--border); }
+.search-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 8px 12px;
+  color: var(--text); font-size: 12.5px; font-family: inherit; outline: none;
+  transition: border-color .15s;
+}
+.search-input:focus { border-color: var(--accent); }
+.conv-items { flex: 1; overflow-y: auto; }
+.conv-items::-webkit-scrollbar { width: 3px; }
+.conv-items::-webkit-scrollbar-thumb { background: var(--surface4); }
+
+.conv-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px;
+  cursor: pointer; transition: background .12s;
+  border-bottom: 1px solid rgba(255,255,255,.03);
+  position: relative;
+}
+.conv-item:hover { background: var(--surface2); }
+.conv-item.active { background: rgba(124,92,252,.1); }
+.conv-item.active::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--accent);
+}
+.conv-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--surface3), var(--surface4));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 600; flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+.conv-info { flex: 1; min-width: 0; }
+.conv-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; truncate; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.conv-last { font-size: 11.5px; color: var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.conv-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0 }
+.conv-time { font-size: 10.5px; color: var(--text3); }
+.conv-unread {
+  background: var(--accent); color: #fff;
+  font-size: 9px; font-weight: 700;
+  padding: 1px 5px; border-radius: 8px; min-width: 16px; text-align: center;
+}
+
+/* Chat area */
+.chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.chat-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  background: var(--surface);
+}
+.chat-messages {
+  flex: 1; overflow-y: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--bg);
+}
+.chat-messages::-webkit-scrollbar { width: 3px; }
+.chat-messages::-webkit-scrollbar-thumb { background: var(--surface4); }
+
+.msg {
+  max-width: 72%; padding: 9px 13px;
+  border-radius: 12px; font-size: 13px; line-height: 1.55;
+  position: relative;
+}
+.msg.user {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  align-self: flex-start; border-bottom-left-radius: 3px;
+}
+.msg.agent {
+  background: rgba(124,92,252,.12);
+  border: 1px solid rgba(124,92,252,.2);
+  align-self: flex-end; border-bottom-right-radius: 3px;
+}
+.msg-time { font-size: 10px; color: var(--text3); margin-top: 4px; }
+
+.chat-input-area {
+  padding: 12px 16px; border-top: 1px solid var(--border);
+  display: flex; gap: 8px; align-items: flex-end;
+  background: var(--surface); flex-shrink: 0;
+}
+.chat-status-bar {
+  padding: 6px 16px; background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px; color: var(--text2);
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.manual-input {
+  flex: 1; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 9px 13px; color: var(--text);
+  font-size: 13px; font-family: inherit; outline: none; resize: none;
+  transition: border-color .15s; max-height: 100px;
+}
+.manual-input:focus { border-color: var(--accent); }
+
+.send-btn {
+  width: 38px; height: 38px;
+  background: var(--accent);
+  border: none; border-radius: var(--r-sm);
+  color: #fff; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; transition: all .15s;
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+.send-btn:hover { background: var(--accent2); transform: scale(1.05); }
+
+/* ========================
+   KNOWLEDGE BASE
+======================== */
+.kb-grid {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 10px;
+  padding: 16px; flex-shrink: 0;
+}
+.kb-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 16px;
+  cursor: pointer; transition: all .15s; text-align: center;
+}
+.kb-card:hover { border-color: var(--accent); background: rgba(124,92,252,.06); transform: translateY(-1px); }
+.kb-icon { font-size: 24px; margin-bottom: 8px; }
+.kb-title { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.kb-count { font-size: 11px; color: var(--text2); }
+
+.kb-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  transition: background .12s;
+}
+.kb-item:hover { background: var(--surface2); }
+.kb-item-text { flex: 1; min-width: 0; }
+.kb-item-q { font-size: 12.5px; font-weight: 600; margin-bottom: 3px; }
+.kb-item-a { font-size: 11.5px; color: var(--text2); line-height: 1.5; }
+.kb-item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+/* ========================
+   BUTTONS
+======================== */
+.btn {
+  padding: 7px 14px; border-radius: var(--r-sm);
+  font-size: 12.5px; font-weight: 500; cursor: pointer;
+  font-family: inherit; border: 1px solid transparent;
+  transition: all .15s; display: inline-flex; align-items: center; gap: 5px;
+}
+.btn.primary {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+  box-shadow: 0 2px 12px var(--accent-glow);
+}
+.btn.primary:hover { background: var(--accent2); box-shadow: 0 4px 20px var(--accent-glow); }
+.btn.ghost {
+  background: transparent; color: var(--text2);
+  border-color: var(--border);
+}
+.btn.ghost:hover { background: var(--surface3); color: var(--text); border-color: var(--border2); }
+
+.icon-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); font-size: 14px; padding: 4px 6px;
+  border-radius: var(--r-sm); transition: all .15s;
+}
+.icon-btn:hover { color: var(--text); background: var(--surface3); }
+
+/* ========================
+   FORM
+======================== */
+.form-group { margin-bottom: 12px; }
+.form-label {
+  display: block; font-size: 11.5px; font-weight: 500;
+  color: var(--text2); margin-bottom: 5px; letter-spacing: .01em;
+}
+.form-input, .form-select, .form-textarea {
+  width: 100%; background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 8px 12px;
+  color: var(--text); font-size: 13px;
+  font-family: inherit; outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.form-textarea { resize: vertical; min-height: 80px; }
+
+/* ========================
+   MODAL
+======================== */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.75);
+  backdrop-filter: blur(8px);
+  display: none; align-items: center; justify-content: center;
+  z-index: 900; padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-xl);
+  width: 500px; max-width: 100%; padding: 24px;
+  box-shadow: 0 40px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04);
+  max-height: 90vh; overflow-y: auto;
+  position: relative;
+}
+.modal::before {
+  content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 160px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.modal-title {
+  font-size: 15px; font-weight: 700;
+  margin-bottom: 18px; display: flex;
+  align-items: center; justify-content: space-between;
+  letter-spacing: -.2px;
+}
+.close-btn {
+  background: var(--surface3); border: 1px solid var(--border);
+  color: var(--text2); width: 28px; height: 28px;
+  border-radius: 8px; cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; transition: all .15s;
+}
+.close-btn:hover { background: var(--surface4); color: var(--text); }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+
+/* ========================
+   INTEGRATION CARDS
+======================== */
+.int-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 16px;
+  display: flex; align-items: center; gap: 14px;
+  transition: border-color .15s;
+}
+.int-card:hover { border-color: var(--border2); }
+.int-logo {
+  width: 44px; height: 44px; border-radius: var(--r);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+.int-info { flex: 1; }
+.int-name { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.int-desc { font-size: 11.5px; color: var(--text2); }
+.int-status {
+  font-size: 10.5px; font-weight: 600; padding: 3px 10px;
+  border-radius: 20px; flex-shrink: 0;
+}
+.int-status.connected { background: rgba(0,214,143,.12); color: var(--green); border: 1px solid rgba(0,214,143,.25); }
+.int-status.pending { background: rgba(251,191,36,.1); color: var(--yellow); border: 1px solid rgba(251,191,36,.2); }
+.int-status.disconnected { background: rgba(244,63,94,.1); color: var(--red); border: 1px solid rgba(244,63,94,.2); }
+
+/* Accordions/Steps */
+.ub-step { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); padding: 14px; margin-top: 12px; }
+.ub-step-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+
+/* Tags */
+.tag {
+  background: var(--surface3);
+  border: 1px solid var(--border); font-size: 10.5px;
+  padding: 2px 8px; border-radius: 20px; color: var(--text2);
+}
+.tag-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+
+/* Acc tabs */
+.acc-tab {
+  padding: 9px 14px; font-size: 12px; font-weight: 500;
+  color: var(--text2); cursor: pointer;
+  border-bottom: 2px solid transparent; white-space: nowrap;
+  transition: all .15s; flex-shrink: 0;
+  background: none; border-top: none; border-left: none; border-right: none;
+  font-family: inherit;
+}
+.acc-tab:hover { color: var(--text); }
+.acc-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+/* Notification */
+.notif-area { position: fixed; top: 16px; right: 16px; z-index: 999; }
+.notif {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r); padding: 11px 15px;
+  font-size: 12.5px; margin-bottom: 6px;
+  animation: slideIn .25s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  border-left: 3px solid var(--accent);
+}
+.notif.green { border-left-color: var(--green); }
+.notif.red { border-left-color: var(--red); }
+@keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* Loading */
+.loading { padding: 24px; text-align: center; color: var(--text3); font-size: 12px; }
+
+/* Scrollbar global */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface4); border-radius: 4px; }
+
+/* ========================
+   MISC
+======================== */
+.hidden { display: none; }
+
+.human-badge {
+  background: rgba(251,191,36,.12); color: var(--yellow);
+  border: 1px solid rgba(251,191,36,.25);
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+}
+.ai-badge {
+  background: rgba(124,92,252,.12); color: var(--accent);
+  border: 1px solid rgba(124,92,252,.2);
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+}
+
+.section-title {
+  font-size: 13px; font-weight: 600; margin-bottom: 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  letter-spacing: -.1px;
+}
+.section-title span { color: var(--text3); font-size: 11px; font-weight: 400; }
+
+/* Dev actions row */
+.conv-actions-header {
+  padding: 8px 14px; border-bottom: 1px solid var(--border);
+  display: flex; gap: 6px; flex-shrink: 0;
+  background: var(--surface);
+}
+
+/* Sidebar bottom */
+.sidebar-footer {
+  padding: 10px; border-top: 1px solid var(--border);
+}
+.sidebar-user {
+  font-size: 11px; color: var(--text3);
+  margin-bottom: 7px; padding: 0 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.logout-btn {
+  width: 100%; background: transparent;
+  border: 1px solid var(--border); color: var(--text2);
+  padding: 7px; border-radius: var(--r-sm);
+  font-size: 12px; cursor: pointer; font-family: inherit;
+  transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.logout-btn:hover { border-color: var(--red); color: var(--red); background: rgba(244,63,94,.06); }
+
+/* Suggestion cards */
+.suggestion { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px; margin-bottom: 10px; transition: all .15s; }
+.suggestion.approved { border-color: var(--green); background: rgba(0,214,143,.04); }
+.suggestion.rejected { opacity: .35; }
+.sug-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.sug-question { font-size: 13px; font-weight: 600; flex: 1; }
+.sug-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.sug-freq { background: rgba(192,132,252,.15); color: var(--purple); font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; flex-shrink: 0; }
+.sug-label { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin: 8px 0 3px; }
+.sug-body { font-size: 12px; color: var(--text2); }
+.answer-box { background: var(--surface2); border-radius: var(--r-sm); padding: 10px 12px; font-size: 12px; line-height: 1.6; margin-top: 4px; }
+.edit-area { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); padding: 12px; margin-top: 10px; display: none; }
+.edit-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; margin-top: 8px; display: block; }
+.edit-input, .edit-textarea { width: 100%; background: var(--surface3); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 7px 10px; color: var(--text); font-size: 12px; font-family: inherit; outline: none; margin-bottom: 2px; }
+.edit-textarea { resize: vertical; min-height: 65px; }
+
+.conv-filters { display: flex; gap: 4px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.approve-all { background: var(--green); color: #fff; border: none; padding: 5px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit; font-weight: 600; }
+.save-btn { background: var(--accent); color: #fff; border: none; padding: 9px 22px; border-radius: var(--r-sm); font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 600; box-shadow: 0 2px 12px var(--accent-glow); }
+.save-btn:disabled { opacity: .4; cursor: not-allowed; }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; z-index: 100; }
+.bottom-info { font-size: 12px; color: var(--text2); }
+
+/* Keyboard hint */
+.kbd { background: var(--surface3); border: 1px solid var(--border2); border-radius: 4px; font-size: 10px; padding: 1px 5px; color: var(--text2); font-family: monospace; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🤖</div>
+    <div class="login-title">ZK00 Agent</div>
+    <div class="login-sub">Painel de Controle</div>
+    <input class="login-input" type="text" id="login-user" placeholder="Usuário (vazio = admin)" autocomplete="username">
+    <input class="login-input" type="password" id="login-pass" placeholder="Senha" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="current-password">
+    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;width:100%;height:100vh;overflow:hidden">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div>
+      <div class="logo-text">ZK00 Agent</div>
+      <div class="logo-sub" id="sidebar-username">Carregando...</div>
+    </div>
+  </div>
+
+  <div class="agent-status">
+    <div class="status-row">
+      <span><span class="dot green"></span>Agente IA</span>
+      <div class="toggle-switch" id="agent-toggle" onclick="toggleAgent()"></div>
+    </div>
+    <div class="status-row">
+      <span><span class="dot" id="tg-dot" style="background:var(--text3)"></span>Telegram</span>
+      <span id="tg-status" style="font-size:10.5px;color:var(--text3)">● Aguardando</span>
+    </div>
+    <div class="status-row">
+      <span><span class="dot green"></span>WhatsApp</span>
+      <span id="wa-status" style="font-size:10.5px;color:var(--green)">● Online</span>
+    </div>
+  </div>
+
+  <nav>
+    <div class="nav-section">Principal</div>
+    <div class="nav-item active" onclick="showTab('dashboard',this)">📊 Dashboard</div>
+    <div class="nav-item" onclick="showTab('conversations',this)">💬 Conversas <span class="nav-badge" id="unread-badge" style="display:none">0</span></div>
+
+    <div class="nav-section">Agente</div>
+    <div class="nav-item" onclick="showTab('knowledge',this)">🧠 Base de Conhecimento</div>
+    <div class="nav-item" onclick="showTab('settings',this)">⚙️ Configurar Agente</div>
+    <div class="nav-item" onclick="showTab('integrations',this)">🔗 Integrações</div>
+
+    <div class="nav-section">Ferramentas</div>
+    <div class="nav-item" onclick="showTab('accounts',this)">📱 Contas Telegram</div>
+    <div class="nav-item" onclick="showTab('broadcast',this)" style="color:var(--yellow)">📣 Disparo em Massa</div>
+    <div class="nav-item" onclick="showTab('users',this)">👤 Usuários</div>
+    <div class="nav-item" onclick="showTab('followup',this)">⏰ Follow-ups</div>
+    <div class="nav-item" onclick="showTab('test',this)">🧪 Testar Agente</div>
+    <div class="nav-item" onclick="window.location.href='/analyzer.html'" style="color:var(--purple)">🔍 Analisar Conversas</div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-user" id="sidebar-username-footer">👤 Carregando...</div>
+    <button class="logout-btn" onclick="doLogout()">🚪 Sair</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">Dashboard</div>
+    <button class="topbar-btn" onclick="refreshData()">🔄 Atualizar</button>
+    <button class="topbar-btn" onclick="downloadBackup()">💾 Backup</button>
+    <button class="topbar-btn" onclick="document.getElementById('restore-input').click()">♻️ Restaurar</button>
+    <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreBackup(this)">
+    <button class="topbar-btn primary" onclick="openModal('add-knowledge')">+ Conhecimento</button>
+  </div>
+
+  <div id="main-app">
+<!-- DASHBOARD -->
+    <div class="tab active" id="tab-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Conversas hoje</div><div class="stat-val" id="stat-conv" style="color:var(--accent)">—</div><div class="stat-sub up">Atualizado agora</div></div>
+        <div class="stat-card"><div class="stat-label">Mensagens enviadas</div><div class="stat-val" id="stat-msgs" style="color:var(--green)">—</div><div class="stat-sub up">Total hoje</div></div>
+        <div class="stat-card"><div class="stat-label">Total de clientes</div><div class="stat-val" id="stat-clients" style="color:var(--purple)">—</div><div class="stat-sub">Cadastrados</div></div>
+        <div class="stat-card"><div class="stat-label">Modo humano</div><div class="stat-val" id="stat-human" style="color:var(--yellow)">—</div><div class="stat-sub">Chats ativos</div></div>
+      </div>
+      <div class="row3">
+        <div class="card">
+          <div class="card-title">Conversas recentes <span>últimas 24h</span></div>
+          <div id="recent-convs"><div class="loading">Carregando...</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card">
+            <div class="card-title">Status do Agente</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Modo atual</span><span id="agent-mode-display" class="mode-tag ai">🤖 IA Ativa</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Total mensagens</span><span id="stat-total" style="color:var(--text)">—</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Uptime</span><span id="uptime" style="color:var(--green)">—</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Ações rápidas</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <button class="btn primary" style="width:100%;font-size:12px" onclick="openModal('add-knowledge')">+ Nova FAQ</button>
+              <button class="btn ghost" style="width:100%;font-size:12px" onclick="showTab('test',document.querySelector('[onclick*=test]'))">🧪 Testar Agente</button>
+              <button class="btn ghost" style="width:100%;font-size:12px" onclick="showTab('integrations',document.querySelectorAll('.nav-item')[5])">🔌 Configurar Integrações</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONVERSATIONS -->
+    <div class="tab" id="tab-conversations">
+      <div class="conv-list" style="display:flex;flex-direction:column">
+        <div class="conv-search" style="display:flex;gap:6px;align-items:center">
+          <input class="search-input" placeholder="🔍 Buscar..." type="text" id="conv-search" oninput="filterConvs()" style="flex:1">
+        </div>
+        <!-- Account filter tabs -->
+        <div id="account-tabs" style="display:flex;gap:0;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0"></div>
+        <div class="conv-items" id="conv-list-items"><div class="loading">Carregando...</div></div>
+      </div>
+      <div class="chat-panel">
+        <div class="chat-header">
+          <div class="avatar" id="chat-avatar" style="background:rgba(42,171,238,.15);color:var(--tg);width:38px;height:38px">?</div>
+          <div class="chat-header-info">
+            <div class="chat-header-name" id="chat-name">Selecione uma conversa</div>
+            <div class="chat-header-sub" id="chat-sub">Clique em um contato à esquerda</div>
+          </div>
+          <div class="chat-actions" id="chat-actions" style="display:none">
+            <button class="action-btn green" id="btn-human" onclick="toggleHumanModeChat()">👤 Assumir</button>
+            <button class="action-btn red-btn" onclick="closeCurrentChat()">✕ Fechar</button>
+          </div>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="empty-state"><div class="emoji">💬</div><p>Selecione uma conversa</p></div>
+        </div>
+        <div class="chat-input-area">
+          <div class="ai-mode-bar">
+            <span class="mode-tag ai" id="mode-badge">🤖 IA respondendo</span>
+            <span style="flex:1" id="mode-text">— o agente responde automaticamente</span>
+          </div>
+          <div class="input-row">
+            <textarea class="msg-input" placeholder="Mensagem manual (desativa IA neste chat)..." id="manual-input" rows="1"></textarea>
+            <button class="send-btn" onclick="sendManualMsg()">➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KNOWLEDGE BASE -->
+    <div class="tab" id="tab-knowledge">
+      <div class="kb-grid">
+        <div class="kb-card"><div class="kb-icon">❓</div><div class="kb-title">Perguntas Frequentes</div><div class="kb-count" id="kb-count-faq">carregando...</div></div>
+        <div class="kb-card" onclick="openModal('add-knowledge')"><div class="kb-icon">➕</div><div class="kb-title">Adicionar novo</div><div class="kb-count">Clique para adicionar</div></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title" style="flex-wrap:wrap;gap:8px">
+          <span>Base de Conhecimento <span style="color:var(--text2);font-weight:400;font-size:11px">o agente usa essas respostas</span></span>
+          <div style="display:flex;gap:6px;margin-left:auto">
+            <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="exportKnowledge()">⬇️ Exportar</button>
+            <button class="btn ghost" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('kb-import-input').click()">⬆️ Importar</button>
+            <input type="file" id="kb-import-input" accept=".json" style="display:none" onchange="importKnowledge(this)">
+          </div>
+        </div>
+        <div id="knowledge-list"><div class="loading">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- AGENT CONFIG -->
+    <div class="tab" id="tab-agent">
+      <div class="config-grid">
+        <div class="card">
+          <div class="card-title">Identidade</div>
+          <div class="form-group"><label class="form-label">Nome do agente</label><input class="form-input" id="cfg-name" value="Rodrigo ZK00" type="text"></div>
+          <div class="form-group"><label class="form-label">Modelo de IA</label><select class="form-select" id="cfg-model"><option value="claude-sonnet-4-6" selected>Claude Sonnet 4.6</option></select></div>
+          <div class="form-group"><label class="form-label">Mensagem de boas-vindas</label><textarea class="form-textarea" id="cfg-welcome">Oi! Tamo junto 👊 Como posso te ajudar?</textarea></div>
+          <div class="form-group"><label class="form-label">Mensagem offline</label><textarea class="form-textarea" id="cfg-offline">Oi! Estou offline agora mas já volto. Pode deixar sua mensagem! 🤝</textarea></div>
+          <button class="btn primary" style="width:100%" onclick="saveSettings()">Salvar configurações</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Horários e Automação</div>
+          <div class="form-group"><label class="form-label">Agente ativo</label><select class="form-select" id="cfg-active"><option value="true" selected>24h / 7 dias</option><option value="false">Desativado</option></select></div>
+          <div class="form-group"><label class="form-label">Horário das lives</label><input class="form-input" id="cfg-live" value="Seg-Sex às 20h (Telegram)" type="text"></div>
+          <div class="form-group"><label class="form-label">Gatilhos de escalonamento</label><textarea class="form-textarea" id="cfg-escalation" style="min-height:120px">problema financeiro
+conta bloqueada
+reclamação grave
+parceria
+patrocínio
+jurídico
+fraude</textarea></div>
+          <button class="btn primary" style="width:100%" onclick="saveSettings()">Salvar</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Prompt do Agente (leia-only — edite no código)</div>
+        <div class="prompt-area">Você é Rodrigo ZK00, especialista em sinais do Bac Bo.
+Você responde como uma pessoa real, de forma natural e humanizada.
+
+PERSONALIDADE: educado, objetivo, amigável, confiante
+EXPRESSÕES: "Bora pra cima", "Tamo junto", "Pode deixar"
+
+REGRAS: nunca prometer ganho garantido, nunca revelar que é IA,
+nunca usar linguagem robótica, adaptar tamanho da resposta ao cliente.
+
+ESCALONAMENTO: para problemas financeiros, conta bloqueada,
+reclamações graves, parcerias — parar e chamar Rodrigo.</div>
+      </div>
+    </div>
+
+    <!-- INTEGRATIONS -->
+    <div class="tab" id="tab-integrations">
+      <div class="card" style="margin:0;margin-bottom:4px">
+        <div class="card-title">Como conectar ⚡</div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.8">
+          1. Cole os tokens abaixo e clique em salvar<br>
+          2. O sistema configura os webhooks automaticamente<br>
+          3. Para WhatsApp, escaneie o QR Code com seu celular
+        </p>
+      </div>
+      <!-- TELEGRAM USERBOT -->
+      <div class="int-card" style="flex-direction:column;align-items:stretch;gap:14px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="int-logo" style="background:rgba(42,171,238,.15)">📱</div>
+          <div class="int-info">
+            <div class="int-name">Telegram — Sua Conta Pessoal</div>
+            <div class="int-desc">Conecte seu Telegram aqui. O sistema vai responder como você quando estiver offline.</div>
+          </div>
+          <span class="int-status pending" id="tg-int-status">Aguardando</span>
+        </div>
+
+        <!-- STEP 1: API credentials -->
+        <div id="ub-step1" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text)">Passo 1 — Credenciais do Telegram</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Pegue em <strong style="color:var(--accent)">my.telegram.org</strong> → API development tools</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input class="form-input" id="ub-api-id" placeholder="API ID (ex: 12345678)" type="text" style="flex:1">
+            <input class="form-input" id="ub-api-hash" placeholder="API Hash (ex: abc123...)" type="text" style="flex:2">
+          </div>
+          <button class="btn primary" style="width:100%;font-size:12px" onclick="startUserbot()">Iniciar conexão</button>
+        </div>
+
+        <!-- STEP 2: Phone -->
+        <div id="ub-step2" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text)">Passo 2 — Seu número de telefone</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Digite com código do país, ex: +5511999999999</div>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="ub-phone" placeholder="+5511999999999" type="text" style="flex:1">
+            <button class="btn primary" style="font-size:12px;white-space:nowrap" onclick="sendUbPhone()">Enviar código</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: Code -->
+        <div id="ub-step3" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text)">Passo 3 — Código recebido no Telegram</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px">O Telegram enviou um código para você — digite abaixo</div>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="ub-code" placeholder="ex: 12345" type="text" style="flex:1" onkeydown="if(event.key==='Enter')sendUbCode()">
+            <button class="btn primary" style="font-size:12px" onclick="sendUbCode()">Verificar</button>
+          </div>
+        </div>
+
+        <!-- STEP 4: 2FA Password (optional) -->
+        <div id="ub-step4" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text)">Passo 4 — Senha de verificação em 2 etapas</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Sua conta tem 2FA ativo — digite sua senha do Telegram</div>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="ub-password" placeholder="Senha 2FA" type="password" style="flex:1" onkeydown="if(event.key==='Enter')sendUbPassword()">
+            <button class="btn primary" style="font-size:12px" onclick="sendUbPassword()">Confirmar</button>
+          </div>
+        </div>
+
+        <!-- DONE -->
+        <div id="ub-step-done" style="display:none;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:20px;margin-bottom:6px">✅</div>
+          <div style="font-size:13px;font-weight:600;color:var(--green)">Userbot ativo!</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:4px">Sua conta pessoal está conectada. O agente responde automaticamente.</div>
+        </div>
+      </div>
+      <div class="int-card">
+        <div class="int-logo" style="background:rgba(37,211,102,.15)">💬</div>
+        <div class="int-info">
+          <div class="int-name">WhatsApp (Evolution API)</div>
+          <div class="int-desc">Instale a Evolution API no Railway → cole a URL → escaneie o QR</div>
+        </div>
+        <div class="int-right">
+          <span class="int-status pending" id="wa-int-status">Aguardando</span>
+          <input class="form-input" id="wa-url" placeholder="https://sua-api.railway.app" type="text" style="width:220px">
+          <button class="btn primary" style="font-size:11px;padding:5px 12px" onclick="getWAQR()">Ver QR Code</button>
+        </div>
+      </div>
+      <div class="int-card">
+        <div class="int-logo" style="background:rgba(59,130,246,.15)">🤖</div>
+        <div class="int-info">
+          <div class="int-name">Claude AI (Anthropic)</div>
+          <div class="int-desc">console.anthropic.com → API Keys → criar chave → colar abaixo</div>
+        </div>
+        <div class="int-right">
+          <span class="int-status disconnected" id="ai-int-status">Não configurado</span>
+          <input class="form-input" id="ai-key" placeholder="sk-ant-api03-..." type="password" style="width:220px">
+          <button class="btn primary" style="font-size:11px;padding:5px 12px" onclick="saveAIKey()">Salvar chave</button>
+        </div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title">📋 Guia rápido — Evolution API (WhatsApp grátis)</div>
+        <div style="font-size:12px;color:var(--text2);line-height:2">
+          1. Acesse <strong style="color:var(--text)">railway.app</strong> → New Project → Deploy from GitHub<br>
+          2. Use o repo: <strong style="color:var(--accent)">EvolutionAPI/evolution-api</strong><br>
+          3. Adicione a variável: <code style="background:var(--bg4);padding:1px 5px;border-radius:3px">AUTHENTICATION_API_KEY=sua_chave_aqui</code><br>
+          4. Copie a URL pública do Railway e cole no campo acima<br>
+          5. Clique em "Ver QR Code" e escaneie com o WhatsApp do seu celular
+        </div>
+      </div>
+    </div>
+
+    <!-- BROADCAST -->
+    <div class="tab" id="tab-broadcast" style="flex-direction:column;padding:20px;overflow-y:auto;gap:14px">
+
+      <!-- COMPOSER -->
+      <div class="card" style="margin:0" id="broadcast-composer">
+        <div class="card-title">📣 Disparo em Massa</div>
+
+        <!-- FILTROS -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div>
+            <label class="form-label">Plataforma</label>
+            <select class="form-select" id="bc-platform">
+              <option value="all">Todas</option>
+              <option value="telegram">Telegram</option>
+              <option value="whatsapp">WhatsApp</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Data de cadastro — De</label>
+            <input class="form-input" id="bc-date-from" type="date">
+          </div>
+          <div>
+            <label class="form-label">Data de cadastro — Até</label>
+            <input class="form-input" id="bc-date-to" type="date">
+          </div>
+          <div>
+            <label class="form-label">Filtrar por tag</label>
+            <input class="form-input" id="bc-tag" placeholder="Ex: VIP, interessado..." type="text">
+          </div>
+        </div>
+
+        <!-- LISTA MANUAL -->
+        <div class="form-group">
+          <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+            Lista manual <span style="color:var(--text3);font-weight:400">(opcional — substitui os filtros acima)</span>
+            <button class="btn ghost" style="font-size:10px;padding:3px 8px" onclick="loadLeadsIntoList()">📋 Carregar do painel</button>
+          </label>
+          <textarea class="form-textarea" id="bc-manual" placeholder="Cole usernames ou IDs, um por linha:&#10;@usuario1&#10;@usuario2&#10;123456789&#10;&#10;Ou clique em 'Carregar do painel' para importar seus leads automaticamente" style="min-height:100px;font-family:monospace;font-size:11px"></textarea>
+          <div id="bc-manual-count" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
+        </div>
+
+        <button class="btn ghost" style="width:100%;margin-bottom:14px;font-size:12px" onclick="previewBroadcast()">🔍 Ver quantos leads serão atingidos</button>
+        <div id="bc-preview" style="display:none;background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:14px"></div>
+
+        <!-- MENSAGEM -->
+        <div class="form-group">
+          <label class="form-label">Mensagem</label>
+          <textarea class="form-textarea" id="bc-message" placeholder="Digite a mensagem do disparo..." style="min-height:100px"></textarea>
+        </div>
+
+        <!-- IMAGEM -->
+        <div class="form-group">
+          <label class="form-label">URL da imagem <span style="color:var(--text3)">(opcional)</span></label>
+          <input class="form-input" id="bc-image" placeholder="https://..." type="url">
+          <div style="font-size:10px;color:var(--text3);margin-top:3px">Cole a URL de uma imagem (JPG, PNG) para enviar junto com a mensagem</div>
+        </div>
+
+        <!-- AVISO -->
+        <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--yellow);margin-bottom:14px;line-height:1.7">
+          ⚠️ O disparo usa delay de 8-20 segundos entre cada mensagem para evitar ban.<br>
+          Não feche o painel enquanto o disparo estiver ativo.
+        </div>
+
+        <button class="btn primary" style="width:100%;font-size:13px;padding:10px" onclick="startBroadcast()">📣 Iniciar Disparo</button>
+      </div>
+
+      <!-- PROGRESSO -->
+      <div class="card" style="margin:0;display:none" id="broadcast-progress">
+        <div class="card-title">📊 Progresso do Disparo <span id="bc-status-label" style="color:var(--green)">Em andamento</span></div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+          <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:22px;font-weight:700;color:var(--accent)" id="bc-total">0</div>
+            <div style="font-size:11px;color:var(--text2)">Total</div>
+          </div>
+          <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:22px;font-weight:700;color:var(--green)" id="bc-sent">0</div>
+            <div style="font-size:11px;color:var(--text2)">Enviados</div>
+          </div>
+          <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:22px;font-weight:700;color:var(--red)" id="bc-failed">0</div>
+            <div style="font-size:11px;color:var(--text2)">Falhas</div>
+          </div>
+          <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:22px;font-weight:700;color:var(--text2)" id="bc-remaining">0</div>
+            <div style="font-size:11px;color:var(--text2)">Restantes</div>
+          </div>
+        </div>
+
+        <!-- BARRA DE PROGRESSO -->
+        <div style="background:var(--bg4);border-radius:6px;height:8px;margin-bottom:14px;overflow:hidden">
+          <div id="bc-progress-bar" style="height:100%;background:var(--green);border-radius:6px;width:0%;transition:width .5s"></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <button class="btn ghost" style="font-size:12px" onclick="abortBroadcast()" id="bc-abort-btn">⛔ Interromper</button>
+          <button class="btn primary" style="font-size:12px;display:none" onclick="resetBroadcast()" id="bc-new-btn">+ Novo disparo</button>
+        </div>
+
+        <!-- LOG -->
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Log de envios</div>
+        <div id="bc-log" style="background:var(--bg);border-radius:8px;padding:10px;max-height:200px;overflow-y:auto;font-size:11px;font-family:monospace;color:var(--text2)"></div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="tab" id="tab-users" style="flex-direction:column;padding:20px;overflow-y:auto;gap:14px">
+      <div class="card" style="margin:0">
+        <div class="card-title">👤 Usuários do Painel <span>cada um com login próprio</span></div>
+        <div id="users-list"><div class="loading">Carregando...</div></div>
+        <button class="btn primary" style="margin-top:12px;font-size:12px" onclick="openModal('add-user')">+ Adicionar usuário</button>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title">ℹ️ Como funciona</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.9">
+          • Cada usuário tem seu próprio login (usuário + senha)<br>
+          • Todos têm acesso completo ao painel<br>
+          • O admin (você) pode criar, editar e remover usuários<br>
+          • Útil para dar acesso ao suporte sem compartilhar a senha master
+        </div>
+      </div>
+    </div>
+
+    <!-- ACCOUNTS -->
+    <div class="tab" id="tab-accounts" style="flex-direction:column;padding:20px;overflow-y:auto;gap:14px">
+      <div class="card" style="margin:0">
+        <div class="card-title">📱 Contas Telegram <span>conecte quantas quiser</span></div>
+        <div id="accounts-list"><div class="loading">Carregando...</div></div>
+        <div id="accounts-add-btn" style="margin-top:12px">
+          <button class="btn primary" style="font-size:12px" onclick="openModal('add-account')">+ Adicionar conta Telegram</button>
+        </div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title">ℹ️ Como funciona</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.9">
+          • Conecte seu número de Telegram aqui<br>
+          • O sistema vai responder suas mensagens automaticamente quando você estiver offline<br>
+          • Suas conversas ficam separadas das de outros usuários<br>
+          • Você precisará do API ID e API Hash do seu Telegram (my.telegram.org)
+        </div>
+      </div>
+    </div>
+
+    <!-- FOLLOWUP -->
+    <div class="tab" id="tab-followup" style="flex-direction:column;padding:20px;overflow-y:auto;gap:16px">
+      <div class="card" style="margin:0">
+        <div class="card-title">⏰ Follow-ups Automáticos <span>mensagens enviadas após tempo sem resposta</span></div>
+        <div id="followup-list"><div class="loading">Carregando...</div></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title">📸 Respostas para Foto/Print <span>enviadas quando o lead manda uma imagem</span></div>
+        <div id="photo-response-list"><div class="loading">Carregando...</div></div>
+      </div>
+      <div class="card" style="margin:0">
+        <div class="card-title">⚡ Timers Ativos agora</div>
+        <div id="active-timers"><div style="font-size:12px;color:var(--text2)">Nenhum timer ativo</div></div>
+      </div>
+    </div>
+
+    <!-- TEST -->
+    <div class="tab" id="tab-test">
+      <div class="card" style="margin:0;max-width:640px">
+        <div class="card-title">🧪 Testador do Agente <span>simula uma conversa real</span></div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;min-height:200px;max-height:350px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:8px" id="test-messages">
+          <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Digite uma mensagem para testar o agente</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="test-input" placeholder="Ex: Como funciona o robô de sinais?" type="text" onkeydown="if(event.key==='Enter')sendTest()">
+          <button class="btn primary" onclick="sendTest()">Enviar</button>
+        </div>
+        <p style="font-size:11px;color:var(--text3);margin-top:8px">⚠️ Sem API key configurada, o agente usa a base de conhecimento local</p>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- MODAL: ADD KNOWLEDGE -->
+<div class="modal-overlay" id="modal-add-knowledge">
+  <div class="modal">
+    <div class="modal-title"><span id="modal-title-kb">Adicionar Conhecimento</span> <button class="close-btn" onclick="closeModal('add-knowledge');document.getElementById('kb-editing-id').value='';document.getElementById('modal-title-kb').textContent='Adicionar Conhecimento'">✕</button></div>
+    <input type="hidden" id="kb-editing-id" value="">
+    <div class="form-group">
+      <label class="form-label">Tipo</label>
+      <select class="form-select" id="kb-type">
+        <option value="faq">❓ Pergunta Frequente</option>
+        <option value="promo">🎯 Promoção</option>
+        <option value="link">🔗 Link / Grupo</option>
+        <option value="schedule">🕐 Horário</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Gatilhos (palavras que ativam, separadas por vírgula)</label>
+      <input class="form-input" id="kb-trigger" placeholder="Ex: dobra, dobra de banca, operar junto, garantia" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pergunta / Título</label>
+      <input class="form-input" id="kb-question" placeholder="Ex: O que é a Dobra de Banca?" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Resposta base do agente</label>
+      <textarea class="form-textarea" id="kb-answer" placeholder="A IA vai usar isso como referência e reescrever de forma natural..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">🎯 Contexto do assunto <span style="color:var(--text3);font-weight:400">(explique para a IA o que é esse assunto)</span></label>
+      <textarea class="form-textarea" id="kb-context" placeholder="Ex: A Dobra de Banca NÃO é um grupo. É uma seleção individual feita pelo Rodrigo. O aluno é escolhido pessoalmente, opera ao vivo com o Rodrigo, cada um com seu próprio capital..." style="min-height:70px"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">🏁 Objetivo da conversa <span style="color:var(--text3);font-weight:400">(o que a IA deve conquistar ao final)</span></label>
+      <textarea class="form-textarea" id="kb-objective" placeholder="Ex: Fazer o lead entender que é uma seleção exclusiva, gerar desejo de participar e levá-lo a mandar o print do saldo para ser avaliado." style="min-height:60px"></textarea>
+    </div>
+
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:4px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+        ⏰ Follow-up automático
+        <span style="color:var(--text3);font-weight:400;font-size:11px">— lembrete se o lead não agir</span>
+        <div class="toggle-switch" id="kb-followup-toggle" onclick="toggleKbFollowup(this)" style="margin-left:auto"></div>
+      </div>
+      <div id="kb-followup-fields" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label class="form-label">Disparar após (minutos)</label>
+            <input class="form-input" id="kb-followup-delay" type="number" value="10" min="1" max="1440" placeholder="10">
+          </div>
+          <div>
+            <label class="form-label">Cancelar se o lead</label>
+            <select class="form-select" id="kb-followup-cancel">
+              <option value="photo">Mandar foto/print</option>
+              <option value="reply">Responder qualquer coisa</option>
+              <option value="never">Nunca cancelar</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Mensagem do lembrete</label>
+          <textarea class="form-textarea" id="kb-followup-message" placeholder="Ex: Oi! Só passando pra lembrar — ainda preciso do print com seu saldo pra te avaliar. Me manda aqui quando puder! 📲" style="min-height:65px"></textarea>
+        </div>
+        <div style="margin-top:8px">
+          <label class="form-label">Segunda mensagem (opcional) — se não responder após mais</label>
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:8px">
+            <input class="form-input" id="kb-followup2-delay" type="number" placeholder="min" min="1">
+            <textarea class="form-textarea" id="kb-followup2-message" placeholder="Ex: Última chamada! As vagas da próxima sessão estão quase esgotando..." style="min-height:50px"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('add-knowledge')">Cancelar</button>
+      <button class="btn primary" onclick="saveKnowledge()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: TRANSFER KNOWLEDGE -->
+<div class="modal-overlay" id="modal-transfer-knowledge">
+  <div class="modal">
+    <div class="modal-title">🔄 Transferir Base de Conhecimento <button class="close-btn" onclick="closeModal('transfer-knowledge')">✕</button></div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.7">
+      Copia todos os gatilhos da sua base de conhecimento para outro usuário do sistema.<br>
+      O usuário de destino já precisa ter feito login pelo menos uma vez.
+    </p>
+    <div class="form-group">
+      <label class="form-label">Usuário de destino</label>
+      <select class="form-select" id="transfer-target-user">
+        <option value="">Selecione um usuário...</option>
+      </select>
+    </div>
+    <div style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--purple);margin-bottom:14px">
+      ⚡ A base de conhecimento é compartilhada entre todos os usuários do sistema.<br>
+      Todos já têm acesso aos mesmos gatilhos automaticamente!
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('transfer-knowledge')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD USER -->
+<div class="modal-overlay" id="modal-add-user">
+  <div class="modal">
+    <div class="modal-title">👤 Adicionar Usuário <button class="close-btn" onclick="closeModal('add-user')">✕</button></div>
+    <div class="form-group">
+      <label class="form-label">Nome completo</label>
+      <input class="form-input" id="new-user-name" placeholder="Ex: Suporte ZK00" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Username <span style="color:var(--text3)">(usado no login)</span></label>
+      <input class="form-input" id="new-user-username" placeholder="Ex: suporte" type="text" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Senha</label>
+      <input class="form-input" id="new-user-pass" placeholder="Mínimo 4 caracteres" type="password" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Vincular à conta Telegram <span style="color:var(--text3)">(define quais conversas este usuário vê)</span></label>
+      <select class="form-select" id="new-user-account">
+        <option value="">Todas as conversas (igual ao admin)</option>
+      </select>
+    </div>
+    <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--text2);margin-bottom:14px;line-height:1.7">
+      ℹ️ Login com <strong>usuário + senha</strong>.<br>
+      Se vincular a uma conta, o usuário vê só as conversas daquela conta.
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('add-user')">Cancelar</button>
+      <button class="btn primary" onclick="saveNewUser()">Criar usuário</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD ACCOUNT -->
+<div class="modal-overlay" id="modal-add-account">
+  <div class="modal">
+    <div class="modal-title">📱 Adicionar Conta Telegram <button class="close-btn" onclick="closeModal('add-account')">✕</button></div>
+
+    <div id="new-acc-step1">
+      <div class="form-group">
+        <label class="form-label">Nome desta conta</label>
+        <input class="form-input" id="new-acc-name" placeholder="Ex: Pessoal, Suporte..." type="text">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label class="form-label">API ID <span style="color:var(--text3)">(my.telegram.org)</span></label>
+          <input class="form-input" id="new-acc-apiid" placeholder="12345678" type="text">
+        </div>
+        <div>
+          <label class="form-label">API Hash</label>
+          <input class="form-input" id="new-acc-apihash" placeholder="abc123..." type="text">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Número do Telegram (com código do país)</label>
+        <input class="form-input" id="new-acc-phone" placeholder="+5511999999999" type="text">
+      </div>
+      <button class="btn primary" style="width:100%" onclick="startNewAccount()">Conectar e enviar código</button>
+    </div>
+
+    <div id="new-acc-step2" style="display:none">
+      <!-- step2 mantido para compatibilidade mas não usado no novo fluxo -->
+    </div>
+
+    <div id="new-acc-step3" style="display:none">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Digite o código que chegou no Telegram desta conta:</div>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="new-acc-code" placeholder="12345" style="flex:1" onkeydown="if(event.key==='Enter')sendNewAccCode()">
+        <button class="btn primary" onclick="sendNewAccCode()">Verificar</button>
+      </div>
+    </div>
+
+    <div id="new-acc-step4" style="display:none">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Esta conta tem 2FA. Digite a senha:</div>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="new-acc-pwd" type="password" placeholder="Senha 2FA" style="flex:1" onkeydown="if(event.key==='Enter')sendNewAccPassword()">
+        <button class="btn primary" onclick="sendNewAccPassword()">Confirmar</button>
+      </div>
+    </div>
+
+    <div id="new-acc-step-done" style="display:none;text-align:center;padding:16px">
+      <div style="font-size:28px">✅</div>
+      <div style="font-size:14px;font-weight:600;color:var(--green);margin-top:8px">Conta conectada!</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD FOLLOWUP -->
+<div class="modal-overlay" id="modal-add-followup">
+  <div class="modal">
+    <div class="modal-title">⏰ Configurar Follow-up <button class="close-btn" onclick="closeModal('add-followup')">✕</button></div>
+    <input type="hidden" id="fu-editing-id">
+    <div class="form-group">
+      <label class="form-label">Nome do follow-up</label>
+      <input class="form-input" id="fu-name" placeholder="Ex: Lembrete de print — Dobra" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tempo para disparar (em minutos)</label>
+      <input class="form-input" id="fu-delay" type="number" value="10" min="1" max="1440" placeholder="10">
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">O timer começa quando o agente responder sobre esse assunto. Se o lead mandar foto, o timer é cancelado automaticamente.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Mensagem do follow-up</label>
+      <textarea class="form-textarea" id="fu-message" placeholder="Ex: Oi! Só passando pra lembrar que ainda preciso do print com seu saldo. Me manda aqui quando puder! 📲" style="min-height:80px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('add-followup')">Cancelar</button>
+      <button class="btn primary" onclick="saveFollowupRule()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD PHOTO RESPONSE -->
+<div class="modal-overlay" id="modal-add-photo-response">
+  <div class="modal">
+    <div class="modal-title">📸 Resposta para Foto/Print <button class="close-btn" onclick="closeModal('add-photo-response')">✕</button></div>
+    <input type="hidden" id="pr-editing-id">
+    <div class="form-group">
+      <label class="form-label">Nome</label>
+      <input class="form-input" id="pr-name" placeholder="Ex: Print recebido — Dobra de Banca" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Mensagem enviada quando o lead mandar uma foto</label>
+      <textarea class="form-textarea" id="pr-message" placeholder="Ex: Boa! Print recebido ✅ Agora é só aguardar — vou avaliar seu perfil e, se você for selecionado, te chamo pessoalmente antes da próxima sessão. Fique de olho!" style="min-height:80px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('add-photo-response')">Cancelar</button>
+      <button class="btn primary" onclick="savePhotoResponse()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+
+  <!-- NOTIFICATIONS -->
+  <div class="notif-area" id="notif-area"></div>
+
+</div>
+</div>
+
+<script>
+PE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ZK00 Agent — Painel</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -243,13 +1663,7 @@
     <div class="nav-item" onclick="showTab('test',this)">🧪 Testar Agente</div>
     <div class="nav-item" onclick="window.location.href='/analyzer.html'" style="color:var(--purple)">🔍 Analisar Conversas</div>
   </nav>
-  <div style="padding:12px;border-top:1px solid var(--border)">
-    <div style="font-size:11px;color:var(--text3);margin-bottom:6px" id="sidebar-username">Carregando...</div>
-    <button onclick="doLogout()" style="width:100%;background:transparent;border:1px solid var(--border);color:var(--text2);padding:7px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
-      🚪 Sair
-    </button>
-  </div>
-</aside>
+
 
 <!-- MAIN -->
 <main class="main" id="main-app" style="display:none">
@@ -961,7 +2375,9 @@ async function doLogin() {
     if (data.user) {
       document.querySelector('.logo-sub').textContent = data.user.name || data.user.username;
       const sidebarUser = document.getElementById('sidebar-username');
-      if (sidebarUser) sidebarUser.textContent = '👤 ' + (data.user.name || data.user.username);
+      if (sidebarUser) sidebarUser.textContent = data.user.name || data.user.username;
+      const sidebarUserFooter = document.getElementById('sidebar-username-footer');
+      if (sidebarUserFooter) sidebarUserFooter.textContent = '👤 ' + (data.user.name || data.user.username);
     }
     initApp();
   } else {
@@ -2452,6 +3868,7 @@ async function checkUserbotStatus() {
     if (ts) { ts.textContent = '● Online'; ts.style.color = 'var(--green)'; }
   }
 }
+
 </script>
 </body>
 </html>
