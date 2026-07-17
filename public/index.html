@@ -169,6 +169,9 @@
   @keyframes slideIn{from{transform:translateX(50px);opacity:0}to{transform:translateX(0);opacity:1}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
   .pulse{animation:pulse 2s infinite}
+  .acc-tab{padding:8px 14px;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;flex-shrink:0;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit}
+  .acc-tab:hover{color:var(--text)}
+  .acc-tab.active{color:var(--text);border-bottom-color:var(--accent)}
   ::-webkit-scrollbar{width:4px;height:4px}
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
@@ -289,8 +292,12 @@
 
     <!-- CONVERSATIONS -->
     <div class="tab" id="tab-conversations">
-      <div class="conv-list">
-        <div class="conv-search"><input class="search-input" placeholder="🔍 Buscar..." type="text" id="conv-search" oninput="filterConvs()"></div>
+      <div class="conv-list" style="display:flex;flex-direction:column">
+        <div class="conv-search" style="display:flex;gap:6px;align-items:center">
+          <input class="search-input" placeholder="🔍 Buscar..." type="text" id="conv-search" oninput="filterConvs()" style="flex:1">
+        </div>
+        <!-- Account filter tabs -->
+        <div id="account-tabs" style="display:flex;gap:0;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0"></div>
         <div class="conv-items" id="conv-list-items"><div class="loading">Carregando...</div></div>
       </div>
       <div class="chat-panel">
@@ -612,10 +619,10 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
     <!-- ACCOUNTS -->
     <div class="tab" id="tab-accounts" style="flex-direction:column;padding:20px;overflow-y:auto;gap:14px">
       <div class="card" style="margin:0">
-        <div class="card-title">📱 Minha Conta Telegram <span>conecte seu número aqui</span></div>
+        <div class="card-title">📱 Contas Telegram <span>conecte quantas quiser</span></div>
         <div id="accounts-list"><div class="loading">Carregando...</div></div>
-        <div id="accounts-add-btn">
-          <button class="btn primary" style="margin-top:12px;font-size:12px" onclick="openModal('add-account')">+ Conectar minha conta Telegram</button>
+        <div id="accounts-add-btn" style="margin-top:12px">
+          <button class="btn primary" style="font-size:12px" onclick="openModal('add-account')">+ Adicionar conta Telegram</button>
         </div>
       </div>
       <div class="card" style="margin:0">
@@ -803,8 +810,8 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
 
     <div id="new-acc-step1">
       <div class="form-group">
-        <label class="form-label">Nome desta conta</label>
-        <input class="form-input" id="new-acc-name" placeholder="Ex: Suporte ZK00" type="text">
+        <label class="form-label">Nome desta conta <span style="color:var(--text3)">(para identificar no painel)</span></label>
+        <input class="form-input" id="new-acc-name" placeholder="Ex: Pessoal, Suporte, ZK00..." type="text">
       </div>
       <div class="form-group">
         <label class="form-label">API ID <span style="color:var(--text3)">(my.telegram.org)</span></label>
@@ -1072,15 +1079,81 @@ function updateAgentUI() {
 // ============================================
 // CONVERSATIONS
 // ============================================
+let activeAccountFilter = 'all'; // 'all' ou accountId
+
 async function loadConversations() {
   const convs = await api('GET', '/api/conversations');
   if (convs.error) return;
   allConvs = convs;
-  renderConvList(convs);
+
+  // Monta abas de contas
+  await renderAccountTabs(convs);
+
+  // Filtra e renderiza
+  filterConvs();
+
   const unread = convs.reduce((s, c) => s + (c.unread || 0), 0);
   const badge = document.getElementById('unread-badge');
   badge.textContent = unread;
   badge.style.display = unread > 0 ? 'flex' : 'none';
+}
+
+async function renderAccountTabs(convs) {
+  const tabsEl = document.getElementById('account-tabs');
+  if (!tabsEl) return;
+
+  // Busca contas conectadas
+  const accounts = await api('GET', '/api/accounts');
+  const accountMap = {};
+  if (accounts && !accounts.error) {
+    accounts.forEach(a => { accountMap[a.id] = a; });
+  }
+
+  // Conta conversas por conta
+  const countByAccount = {};
+  convs.forEach(c => {
+    const accId = c.platform.startsWith('telegram_') ? c.platform.replace('telegram_','') : c.platform;
+    countByAccount[accId] = (countByAccount[accId] || 0) + 1;
+  });
+
+  // Pega contas únicas das conversas + contas conectadas
+  const accountIds = new Set([
+    ...Object.keys(countByAccount),
+    ...Object.keys(accountMap)
+  ]);
+
+  // Monta as abas
+  let tabs = `<button class="acc-tab ${activeAccountFilter==='all'?'active':''}" onclick="setAccountFilter('all')">
+    Todas <span style="color:var(--text3);font-size:10px">${convs.length}</span>
+  </button>`;
+
+  accountIds.forEach(accId => {
+    const acc = accountMap[accId];
+    const name = acc ? acc.name : accId.replace('acc_usr_','').substring(0,8)+'...';
+    const connected = acc?.connected;
+    const count = countByAccount[accId] || 0;
+    const unread = convs.filter(c => {
+      const id = c.platform.startsWith('telegram_') ? c.platform.replace('telegram_','') : c.platform;
+      return id === accId && c.unread > 0;
+    }).length;
+
+    tabs += `<button class="acc-tab ${activeAccountFilter===accId?'active':''}" onclick="setAccountFilter('${accId}')">
+      <span style="width:6px;height:6px;border-radius:50%;background:${connected?'var(--green)':'var(--text3)'};display:inline-block;margin-right:4px"></span>
+      ${name}
+      ${unread>0?`<span style="background:var(--red);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px">${unread}</span>`:`<span style="color:var(--text3);font-size:10px;margin-left:3px">${count}</span>`}
+    </button>`;
+  });
+
+  tabsEl.innerHTML = tabs;
+}
+
+function setAccountFilter(accId) {
+  activeAccountFilter = accId;
+  // Atualiza visual das abas
+  document.querySelectorAll('.acc-tab').forEach(t => t.classList.remove('active'));
+  event.target.closest('.acc-tab').classList.add('active');
+  // Filtra conversas
+  filterConvs();
 }
 
 function renderConvList(convs) {
@@ -1095,7 +1168,7 @@ function renderConvList(convs) {
         ${c.clientName?.charAt(0)?.toUpperCase()||'?'}
       </div>
       <div class="conv-info">
-        <div class="conv-name">${c.clientName} <span style="font-size:10px;color:${c.flag==='attention'?'var(--red)':c.isHumanMode?'var(--yellow)':'var(--text3)'}">${c.flag==='attention'?'⚠️ Atenção':c.isHumanMode?'👤 Humano':c.platform==='telegram'?'TG':'WA'}</span></div>
+        <div class="conv-name">${c.clientName} <span style="font-size:10px;color:${c.flag==='attention'?'var(--red)':c.isHumanMode?'var(--yellow)':'var(--text3)'}">${c.flag==='attention'?'⚠️ Atenção':c.isHumanMode?'👤 Humano':c.platform.startsWith('telegram_')?'TG':'WA'}</span></div>
         <div class="conv-last" style="${c.flag==='attention'?'color:var(--red);':''}">${c.lastMessage?.substring(0,40)||''}</div>
       </div>
       <div class="conv-meta">
@@ -1108,7 +1181,25 @@ function renderConvList(convs) {
 
 function filterConvs() {
   const q = document.getElementById('conv-search').value.toLowerCase();
-  const filtered = q ? allConvs.filter(c => c.clientName?.toLowerCase().includes(q) || c.userId?.toLowerCase().includes(q)) : allConvs;
+  let filtered = allConvs;
+
+  // Filtra por conta selecionada
+  if (activeAccountFilter && activeAccountFilter !== 'all') {
+    filtered = filtered.filter(c => {
+      const accId = c.platform.startsWith('telegram_') ? c.platform.replace('telegram_','') : c.platform;
+      return accId === activeAccountFilter;
+    });
+  }
+
+  // Filtra por busca
+  if (q) {
+    filtered = filtered.filter(c =>
+      c.clientName?.toLowerCase().includes(q) ||
+      c.userId?.toLowerCase().includes(q) ||
+      c.lastMessage?.toLowerCase().includes(q)
+    );
+  }
+
   renderConvList(filtered);
 }
 
@@ -1442,6 +1533,21 @@ function showTab(id, el) {
 function openModal(id) {
   document.getElementById('modal-' + id).classList.add('open');
   if (id === 'add-user') populateAccountSelector();
+  if (id === 'add-account') resetAccountModal();
+}
+
+function resetAccountModal() {
+  // Reset all steps so can add multiple accounts
+  const steps = ['new-acc-step1','new-acc-step2','new-acc-step3','new-acc-step4','new-acc-step-done'];
+  steps.forEach((s,i) => {
+    const el = document.getElementById(s);
+    if (el) el.style.display = i===0 ? 'block' : 'none';
+  });
+  ['new-acc-name','new-acc-apiid','new-acc-apihash','new-acc-phone','new-acc-code','new-acc-pwd'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  newAccAuth = { step: 'idle', accountId: null };
 }
 function closeModal(id) { document.getElementById('modal-' + id).classList.remove('open'); }
 
@@ -1867,12 +1973,8 @@ async function loadAccounts() {
     </div>
   `).join('');
 
-  // Esconde botão de adicionar se já tem conta conectada (usuário comum)
-  const currentUser = JSON.parse(localStorage.getItem('zk00_user') || '{}');
-  if (addBtn) {
-    const isAdmin = !currentUser.id || currentUser.id === 'admin';
-    addBtn.style.display = (isAdmin || accounts.length === 0) ? 'block' : 'none';
-  }
+  // Sempre mostra botão de adicionar — permite múltiplas contas
+  if (addBtn) addBtn.style.display = 'block';
 }
 
 async function toggleAccount(id, active) {
