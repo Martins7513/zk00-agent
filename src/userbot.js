@@ -411,7 +411,7 @@ async function sendPassword(password) {
 }
 
 // Envia mensagem manual
-async function async sendManual(userId, text) {
+async function sendManual(userId, text) {
   if (!client || !isConnected) {
     console.log(`[USERBOT SIMULADO] Para ${userId}: ${text}`);
     return;
