@@ -148,11 +148,22 @@ app.post('/api/send', authMiddleware, async (req, res) => {
   const { platform, userId, message } = req.body;
   if (!platform || !userId || !message) return res.status(400).json({ error: 'Dados incompletos' });
   try {
-    if (platform === 'telegram') await userbot.sendManual(userId, message);
-    else if (platform === 'whatsapp') await sendWA(userId, message);
+    if (platform.startsWith('telegram_')) {
+      // Multi-conta: platform = "telegram_acc_xxx", userId = número do usuário
+      const accountId = platform.replace('telegram_', '');
+      await userbotManager.sendManual(accountId, userId, message);
+    } else if (platform === 'telegram') {
+      // Conta legada
+      await userbot.sendManual(userId, message);
+    } else if (platform === 'whatsapp') {
+      await sendWA(userId, message);
+    }
     db.addMessage(platform, userId, 'agent', message);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('[SEND]', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/human-mode', authMiddleware, (req, res) => {
