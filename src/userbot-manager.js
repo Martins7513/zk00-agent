@@ -221,6 +221,7 @@ async function startAuth(accountId, apiId, apiHash, accountName) {
       name: accountName || `Conta ${accountId}`,
       tempClient: client
     };
+    console.log(`[MANAGER] startAuth OK - accountId: ${accountId}, authStates keys: ${Object.keys(authStates).join(',')}`);
     return { success: true, step: 'waiting_phone' };
   } catch (err) {
     return { success: false, error: err.message };
@@ -229,6 +230,7 @@ async function startAuth(accountId, apiId, apiHash, accountName) {
 
 async function sendPhone(accountId, phone) {
   const state = authStates[accountId];
+  console.log(`[MANAGER] sendPhone - accountId: ${accountId}, authStates keys: ${Object.keys(authStates).join(',')}`);
   if (!state) return { success: false, error: 'Inicie a autenticação primeiro' };
   try {
     const result = await state.tempClient.invoke(new Api.auth.SendCode({
