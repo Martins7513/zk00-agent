@@ -178,16 +178,20 @@ function getRecentConversations(limit=20, ownerId=null) {
   const result = [];
   for (const [key, msgs] of Object.entries(db.conversations)) {
     if (!msgs.length) continue;
-    const parts = key.split('_');
-    const platform = parts[0];
-    const userId = parts.slice(1).join('_');
+
     const client = db.clients[key] || {};
+
+    // Usa platform e userId do client (correto) em vez de parsear a key
+    const platform = client.platform || key.split('_')[0];
+    const userId = client.userId || (() => {
+      // Fallback: remove o platform prefix da key
+      const prefix = platform + '_';
+      return key.startsWith(prefix) ? key.slice(prefix.length) : key;
+    })();
 
     // Filtro por owner
     if (ownerId && ownerId !== 'admin') {
-      const clientOwner = client.owner || '';
-      const platformOwner = platform === 'telegram' ? 'telegram' : key.includes(ownerId) ? ownerId : '';
-      if (!clientOwner.includes(ownerId) && !key.includes(ownerId)) continue;
+      if (!String(client.owner||'').includes(ownerId) && !key.includes(ownerId)) continue;
     }
 
     const last = msgs[msgs.length-1];
