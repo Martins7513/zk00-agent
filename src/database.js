@@ -176,6 +176,8 @@ function addMessage(platform, userId, role, content) {
 }
 
 function getRecentConversations(limit=20, ownerId=null) {
+  const allKeys = Object.keys(db.conversations);
+  console.log(`[DB] getRecentConversations - ownerId:${ownerId} total keys:${allKeys.length} keys:${allKeys.join(',')}`);
   const result = [];
   for (const [key, msgs] of Object.entries(db.conversations)) {
     if (!msgs.length) continue;
