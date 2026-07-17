@@ -194,7 +194,18 @@ function getRecentConversations(limit=20, ownerId=null) {
 
     // Filtro por owner
     if (ownerId && ownerId !== 'admin') {
-      if (!String(client.owner||'').includes(ownerId) && !key.includes(ownerId)) continue;
+      const clientOwner = String(client.owner || '');
+      const keyMatch = key.includes(ownerId);
+      const ownerMatch = clientOwner.includes(ownerId);
+
+      // Verifica se a conta Telegram pertence a este usuário
+      const user = (db.settings.panelUsers || []).find(u => u.id === ownerId);
+      const userAccountIds = user?.accountIds || [];
+      const accountMatch = userAccountIds.some(accId =>
+        key.includes(accId) || clientOwner.includes(accId)
+      );
+
+      if (!ownerMatch && !keyMatch && !accountMatch) continue;
     }
 
     const last = msgs[msgs.length-1];
@@ -258,8 +269,16 @@ function getStats(ownerId=null) {
   let convs = db.conversations;
   let clients = db.clients;
   if (ownerId && ownerId !== 'admin') {
-    convs = Object.fromEntries(Object.entries(convs).filter(([k])=>k.includes(ownerId)));
-    clients = Object.fromEntries(Object.entries(clients).filter(([k,v])=>(v.owner||'').includes(ownerId)||k.includes(ownerId)));
+    const user = (db.settings.panelUsers || []).find(u => u.id === ownerId);
+    const userAccountIds = user?.accountIds || [];
+    convs = Object.fromEntries(Object.entries(convs).filter(([k,v]) => {
+      if (k.includes(ownerId)) return true;
+      return userAccountIds.some(accId => k.includes(accId));
+    }));
+    clients = Object.fromEntries(Object.entries(clients).filter(([k,v]) => {
+      if (k.includes(ownerId) || (v.owner||'').includes(ownerId)) return true;
+      return userAccountIds.some(accId => k.includes(accId) || (v.owner||'').includes(accId));
+    }));
   }
   const allMsgs = Object.values(convs).flat();
   const today = new Date().toDateString();
