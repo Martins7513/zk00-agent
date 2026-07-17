@@ -143,6 +143,7 @@ function getClient(platform, userId) { return db.clients[getClientKey(platform,u
 
 function saveClient(platform, userId, data) {
   const key = getClientKey(platform, userId);
+  console.log(`[DB] saveClient - platform:${platform} userId:${userId} key:${key}`);
   db.clients[key] = { ...db.clients[key], ...data, platform, userId, updatedAt:new Date().toISOString() };
   if (!db.clients[key].createdAt) db.clients[key].createdAt = new Date().toISOString();
   // owner = prefixo da plataforma (ex: acc_usr_123 de telegram_acc_usr_123)
