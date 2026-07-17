@@ -1418,8 +1418,67 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
 </div>
 
 <script>
-// Token de autenticação
+// ============================================
+// APP STATE
+// ============================================
 let TOKEN = localStorage.getItem('zk00_token') || '';
+let currentChat = null;
+let agentActive = true;
+let allConvs = [];
+
+// ============================================
+// API HELPERS
+// ============================================
+async function api(method, path, body) {
+  try {
+    const res = await fetch(path, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': TOKEN },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    return await res.json();
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+// ============================================
+// LOGIN
+// ============================================
+async function doLogin() {
+  const username = document.getElementById('login-user')?.value?.trim() || 'admin';
+  const pass = document.getElementById('login-pass').value;
+  if (!pass) return;
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password: pass })
+  });
+  const data = await res.json();
+  if (data.success) {
+    TOKEN = data.token;
+    localStorage.setItem('zk00_token', TOKEN);
+    localStorage.setItem('zk00_user', JSON.stringify(data.user));
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('main-app').style.display = 'flex';
+    if (data.user) {
+      document.querySelector('.logo-sub').textContent = data.user.name || data.user.username;
+      const sidebarUser = document.getElementById('sidebar-username');
+      if (sidebarUser) sidebarUser.textContent = '👤 ' + (data.user.name || data.user.username);
+    }
+    initApp();
+  } else {
+    document.getElementById('login-err').textContent = data.error || 'Usuário ou senha incorretos';
+  }
+}
+
+function doLogout() {
+  if (!confirm('Deseja sair do painel?')) return;
+  localStorage.removeItem('zk00_token');
+  localStorage.removeItem('zk00_user');
+  window.location.reload();
+}
 
 // Auto-login se já tiver token
 if (TOKEN) {
