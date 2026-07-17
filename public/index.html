@@ -1719,12 +1719,15 @@ async function loadUsers() {
     return;
   }
   const currentUser = JSON.parse(localStorage.getItem('zk00_user') || '{}');
+  // Busca contas disponíveis para vincular
+  const accounts = await api('GET', '/api/accounts') || [];
+
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg3);border-radius:10px;margin-bottom:8px;border:1px solid rgba(59,130,246,.3)">
-      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:700">R</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:700">F</div>
       <div style="flex:1">
         <div style="font-size:13px;font-weight:600">FM (Admin Master)</div>
-        <div style="font-size:11px;color:var(--text3)">Login via ADMIN_PASSWORD • Acesso total</div>
+        <div style="font-size:11px;color:var(--text3)">Login via ADMIN_PASSWORD • Vê todas as conversas</div>
       </div>
       <span style="font-size:10px;background:rgba(59,130,246,.2);color:var(--accent);padding:2px 8px;border-radius:5px;border:1px solid rgba(59,130,246,.3)">Admin</span>
     </div>
@@ -1734,6 +1737,11 @@ async function loadUsers() {
       <div style="flex:1">
         <div style="font-size:13px;font-weight:600">${u.name} <span style="font-size:10px;color:var(--text3)">@${u.username}</span></div>
         <div style="font-size:11px;color:${u.active ? 'var(--green)' : 'var(--red)'}">● ${u.active ? 'Ativo' : 'Inativo'} <span style="color:var(--text3)">• Criado ${new Date(u.createdAt).toLocaleDateString('pt-BR')}</span></div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">
+          ${(u.accountIds||[]).length > 0 
+            ? '📱 Contas: ' + (u.accountIds||[]).map(id => accounts.find(a=>a.id===id)?.name || id.substring(0,12)+'...').join(', ')
+            : '<span style="color:var(--yellow)">⚠️ Sem conta Telegram vinculada</span>'}
+        </div>
       </div>
       <div style="display:flex;gap:6px">
         <div class="toggle-switch ${u.active ? '' : 'off'}" onclick="toggleUser('${u.id}', ${!u.active})" style="width:28px;height:16px" title="${u.active ? 'Desativar' : 'Ativar'}"></div>
