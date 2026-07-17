@@ -810,26 +810,28 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
 
     <div id="new-acc-step1">
       <div class="form-group">
-        <label class="form-label">Nome desta conta <span style="color:var(--text3)">(para identificar no painel)</span></label>
-        <input class="form-input" id="new-acc-name" placeholder="Ex: Pessoal, Suporte, ZK00..." type="text">
+        <label class="form-label">Nome desta conta</label>
+        <input class="form-input" id="new-acc-name" placeholder="Ex: Pessoal, Suporte..." type="text">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label class="form-label">API ID <span style="color:var(--text3)">(my.telegram.org)</span></label>
+          <input class="form-input" id="new-acc-apiid" placeholder="12345678" type="text">
+        </div>
+        <div>
+          <label class="form-label">API Hash</label>
+          <input class="form-input" id="new-acc-apihash" placeholder="abc123..." type="text">
+        </div>
       </div>
       <div class="form-group">
-        <label class="form-label">API ID <span style="color:var(--text3)">(my.telegram.org)</span></label>
-        <input class="form-input" id="new-acc-apiid" placeholder="12345678" type="text">
+        <label class="form-label">Número do Telegram (com código do país)</label>
+        <input class="form-input" id="new-acc-phone" placeholder="+5511999999999" type="text">
       </div>
-      <div class="form-group">
-        <label class="form-label">API Hash</label>
-        <input class="form-input" id="new-acc-apihash" placeholder="abc123..." type="text">
-      </div>
-      <button class="btn primary" style="width:100%" onclick="startNewAccount()">Iniciar conexão</button>
+      <button class="btn primary" style="width:100%" onclick="startNewAccount()">Conectar e enviar código</button>
     </div>
 
     <div id="new-acc-step2" style="display:none">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Digite o número de telefone desta conta com código do país:</div>
-      <div style="display:flex;gap:8px">
-        <input class="form-input" id="new-acc-phone" placeholder="+5511999999999" style="flex:1">
-        <button class="btn primary" onclick="sendNewAccPhone()">Enviar</button>
-      </div>
+      <!-- step2 mantido para compatibilidade mas não usado no novo fluxo -->
     </div>
 
     <div id="new-acc-step3" style="display:none">
@@ -2004,26 +2006,29 @@ async function startNewAccount() {
   const name = document.getElementById('new-acc-name').value.trim();
   const apiId = document.getElementById('new-acc-apiid').value.trim();
   const apiHash = document.getElementById('new-acc-apihash').value.trim();
+  const phone = document.getElementById('new-acc-phone').value.trim();
+
   if (!name) return showNotif('Digite um nome para a conta!', 'red');
   if (!apiId) return showNotif('Digite o API ID!', 'red');
   if (!apiHash) return showNotif('Digite o API Hash!', 'red');
+  if (!phone) return showNotif('Digite o número de telefone!', 'red');
 
-  // Gera um accountId único a cada vez
   const accountId = 'acc_' + Date.now();
   newAccAuth.accountId = accountId;
-  newAccAuth.step = 'starting';
-  console.log('[MODAL] Iniciando nova conta:', accountId);
+  showNotif('Conectando e enviando código...', '');
+  console.log('[MODAL] Iniciando conta + código:', accountId);
 
-  showNotif('Conectando...', '');
-  const res = await api('POST', '/api/accounts/start', { accountId, apiId, apiHash, name });
+  // UMA única chamada no servidor — conecta + envia código
+  const res = await api('POST', `/api/accounts/${accountId}/start-and-phone`, { apiId, apiHash, name, phone });
   if (res.success) {
     document.getElementById('new-acc-step1').style.display = 'none';
-    document.getElementById('new-acc-step2').style.display = 'block';
-    showNotif('Conectado! Digite o número da conta.', 'green');
+    document.getElementById('new-acc-step3').style.display = 'block';
+    showNotif('✅ Código enviado! Verifique seu Telegram.', 'green');
   } else {
-    showNotif('Erro: ' + res.error, 'red');
+    showNotif('Erro: ' + (res.error || 'Verifique os dados e tente novamente'), 'red');
   }
 }
+
 
 async function sendNewAccPhone() {
   const phone = document.getElementById('new-acc-phone').value.trim();
