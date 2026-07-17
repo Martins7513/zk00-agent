@@ -1088,6 +1088,10 @@ async function loadConversations() {
   if (convs.error) return;
   allConvs = convs;
 
+  // Debug: mostra plataformas únicas
+  const platforms = [...new Set(convs.map(c => c.platform))];
+  console.log('[CONVS] Total:', convs.length, 'Plataformas:', platforms);
+
   // Monta abas de contas
   await renderAccountTabs(convs);
 
