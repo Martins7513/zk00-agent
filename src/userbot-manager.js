@@ -148,7 +148,7 @@ function startListener(accountId, client, account, sendFn) {
       const text = message.message;
       if (!text || text.trim().length < 2) return;
 
-      console.log(`[USERBOT:${name}] 💬 ${userName}: ${text.substring(0, 60)}`);
+      console.log(`[USERBOT:${name}] 💬 accountId:${accountId} platform:${platform} userId:${userId} msg:${text.substring(0, 40)}`);
 
       // Agrupa mensagens rápidas
       const batchKey = `${accountId}_${userId}`;
