@@ -8,6 +8,7 @@ const { TelegramClient, Api } = require('telegram');
 const { StringSession } = require('telegram/sessions');
 const db = require('./database');
 const axios = require('axios');
+const sessions = require('./sessions');
 
 // Mapa de clientes ativos: { accountId: { client, isConnected, info } }
 const activeClients = {};
@@ -48,6 +49,8 @@ function addOrUpdateAccount(accountData) {
 function removeAccount(accountId) {
   const accounts = getAccounts().filter(a => a.id !== accountId);
   saveAccounts(accounts);
+  // Remove sessão permanente também
+  sessions.removeSession(accountId);
   // Desconecta se estiver ativo
   if (activeClients[accountId]) {
     try { activeClients[accountId].client.disconnect(); } catch(e) {}
@@ -201,11 +204,46 @@ function startListener(accountId, client, account, sendFn) {
 // INICIALIZA TODAS AS CONTAS
 // ==============================
 async function initAll() {
-  const accounts = getAccounts();
+  // Carrega sessões do arquivo permanente E do banco
+  const savedSessions = sessions.getAllSessions();
+  const dbAccounts = getAccounts();
+
+  // Merge: sessões do arquivo têm prioridade (mais atualizadas)
+  const accountMap = {};
+
+  // Primeiro adiciona do banco
+  for (const acc of dbAccounts) {
+    accountMap[acc.id] = acc;
+  }
+
+  // Depois sobrescreve/adiciona com sessões do arquivo permanente
+  for (const [accountId, sess] of Object.entries(savedSessions)) {
+    if (!accountMap[accountId]) {
+      // Sessão existe no arquivo mas não no banco — restaura
+      accountMap[accountId] = {
+        id: accountId,
+        name: sess.name,
+        apiId: sess.apiId,
+        apiHash: sess.apiHash,
+        session: sess.session,
+        active: true,
+        createdAt: sess.updatedAt
+      };
+      // Salva no banco também
+      addOrUpdateAccount(accountMap[accountId]);
+      console.log(`[SESSIONS] Sessão restaurada do arquivo: ${sess.name}`);
+    } else {
+      // Atualiza a sessão no banco com a do arquivo (mais recente)
+      accountMap[accountId].session = sess.session;
+    }
+  }
+
+  const accounts = Object.values(accountMap);
   if (!accounts.length) {
     console.log('[USERBOT MANAGER] Nenhuma conta configurada');
     return;
   }
+
   console.log(`[USERBOT MANAGER] Iniciando ${accounts.length} conta(s)...`);
   for (const account of accounts) {
     if (account.active !== false) {
@@ -367,6 +405,17 @@ async function finalizeAuth(accountId) {
   };
   addOrUpdateAccount(account);
   activeClients[accountId] = { client: state.tempClient, isConnected: true, info: account };
+
+  // Salva sessão no arquivo permanente (independente do banco)
+  sessions.saveSession(accountId, {
+    accountId,
+    name: state.name,
+    apiId: state.apiId,
+    apiHash: state.apiHash,
+    session: account.session,
+    phone: state.phone || ''
+  });
+
   startListener(accountId, state.tempClient, account);
   delete authStates[accountId];
   return { success: true, step: 'done', message: '✅ Conta conectada!' };
