@@ -16,20 +16,59 @@ const PORT = process.env.PORT || 3000;
 // ── Auto-restore: carrega dados do env var BOOTSTRAP_DATA na startup ──
 (function autoRestore() {
   const bootstrap = process.env.BOOTSTRAP_DATA;
-  if (!bootstrap) return;
+  if (!bootstrap) {
+    console.log('[BOOTSTRAP] Sem BOOTSTRAP_DATA — usando banco local');
+    return;
+  }
   try {
     const data = JSON.parse(Buffer.from(bootstrap, 'base64').toString('utf8'));
-    const current = db.exportBackup();
-    // Só restaura se o banco atual está vazio
-    const hasUsers = (current.settings?.panelUsers || []).length > 0;
-    const hasAccounts = (current.settings?.telegramAccounts || []).length > 0;
-    if (!hasUsers && data.settings?.panelUsers?.length) {
-      db.importBackup(data);
-      console.log('[BOOTSTRAP] ✅ Dados restaurados do BOOTSTRAP_DATA!');
-      console.log(`[BOOTSTRAP] Usuários: ${(data.settings?.panelUsers||[]).map(u=>u.username).join(', ')}`);
-      console.log(`[BOOTSTRAP] Contas: ${(data.settings?.telegramAccounts||[]).map(a=>a.name).join(', ')}`);
+    const bootstrapUsers = data.settings?.panelUsers || [];
+    const bootstrapAccounts = data.settings?.telegramAccounts || [];
+    const currentUsers = db.getUsers ? db.getUsers() : [];
+    const currentAccounts = db.getSettings ? (db.getSettings().telegramAccounts || []) : [];
+
+    console.log(`[BOOTSTRAP] Banco atual: ${currentUsers.length} usuários, ${currentAccounts.length} contas`);
+    console.log(`[BOOTSTRAP] BOOTSTRAP_DATA: ${bootstrapUsers.length} usuários, ${bootstrapAccounts.length} contas`);
+
+    // Merge: sempre garante que dados do bootstrap existam no banco
+    let changed = false;
+
+    // Restaura usuários que faltam
+    for (const u of bootstrapUsers) {
+      if (!currentUsers.find(x => x.username === u.username)) {
+        db.addUser(u);
+        console.log(`[BOOTSTRAP] ✅ Usuário restaurado: ${u.username}`);
+        changed = true;
+      }
+    }
+
+    // Restaura accountIds dos usuários
+    for (const u of bootstrapUsers) {
+      if (u.accountIds?.length) {
+        const existing = db.getUsers().find(x => x.username === u.username);
+        if (existing && (!existing.accountIds?.length)) {
+          db.updateUser(existing.id, { accountIds: u.accountIds });
+          console.log(`[BOOTSTRAP] ✅ AccountIds restaurados para: ${u.username}`);
+          changed = true;
+        }
+      }
+    }
+
+    // Restaura contas Telegram que faltam
+    for (const a of bootstrapAccounts) {
+      if (!currentAccounts.find(x => x.id === a.id)) {
+        const accs = db.getSettings().telegramAccounts || [];
+        accs.push(a);
+        db.updateSettings({ telegramAccounts: accs });
+        console.log(`[BOOTSTRAP] ✅ Conta restaurada: ${a.name}`);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      console.log('[BOOTSTRAP] ✅ Banco atualizado com dados do BOOTSTRAP_DATA');
     } else {
-      console.log('[BOOTSTRAP] Banco já tem dados — skip restore');
+      console.log('[BOOTSTRAP] Banco já está completo — nenhuma restauração necessária');
     }
   } catch(e) { console.error('[BOOTSTRAP] Erro ao restaurar:', e.message); }
 })();
