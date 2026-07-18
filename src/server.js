@@ -248,11 +248,16 @@ app.patch('/api/settings', authMiddleware, (req, res) => res.json(db.updateSetti
 app.get('/api/accounts', authMiddleware, (req, res) => {
   const all = userbotManager.getStatus();
   if (req.user?.isAdmin) return res.json(all);
-  // Usuário comum — só vê a conta vinculada a ele
+  // Usuário comum — vê contas vinculadas a ele
   const user = db.getUsers().find(u => u.id === req.user?.id);
   if (!user) return res.json([]);
   const userAccountIds = user.accountIds || [];
-  res.json(all.filter(a => userAccountIds.includes(a.id)));
+  // Se não tem nenhuma conta vinculada, mostra todas (para facilitar conexão inicial)
+  if (userAccountIds.length === 0) return res.json(all);
+  const filtered = all.filter(a => userAccountIds.includes(a.id));
+  // Log para debug
+  console.log(`[ACCOUNTS] User ${req.user.username} has ${userAccountIds.length} accountIds, found ${filtered.length} accounts`);
+  res.json(filtered);
 });
 
 // Inicia auth — gera accountId único por usuário
@@ -298,12 +303,17 @@ app.post('/api/accounts/:accountId/code', authMiddleware, async (req, res) => {
   if (result.success && result.step === 'done') {
     const accountId = req.params.accountId;
     if (!req.user?.isAdmin && req.user?.id) {
-      // Usuário comum — vincula à conta dele (APPEND, não substitui)
-      const user = db.getUsers().find(u => u.id === req.user.id);
-      const currentIds = user?.accountIds || [];
-      if (!currentIds.includes(accountId)) {
-        db.updateUser(req.user.id, { accountIds: [...currentIds, accountId] });
-        console.log(`[AUTH] Conta ${accountId} vinculada ao usuário ${req.user.username}. Total: ${currentIds.length + 1}`);
+      // Usuário comum — vincula à conta dele (APPEND seguro)
+      const userObj = db.getUsers().find(u => u.id === req.user.id);
+      if (userObj) {
+        const currentIds = Array.isArray(userObj.accountIds) ? [...userObj.accountIds] : [];
+        if (!currentIds.includes(accountId)) {
+          currentIds.push(accountId);
+          db.updateUser(req.user.id, { accountIds: currentIds });
+          console.log(`[AUTH] ✅ Conta ${accountId} vinculada a ${req.user.username}. accountIds agora: ${JSON.stringify(currentIds)}`);
+        } else {
+          console.log(`[AUTH] Conta ${accountId} já vinculada a ${req.user.username}`);
+        }
       }
       console.log(`[AUTH] Conta ${accountId} vinculada ao usuário ${req.user.username}`);
     }
