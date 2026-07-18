@@ -306,10 +306,23 @@ function deleteMessage(platform, userId, msgIndex) {
 function exportBackup() { return JSON.parse(JSON.stringify(db)); }
 function importBackup(data) {
   if(data.knowledge) db.knowledge=data.knowledge;
-  if(data.settings) db.settings={...FIXED_SETTINGS,...data.settings};
+  if(data.settings) {
+    // Preserva telegramAccounts e panelUsers — não apaga contas ao restaurar
+    const currentAccounts = db.settings.telegramAccounts || [];
+    const currentUsers = db.settings.panelUsers || [];
+    db.settings = { ...FIXED_SETTINGS, ...data.settings };
+    // Restaura contas e usuários se o backup não tiver ou tiver menos
+    if (!db.settings.telegramAccounts || db.settings.telegramAccounts.length < currentAccounts.length) {
+      db.settings.telegramAccounts = currentAccounts;
+    }
+    if (!db.settings.panelUsers || db.settings.panelUsers.length < currentUsers.length) {
+      db.settings.panelUsers = currentUsers;
+    }
+  }
   if(data.clients) db.clients=data.clients;
   if(data.conversations) db.conversations=data.conversations;
   saveDB(db);
+  console.log('[DB] Backup restaurado — contas Telegram preservadas');
 }
 
 module.exports = {
