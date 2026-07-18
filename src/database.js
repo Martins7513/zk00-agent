@@ -233,6 +233,7 @@ function getRecentConversations(limit=20, ownerId=null) {
 function searchKnowledge(text) {
   const lower = text.toLowerCase();
   for (const item of db.knowledge) {
+    if (item.active === false) continue; // pula itens desativados
     if (item.trigger && item.trigger.some(t=>lower.includes(t.toLowerCase()))) return item;
   }
   return null;
@@ -246,6 +247,15 @@ function addKnowledge(item) {
   saveDB(db); return newItem;
 }
 function deleteKnowledge(id) { db.knowledge=db.knowledge.filter(k=>k.id!==id); saveDB(db); }
+
+function toggleKnowledge(id, active) {
+  const item = db.knowledge.find(k => k.id === id);
+  if (!item) return { error: 'Item não encontrado' };
+  item.active = active;
+  item.updatedAt = new Date().toISOString();
+  saveDB(db);
+  return { success: true, id, active };
+}
 
 // ==============================
 // SETTINGS
@@ -333,6 +343,6 @@ module.exports = {
   getHistory, addMessage, getRecentConversations,
   searchKnowledge, getAllKnowledge, addKnowledge, deleteKnowledge,
   getSettings, updateSettings, isHumanMode, setHumanMode, flagConversation,
-  getStats, exportBackup, importBackup, deleteMessage,
+  getStats, exportBackup, importBackup, deleteMessage, toggleKnowledge,
   getUsers, getUserByCredentials, addUser, updateUser, deleteUser
 };
