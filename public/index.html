@@ -1242,7 +1242,8 @@ async function renderAccountTabs(convs) {
 
   accountIds.forEach(accId => {
     const acc = accountMap[accId];
-    const name = acc?.name || 'Conta ' + (Array.from(accountIds).indexOf(accId) + 1);
+    const accIdx = Array.from(accountIds).indexOf(accId);
+    const name = acc?.name || (accIdx >= 0 ? `Conta ${accIdx+1}` : accId.substring(0,10));
     const connected = acc?.connected;
     const count = countByAccount[accId] || 0;
     const unread = convs.filter(c => {
@@ -1342,34 +1343,38 @@ function filterConvs() {
 // Painéis ativos: { 1: conv, 2: conv }
 let chatPanels = { 1: null, 2: null };
 
-function getAccountName(platform) {
-  if (!platform || !platform.startsWith('telegram_')) return platform === 'whatsapp' ? 'WhatsApp' : 'Telegram';
+function getAccountName(platform, short=false) {
+  if (!platform) return 'TG';
+  if (platform === 'whatsapp') return 'WhatsApp';
+  if (!platform.startsWith('telegram_')) return 'TG';
   const accId = platform.replace('telegram_', '');
   const acc = (window._accountCache || []).find(a => a.id === accId);
-  return acc ? acc.name : accId.substring(0, 14);
+  if (acc?.name) return short ? acc.name.substring(0,12) : acc.name;
+  // Fallback: número da conta na lista
+  const idx = (window._accountCache || []).findIndex(a => a.id === accId);
+  return idx >= 0 ? `Conta ${idx+1}` : 'TG';
 }
 
 function selectConv(conv) {
-  // Descobre qual painel usar baseado na conta
-  // Painel 1 = primeira conta, Painel 2 = segunda conta
   const accounts = window._accountCache || [];
   let panel = 1;
+  const convAccId = conv.platform.startsWith('telegram_') ? conv.platform.replace('telegram_','') : conv.platform;
 
   if (accounts.length >= 2) {
-    // Pega o accountId da conversa
-    const convAccId = conv.platform.startsWith('telegram_') ? conv.platform.replace('telegram_','') : conv.platform;
-    // Se já tem um painel aberto com essa conta, usa ele
-    if (chatPanels[1] && chatPanels[1].platform === conv.platform) panel = 1;
-    else if (chatPanels[2] && chatPanels[2].platform === conv.platform) panel = 2;
-    // Senão, distribui por conta
+    // Painel fixo por conta: conta[0] → painel 1, conta[1] → painel 2
+    const acc0 = accounts[0]?.id;
+    const acc1 = accounts[1]?.id;
+
+    if (convAccId === acc0) panel = 1;
+    else if (convAccId === acc1) panel = 2;
     else {
-      const acc1 = accounts[0]?.id;
-      panel = convAccId === acc1 ? 1 : 2;
+      // Conta não mapeada: abre no painel que não tem nada, ou no 1
+      panel = (!chatPanels[1]) ? 1 : (!chatPanels[2]) ? 2 : 1;
     }
   }
 
   openInPanel(panel, conv);
-  currentChat = conv; // mantém compatibilidade
+  currentChat = conv;
   renderConvList(allConvs);
 }
 
@@ -1385,7 +1390,7 @@ function openInPanel(panel, conv) {
   document.getElementById(`chat-avatar-${panel}`).style.color = avatarColor;
   document.getElementById(`chat-name-${panel}`).textContent = conv.clientName;
   document.getElementById(`chat-name-${panel}`).style.color = 'var(--text)';
-  document.getElementById(`chat-sub-${panel}`).textContent = accName + ' · ' + conv.userId;
+  document.getElementById(`chat-sub-${panel}`).textContent = accName;
   document.getElementById(`chat-actions-${panel}`).style.display = 'flex';
   document.getElementById(`chat-input-${panel}`).style.display = 'block';
   updatePanelMode(panel, conv.isHumanMode);
