@@ -1460,12 +1460,18 @@ function choosePanelAndOpen(panel) {
 function openInPanel(panel, conv) {
   chatPanels[panel] = conv;
 
-  // Marca como lido
+  // Marca como lido e remove flag de atenção
   api('POST', `/api/conversations/${conv.platform}/${conv.userId}/read`).then(() => {
-    // Atualiza badge na lista
     const item = allConvs.find(c => c.key === conv.key);
-    if (item) { item.unread = 0; renderConvList(allConvs); updateUnreadBadge(); }
+    if (item) {
+      item.unread = 0;
+      item.flag = null; // remove alerta vermelho
+      renderConvList(allConvs);
+      updateUnreadBadge();
+    }
   });
+  // Remove flag de atenção no servidor também
+  api('POST', `/api/flag`, { platform: conv.platform, userId: conv.userId, flag: null });
 
   const accName = getAccountName(conv.platform);
   const avatarBg = conv.platform.includes('telegram') ? 'rgba(42,171,238,.15)' : 'rgba(37,211,102,.15)';
@@ -1565,10 +1571,11 @@ async function sendManualMsgPanel(panel) {
   if (!text) return;
   await api('POST', '/api/send', { platform: conv.platform, userId: conv.userId, message: text });
   input.value = '';
-  // Marca como lido ao responder
+  // Marca como lido e remove flag ao responder
   await api('POST', `/api/conversations/${conv.platform}/${conv.userId}/read`);
+  await api('POST', `/api/flag`, { platform: conv.platform, userId: conv.userId, flag: null });
   const item = allConvs.find(c => c.key === conv.key);
-  if (item) { item.unread = 0; updateUnreadBadge(); }
+  if (item) { item.unread = 0; item.flag = null; renderConvList(allConvs); updateUnreadBadge(); }
   await loadPanelHistory(panel, conv);
 }
 
