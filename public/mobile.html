@@ -466,6 +466,19 @@ function startApp() {
   document.getElementById('topbar-user').textContent = u.name || u.username || 'Admin';
   refreshData();
   refreshTimer = setInterval(refreshData, 8000);
+
+  // Quando app vai para background, reduz para 1min (economiza bateria)
+  // Quando volta ao foreground, volta para 8s
+  document.addEventListener('visibilitychange', () => {
+    clearInterval(refreshTimer);
+    if (document.visibilityState === 'visible') {
+      refreshData(); // atualiza imediatamente ao voltar
+      refreshTimer = setInterval(refreshData, 8000);
+    } else {
+      // Background: verifica a cada 1 minuto para alertas de 10min
+      refreshTimer = setInterval(refreshData, 60000);
+    }
+  });
 }
 
 // ── DATA ──
@@ -755,19 +768,50 @@ function showLocalNotif(title, body) {
 
 // Verifica novas mensagens e notifica
 let lastUnread = 0;
+let notifiedUnanswered = new Set(); // evita notificar o mesmo lead várias vezes
+
 function checkNewMessages(convs) {
   const total = convs.reduce((s,c) => s + (c.unread||0), 0);
+
+  // Notifica mensagem nova
   if (total > lastUnread && lastUnread >= 0) {
     const diff = total - lastUnread;
     if (diff > 0 && document.visibilityState !== 'visible') {
-      const newConv = convs.find(c => c.unread > 0);
-      showLocalNotif(
-        `${diff} nova${diff>1?'s':''} mensagem${diff>1?'ns':''}`,
-        newConv ? `${newConv.clientName}: ${newConv.lastMessage?.substring(0,60)}` : 'Tele Agent'
-      );
+      const newConvs = convs.filter(c => c.unread > 0);
+      newConvs.forEach(c => {
+        showLocalNotif(
+          `💬 ${c.clientName}`,
+          c.lastMessage?.substring(0, 80) || 'Nova mensagem recebida'
+        );
+      });
     }
   }
   lastUnread = total;
+
+  // Verifica leads sem resposta há 10 min
+  const now = Date.now();
+  const TEN_MIN = 10 * 60 * 1000;
+
+  convs.forEach(c => {
+    if (!c.lastTime) return;
+    if (c.lastRole !== 'user') return; // última msg foi do agente — já respondeu
+    if (c.isHumanMode) return; // em modo humano, ignora
+
+    const elapsed = now - new Date(c.lastTime).getTime();
+    const key = c.key + '_' + Math.floor(elapsed / TEN_MIN); // notifica 1x por bloco de 10min
+
+    if (elapsed >= TEN_MIN && !notifiedUnanswered.has(key)) {
+      notifiedUnanswered.add(key);
+      // Limpa entradas antigas
+      if (notifiedUnanswered.size > 100) notifiedUnanswered.clear();
+
+      const mins = Math.floor(elapsed / 60000);
+      showLocalNotif(
+        `⏰ ${c.clientName} — sem resposta`,
+        `Aguardando há ${mins} minutos. Toque para ver.`
+      );
+    }
+  });
 }
 
 setupPWA();
