@@ -272,6 +272,17 @@ app.post('/api/accounts/:accountId/start-and-phone', authMiddleware, async (req,
   const { apiId, apiHash, name, phone } = req.body;
   if (!apiId || !apiHash || !phone) return res.status(400).json({ error: 'apiId, apiHash e phone obrigatórios' });
   const result = await userbotManager.startAuthAndPhone(req.params.accountId, apiId, apiHash, name, phone);
+  // Se já autenticou direto (sem código), vincula ao usuário
+  if (result.success && result.step === 'done' && req.user?.id) {
+    const accountId = req.params.accountId;
+    const user = db.getUsers().find(u => u.id === req.user.id);
+    if (user) {
+      const currentIds = user.accountIds || [];
+      if (!currentIds.includes(accountId)) {
+        db.updateUser(req.user.id, { accountIds: [...currentIds, accountId] });
+      }
+    }
+  }
   res.json(result);
 });
 
@@ -287,11 +298,12 @@ app.post('/api/accounts/:accountId/code', authMiddleware, async (req, res) => {
   if (result.success && result.step === 'done') {
     const accountId = req.params.accountId;
     if (!req.user?.isAdmin && req.user?.id) {
-      // Usuário comum — vincula à conta dele
+      // Usuário comum — vincula à conta dele (APPEND, não substitui)
       const user = db.getUsers().find(u => u.id === req.user.id);
       const currentIds = user?.accountIds || [];
       if (!currentIds.includes(accountId)) {
         db.updateUser(req.user.id, { accountIds: [...currentIds, accountId] });
+        console.log(`[AUTH] Conta ${accountId} vinculada ao usuário ${req.user.username}. Total: ${currentIds.length + 1}`);
       }
       console.log(`[AUTH] Conta ${accountId} vinculada ao usuário ${req.user.username}`);
     }
