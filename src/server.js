@@ -108,7 +108,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => process.emit('SIGTERM'));
 
-app.use(cors());
+app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '../public')));
 
