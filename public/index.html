@@ -1604,17 +1604,21 @@ async function loadKnowledge() {
     return;
   }
   el.innerHTML = items.map(item => `
-    <div class="kb-item">
+    <div class="kb-item" style="opacity:${item.active===false?'0.45':'1'};transition:opacity .2s">
       <div style="width:32px;height:32px;border-radius:8px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">
         ${item.type==='faq'?'❓':item.type==='promo'?'🎯':item.type==='link'?'🔗':'🕐'}
       </div>
       <div class="kb-item-text">
-        <div class="kb-item-q">${item.question||item.title||'—'}</div>
+        <div class="kb-item-q" style="display:flex;align-items:center;gap:6px">
+          ${item.question||item.title||'—'}
+          ${item.active===false ? '<span style="font-size:9px;background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);padding:1px 6px;border-radius:10px;font-weight:600">INATIVO</span>' : ''}
+        </div>
         <div class="kb-item-a" style="color:var(--text2);font-size:11px">${item.answer?.substring(0,80)||''}...</div>
         ${item.context ? `<div style="color:var(--accent);font-size:10px;margin-top:2px">🎯 ${item.context.substring(0,60)}...</div>` : ''}
         ${item.objective ? `<div style="color:var(--green);font-size:10px;margin-top:1px">🏁 ${item.objective.substring(0,60)}...</div>` : ''}
       </div>
-      <div class="kb-item-actions">
+      <div class="kb-item-actions" style="display:flex;align-items:center;gap:4px">
+        <div class="toggle-switch ${item.active===false?'off':''}" onclick="toggleKnowledgeItem('${item.id}', ${item.active===false})" style="width:28px;height:16px;flex-shrink:0" title="${item.active===false?'Ativar':'Desativar'}"></div>
         <button class="icon-btn" onclick="editKnowledge(${JSON.stringify(item).replace(/"/g,'&quot;')})" title="Editar" style="color:var(--accent)">✏️</button>
         <button class="icon-btn" onclick="deleteKnowledge('${item.id}')" title="Remover">🗑</button>
       </div>
@@ -1712,6 +1716,17 @@ async function saveKnowledge() {
 
   await loadKnowledge();
   showNotif(editingId ? 'Conhecimento atualizado!' : 'Adicionado à base de conhecimento!', 'green');
+}
+
+async function toggleKnowledgeItem(id, currentlyInactive) {
+  const newActive = currentlyInactive; // se estava inativo, ativa; se ativo, desativa
+  const res = await api('PATCH', `/api/knowledge/${id}/toggle`, { active: newActive });
+  if (res.success) {
+    showNotif(newActive ? '✅ Gatilho ativado' : '⏸ Gatilho desativado', newActive ? 'green' : '');
+    loadKnowledge();
+  } else {
+    showNotif('Erro: ' + res.error, 'red');
+  }
 }
 
 async function deleteKnowledge(id) {
