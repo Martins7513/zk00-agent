@@ -12,6 +12,34 @@ const broadcast = require('./broadcast');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const ntfy = require('./ntfy');
+
+// ── Verifica leads sem resposta a cada 2 minutos ──
+const notifiedUnanswered = new Set();
+setInterval(async () => {
+  try {
+    const convs = db.getRecentConversations(100, null);
+    const now = Date.now();
+    const TEN_MIN = 10 * 60 * 1000;
+
+    for (const conv of convs) {
+      if (!conv.lastTime) continue;
+      if (conv.lastRole !== 'user') continue; // já respondido
+      if (conv.isHumanMode) continue;
+
+      const elapsed = now - new Date(conv.lastTime).getTime();
+      const block = Math.floor(elapsed / TEN_MIN);
+      const key = `${conv.key}_${block}`;
+
+      if (elapsed >= TEN_MIN && !notifiedUnanswered.has(key)) {
+        notifiedUnanswered.add(key);
+        if (notifiedUnanswered.size > 200) notifiedUnanswered.clear();
+        const mins = Math.floor(elapsed / 60000);
+        await ntfy.notifyUnanswered(conv.clientName, mins, conv.platform);
+      }
+    }
+  } catch(e) {}
+}, 2 * 60 * 1000); // a cada 2 minutos
 
 // ── Auto-restore: carrega dados do env var BOOTSTRAP_DATA na startup ──
 (function autoRestore() {
@@ -72,6 +100,17 @@ const PORT = process.env.PORT || 3000;
     }
   } catch(e) { console.error('[BOOTSTRAP] Erro ao restaurar:', e.message); }
 })();
+
+// ── Configurar Ntfy ──
+app.post('/api/ntfy/test', authMiddleware, async (req, res) => {
+  if (!req.user?.isAdmin) return res.status(403).json({ error: 'Admin only' });
+  const result = await ntfy.sendNotification({
+    title: '✅ Tele Agent conectado!',
+    message: 'Notificações push configuradas com sucesso.',
+    tags: ['white_check_mark']
+  });
+  res.json({ success: true, status: result });
+});
 
 // ── Rota para gerar o BOOTSTRAP_DATA ──
 app.get('/api/bootstrap-export', authMiddleware, (req, res) => {
