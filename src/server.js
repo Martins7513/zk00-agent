@@ -78,12 +78,41 @@ app.get('/api/bootstrap-export', authMiddleware, (req, res) => {
   if (!req.user?.isAdmin) return res.status(403).json({ error: 'Admin only' });
   const backup = db.exportBackup();
   const encoded = Buffer.from(JSON.stringify(backup)).toString('base64');
-  res.json({
-    success: true,
-    env_var: 'BOOTSTRAP_DATA',
-    value: encoded,
-    instructions: 'Cole essa variável no Railway → Variables → BOOTSTRAP_DATA'
-  });
+  res.json({ success: true, value: encoded });
+});
+
+// ── Rota simples sem auth header — usa senha na URL ──
+app.get('/bootstrap', (req, res) => {
+  const pwd = req.query.pwd || req.query.token;
+  if (pwd !== process.env.ADMIN_PASSWORD) {
+    return res.send('<h2>Senha incorreta</h2>');
+  }
+  const backup = db.exportBackup();
+  const encoded = Buffer.from(JSON.stringify(backup)).toString('base64');
+  const users = (backup.settings?.panelUsers || []).map(u => u.username).join(', ') || 'nenhum';
+  const accounts = (backup.settings?.telegramAccounts || []).map(a => a.name).join(', ') || 'nenhuma';
+  res.send(`<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Bootstrap Export</title>
+<style>body{font-family:monospace;background:#09090b;color:#fafafa;padding:24px;margin:0}
+.box{background:#18181b;border:1px solid #27272a;border-radius:12px;padding:20px;margin-bottom:12px;max-width:700px}
+textarea{width:100%;height:100px;background:#0a0a0c;border:1px solid #3f3f46;border-radius:8px;padding:10px;color:#22c55e;font-size:10px;font-family:monospace;box-sizing:border-box;resize:none}
+button{background:#6366f1;border:none;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700;margin-top:8px}
+.ok{color:#22c55e}.warn{color:#eab308}</style>
+</head>
+<body>
+<div class="box">
+  <h2>🔒 Bootstrap Export</h2>
+  <p class="${users !== 'nenhum' ? 'ok' : 'warn'}">Usuários: ${users}</p>
+  <p class="${accounts !== 'nenhuma' ? 'ok' : 'warn'}">Contas: ${accounts}</p>
+</div>
+<div class="box">
+  <p><strong>1.</strong> Copie o valor abaixo:</p>
+  <textarea id="val" onclick="this.select()">${encoded}</textarea>
+  <button onclick="navigator.clipboard.writeText(document.getElementById('val').value).then(()=>alert('Copiado! Cole no Railway → Variables → BOOTSTRAP_DATA'))">📋 Copiar</button>
+  <p style="margin-top:12px;color:#a1a1aa;font-size:11px"><strong>2.</strong> Railway → Variables → BOOTSTRAP_DATA → cole → Save</p>
+</div>
+</body></html>`);
 });
 
 // ── Graceful shutdown: salva banco antes de fechar ──
