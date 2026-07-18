@@ -294,6 +294,15 @@ function getStats(ownerId=null) {
   };
 }
 
+function deleteMessage(platform, userId, msgIndex) {
+  const key = getClientKey(platform, userId);
+  if (!db.conversations[key]) return false;
+  if (msgIndex < 0 || msgIndex >= db.conversations[key].length) return false;
+  db.conversations[key].splice(msgIndex, 1);
+  saveDB(db);
+  return true;
+}
+
 function exportBackup() { return JSON.parse(JSON.stringify(db)); }
 function importBackup(data) {
   if(data.knowledge) db.knowledge=data.knowledge;
@@ -308,6 +317,6 @@ module.exports = {
   getHistory, addMessage, getRecentConversations,
   searchKnowledge, getAllKnowledge, addKnowledge, deleteKnowledge,
   getSettings, updateSettings, isHumanMode, setHumanMode, flagConversation,
-  getStats, exportBackup, importBackup,
+  getStats, exportBackup, importBackup, deleteMessage,
   getUsers, getUserByCredentials, addUser, updateUser, deleteUser
 };
