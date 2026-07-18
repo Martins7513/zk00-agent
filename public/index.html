@@ -1242,7 +1242,7 @@ async function renderAccountTabs(convs) {
 
   accountIds.forEach(accId => {
     const acc = accountMap[accId];
-    const name = acc ? acc.name : accId.replace('acc_usr_','').substring(0,8)+'...';
+    const name = acc?.name || 'Conta ' + (Array.from(accountIds).indexOf(accId) + 1);
     const connected = acc?.connected;
     const count = countByAccount[accId] || 0;
     const unread = convs.filter(c => {
@@ -2207,7 +2207,7 @@ async function loadAccounts() {
     </div>
   `).join('');
 
-  // Sempre mostra botão de adicionar — permite múltiplas contas
+  // Sempre mostra botão de adicionar
   if (addBtn) addBtn.style.display = 'block';
 }
 
