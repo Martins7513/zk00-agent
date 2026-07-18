@@ -13,6 +13,40 @@ const broadcast = require('./broadcast');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ── Auto-restore: carrega dados do env var BOOTSTRAP_DATA na startup ──
+(function autoRestore() {
+  const bootstrap = process.env.BOOTSTRAP_DATA;
+  if (!bootstrap) return;
+  try {
+    const data = JSON.parse(Buffer.from(bootstrap, 'base64').toString('utf8'));
+    const current = db.exportBackup();
+    // Só restaura se o banco atual está vazio
+    const hasUsers = (current.settings?.panelUsers || []).length > 0;
+    const hasAccounts = (current.settings?.telegramAccounts || []).length > 0;
+    if (!hasUsers && data.settings?.panelUsers?.length) {
+      db.importBackup(data);
+      console.log('[BOOTSTRAP] ✅ Dados restaurados do BOOTSTRAP_DATA!');
+      console.log(`[BOOTSTRAP] Usuários: ${(data.settings?.panelUsers||[]).map(u=>u.username).join(', ')}`);
+      console.log(`[BOOTSTRAP] Contas: ${(data.settings?.telegramAccounts||[]).map(a=>a.name).join(', ')}`);
+    } else {
+      console.log('[BOOTSTRAP] Banco já tem dados — skip restore');
+    }
+  } catch(e) { console.error('[BOOTSTRAP] Erro ao restaurar:', e.message); }
+})();
+
+// ── Rota para gerar o BOOTSTRAP_DATA ──
+app.get('/api/bootstrap-export', authMiddleware, (req, res) => {
+  if (!req.user?.isAdmin) return res.status(403).json({ error: 'Admin only' });
+  const backup = db.exportBackup();
+  const encoded = Buffer.from(JSON.stringify(backup)).toString('base64');
+  res.json({
+    success: true,
+    env_var: 'BOOTSTRAP_DATA',
+    value: encoded,
+    instructions: 'Cole essa variável no Railway → Variables → BOOTSTRAP_DATA'
+  });
+});
+
 // ── Graceful shutdown: salva banco antes de fechar ──
 process.on('SIGTERM', () => {
   console.log('[SERVER] SIGTERM recebido — salvando banco antes de fechar...');
