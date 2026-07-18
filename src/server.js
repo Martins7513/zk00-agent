@@ -684,6 +684,12 @@ app.post('/api/users/:userId/link-account', authMiddleware, (req, res) => {
 // ==============================
 // DELETAR MENSAGEM
 // ==============================
+// Marca conversa como lida
+app.post('/api/conversations/:platform/:userId/read', authMiddleware, (req, res) => {
+  db.markAsRead(req.params.platform, req.params.userId);
+  res.json({ success: true });
+});
+
 app.delete('/api/messages/:platform/:userId/:msgIndex', authMiddleware, async (req, res) => {
   const { platform, userId, msgIndex } = req.params;
   const { forEveryone } = req.body || {};
