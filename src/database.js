@@ -88,9 +88,12 @@ function loadDB() {
         if (savedPanelUsers.length) console.log(`[DB] Usuários: ${savedPanelUsers.map(u=>u.username).join(', ')}`);
         if (savedTelegramAccounts.length) console.log(`[DB] Contas: ${savedTelegramAccounts.map(a=>a.name).join(', ')}`);
         return saved;
+      } else {
+        console.log(`[DB] ⚠️ Arquivo não encontrado: ${DB_PATH} — iniciando banco vazio`);
       }
     } catch(e) { console.error('[DB] Erro ao carregar:', e.message); }
   }
+  console.log(`[DB] ⚠️ Iniciando com banco padrão (sem arquivo salvo)`);
   return getDefaultDB();
 }
 
@@ -101,7 +104,10 @@ function saveDB(db) {
 }
 
 let db = loadDB();
-setInterval(() => saveDB(db), 30000);
+// Salva a cada 10 segundos para garantir persistência
+setInterval(() => saveDB(db), 10000);
+// Salva imediatamente na inicialização
+setTimeout(() => saveDB(db), 2000);
 
 // ==============================
 // USUÁRIOS
