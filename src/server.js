@@ -141,6 +141,11 @@ app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '../public')));
 
+// Rota mobile
+app.get('/mobile', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/mobile.html'));
+});
+
 function authMiddleware(req, res, next) {
   const token = req.headers['x-admin-token'] || req.query.token;
   if (!token) return res.status(401).json({ error: 'Não autorizado' });
