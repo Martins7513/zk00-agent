@@ -34,9 +34,15 @@ function getAccount(accountId) {
 function addOrUpdateAccount(accountData) {
   const accounts = getAccounts();
   const idx = accounts.findIndex(a => a.id === accountData.id);
-  if (idx >= 0) accounts[idx] = { ...accounts[idx], ...accountData };
-  else accounts.push(accountData);
+  if (idx >= 0) {
+    accounts[idx] = { ...accounts[idx], ...accountData };
+    console.log(`[MANAGER] Updated account: ${accountData.name} (${accountData.id}). Total: ${accounts.length}`);
+  } else {
+    accounts.push(accountData);
+    console.log(`[MANAGER] Added NEW account: ${accountData.name} (${accountData.id}). Total: ${accounts.length}`);
+  }
   saveAccounts(accounts);
+  console.log(`[MANAGER] All accounts: ${accounts.map(a=>a.name).join(', ')}`);
 }
 
 function removeAccount(accountId) {
