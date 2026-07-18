@@ -77,8 +77,12 @@ function loadDB() {
             saved.knowledge.push(item);
           }
         }
+        // Preserva panelUsers e telegramAccounts do arquivo (nunca sobrescreve com FIXED_SETTINGS)
+        const savedPanelUsers = saved.settings?.panelUsers || [];
+        const savedTelegramAccounts = saved.settings?.telegramAccounts || [];
         saved.settings = { ...FIXED_SETTINGS, ...saved.settings };
-        if (!saved.settings.panelUsers) saved.settings.panelUsers = [];
+        saved.settings.panelUsers = savedPanelUsers;
+        saved.settings.telegramAccounts = savedTelegramAccounts;
         console.log(`[DB] Carregado: ${(saved.knowledge||[]).length} conhecimentos, ${Object.keys(saved.clients||{}).length} clientes`);
         return saved;
       }
@@ -99,18 +103,7 @@ setInterval(() => saveDB(db), 30000);
 // ==============================
 // USUÁRIOS
 // ==============================
-function getUsers() {
-  // Recarrega do arquivo para garantir dados frescos
-  try {
-    if (DB_PATH && require('fs').existsSync(DB_PATH)) {
-      const fresh = JSON.parse(require('fs').readFileSync(DB_PATH, 'utf8'));
-      if (fresh.settings?.panelUsers) {
-        db.settings.panelUsers = fresh.settings.panelUsers;
-      }
-    }
-  } catch(e) {}
-  return db.settings.panelUsers || [];
-}
+function getUsers() { return db.settings.panelUsers || []; }
 
 function getUserByCredentials(username, password) {
   const adminPass = process.env.ADMIN_PASSWORD || 'zk00admin123';
@@ -316,24 +309,23 @@ function deleteMessage(platform, userId, msgIndex) {
 
 function exportBackup() { return JSON.parse(JSON.stringify(db)); }
 function importBackup(data) {
-  if(data.knowledge) db.knowledge=data.knowledge;
+  // Salva o que não deve ser sobrescrito
+  const keepAccounts = db.settings.telegramAccounts || [];
+  const keepUsers = db.settings.panelUsers || [];
+
+  if(data.knowledge) db.knowledge = data.knowledge;
   if(data.settings) {
-    // Preserva telegramAccounts e panelUsers — não apaga contas ao restaurar
-    const currentAccounts = db.settings.telegramAccounts || [];
-    const currentUsers = db.settings.panelUsers || [];
     db.settings = { ...FIXED_SETTINGS, ...data.settings };
-    // Restaura contas e usuários se o backup não tiver ou tiver menos
-    if (!db.settings.telegramAccounts || db.settings.telegramAccounts.length < currentAccounts.length) {
-      db.settings.telegramAccounts = currentAccounts;
-    }
-    if (!db.settings.panelUsers || db.settings.panelUsers.length < currentUsers.length) {
-      db.settings.panelUsers = currentUsers;
-    }
   }
-  if(data.clients) db.clients=data.clients;
-  if(data.conversations) db.conversations=data.conversations;
+  if(data.clients) db.clients = data.clients;
+  if(data.conversations) db.conversations = data.conversations;
+
+  // SEMPRE preserva contas e usuários — nunca apaga ao restaurar backup
+  db.settings.telegramAccounts = keepAccounts;
+  db.settings.panelUsers = keepUsers;
+
   saveDB(db);
-  console.log('[DB] Backup restaurado — contas Telegram preservadas');
+  console.log(`[DB] Backup restaurado. Contas preservadas: ${keepAccounts.length}. Usuários preservados: ${keepUsers.length}`);
 }
 
 module.exports = {
