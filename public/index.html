@@ -1355,6 +1355,15 @@ function filterConvs() {
 // Painéis ativos: { 1: conv, 2: conv }
 let chatPanels = { 1: null, 2: null };
 
+function updateUnreadBadge() {
+  const total = allConvs.reduce((s, c) => s + (c.unread || 0), 0);
+  const badge = document.getElementById('unread-badge');
+  if (badge) {
+    badge.textContent = total;
+    badge.style.display = total > 0 ? 'flex' : 'none';
+  }
+}
+
 function getAccountName(platform, short=false) {
   if (!platform) return 'TG';
   if (platform === 'whatsapp') return 'WhatsApp';
@@ -1450,6 +1459,13 @@ function choosePanelAndOpen(panel) {
 
 function openInPanel(panel, conv) {
   chatPanels[panel] = conv;
+
+  // Marca como lido
+  api('POST', `/api/conversations/${conv.platform}/${conv.userId}/read`).then(() => {
+    // Atualiza badge na lista
+    const item = allConvs.find(c => c.key === conv.key);
+    if (item) { item.unread = 0; renderConvList(allConvs); updateUnreadBadge(); }
+  });
 
   const accName = getAccountName(conv.platform);
   const avatarBg = conv.platform.includes('telegram') ? 'rgba(42,171,238,.15)' : 'rgba(37,211,102,.15)';
@@ -1549,6 +1565,10 @@ async function sendManualMsgPanel(panel) {
   if (!text) return;
   await api('POST', '/api/send', { platform: conv.platform, userId: conv.userId, message: text });
   input.value = '';
+  // Marca como lido ao responder
+  await api('POST', `/api/conversations/${conv.platform}/${conv.userId}/read`);
+  const item = allConvs.find(c => c.key === conv.key);
+  if (item) { item.unread = 0; updateUnreadBadge(); }
   await loadPanelHistory(panel, conv);
 }
 
