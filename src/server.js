@@ -248,14 +248,13 @@ app.patch('/api/settings', authMiddleware, (req, res) => res.json(db.updateSetti
 app.get('/api/accounts', authMiddleware, (req, res) => {
   const all = userbotManager.getStatus();
   if (req.user?.isAdmin) return res.json(all);
-  // Usuário comum — vê contas vinculadas a ele
-  const user = db.getUsers().find(u => u.id === req.user?.id);
-  if (!user) return res.json([]);
-  const userAccountIds = user.accountIds || [];
-  if (userAccountIds.length === 0) return res.json([]);
-  // Filtra por accountIds — SEMPRE usa o array completo salvo no usuário
+  // Usuário comum — lê accountIds frescos do banco
+  const freshUser = db.getUsers().find(u => u.id === req.user?.id);
+  if (!freshUser) return res.json([]);
+  const userAccountIds = Array.isArray(freshUser.accountIds) ? freshUser.accountIds : [];
+  if (userAccountIds.length === 0) return res.json(all); // sem vinculo = vê tudo
   const filtered = all.filter(a => userAccountIds.includes(a.id));
-  console.log(`[ACCOUNTS] ${req.user.username}: accountIds=${JSON.stringify(userAccountIds)} found=${filtered.length}`);
+  console.log(`[ACCOUNTS] ${req.user.username}: ids=${JSON.stringify(userAccountIds)} found=${filtered.length}/${all.length}`);
   res.json(filtered);
 });
 
@@ -276,15 +275,15 @@ app.post('/api/accounts/:accountId/start-and-phone', authMiddleware, async (req,
   const { apiId, apiHash, name, phone } = req.body;
   if (!apiId || !apiHash || !phone) return res.status(400).json({ error: 'apiId, apiHash e phone obrigatórios' });
   const result = await userbotManager.startAuthAndPhone(req.params.accountId, apiId, apiHash, name, phone);
-  // Se já autenticou direto (sem código), vincula ao usuário
+  // Se já autenticou direto (sem código), vincula ao usuário (APPEND)
   if (result.success && result.step === 'done' && req.user?.id) {
     const accountId = req.params.accountId;
-    const user = db.getUsers().find(u => u.id === req.user.id);
-    if (user) {
-      const currentIds = user.accountIds || [];
-      if (!currentIds.includes(accountId)) {
-        db.updateUser(req.user.id, { accountIds: [...currentIds, accountId] });
-      }
+    const freshUser = db.getUsers().find(u => u.id === req.user.id);
+    if (freshUser) {
+      const ids = Array.isArray(freshUser.accountIds) ? [...freshUser.accountIds] : [];
+      if (!ids.includes(accountId)) ids.push(accountId);
+      db.updateUser(req.user.id, { accountIds: ids });
+      console.log(`[AUTH] start-and-phone: ${req.user.username} accountIds: ${JSON.stringify(ids)}`);
     }
   }
   res.json(result);
@@ -332,9 +331,10 @@ app.post('/api/accounts/:accountId/code', authMiddleware, async (req, res) => {
 app.post('/api/accounts/:accountId/password', authMiddleware, async (req, res) => {
   const result = await userbotManager.sendPassword(req.params.accountId, req.body.password);
   if (result.success && result.step === 'done' && !req.user?.isAdmin) {
-    db.updateUser(req.user.id, {
-      accountIds: [req.params.accountId]
-    });
+    const u = db.getUsers().find(u => u.id === req.user.id);
+    const ids = Array.isArray(u?.accountIds) ? [...u.accountIds] : [];
+    if (!ids.includes(req.params.accountId)) ids.push(req.params.accountId);
+    db.updateUser(req.user.id, { accountIds: ids });
   }
   res.json(result);
 });
@@ -391,6 +391,16 @@ app.post('/api/userbot/code', authMiddleware, async (req, res) => {
   const { code } = req.body;
   if (!code) return res.status(400).json({ error: 'Código obrigatório' });
   const result = await userbot.sendCode(code);
+  // Vincula conta legacy ao usuário (APPEND)
+  if (result.success && req.user?.id && !req.user?.isAdmin) {
+    const legacyAccountId = 'acc_legacy_main';
+    const freshUser = db.getUsers().find(u => u.id === req.user.id);
+    if (freshUser) {
+      const ids = Array.isArray(freshUser.accountIds) ? [...freshUser.accountIds] : [];
+      if (!ids.includes(legacyAccountId)) ids.push(legacyAccountId);
+      db.updateUser(req.user.id, { accountIds: ids });
+    }
+  }
   res.json(result);
 });
 
