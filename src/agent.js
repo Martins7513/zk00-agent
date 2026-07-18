@@ -6,6 +6,7 @@
 
 const axios = require('axios');
 const db = require('./database');
+const ntfy = require('./ntfy');
 const followup = require('./followup');
 
 // Função de envio (injetada pelo userbot/whatsapp)
@@ -146,6 +147,9 @@ async function processMessage(platform, userId, userName, text) {
     lastSeen: new Date().toISOString()
   });
 
+  // Notifica nova mensagem via Ntfy
+  ntfy.notifyNewMessage(userName, text, platform).catch(()=>{});
+
   // Salva mensagem no histórico
   db.addMessage(platform, userId, 'user', text);
 
@@ -171,6 +175,7 @@ async function processMessage(platform, userId, userName, text) {
     // Nenhum gatilho — marca conversa como "atenção" (vermelho)
     console.log(`[${platform}] Sem gatilho para: "${text.substring(0,50)}" — marcando atenção`);
     db.flagConversation(platform, userId, 'attention');
+    ntfy.notifyAttention(userName, text, platform).catch(()=>{});
     return null; // silêncio
   }
 
