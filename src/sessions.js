@@ -17,9 +17,12 @@ for (const dir of SESSION_DIRS) {
     const test = path.join(dir, '.sess_test');
     fs.writeFileSync(test, 'ok'); fs.unlinkSync(test);
     SESSION_FILE = path.join(dir, 'tg_sessions.json');
-    console.log(`[SESSIONS] Usando: ${SESSION_FILE}`);
+    const existing = fs.existsSync(SESSION_FILE) ? JSON.parse(fs.readFileSync(SESSION_FILE,'utf8')) : {};
+    const count = Object.keys(existing).length;
+    console.log(`[SESSIONS] ✅ Arquivo: ${SESSION_FILE} | Sessões salvas: ${count}`);
+    if (count > 0) console.log(`[SESSIONS] Contas: ${Object.values(existing).map(s=>s.name).join(', ')}`);
     break;
-  } catch(e) {}
+  } catch(e) { console.log(`[SESSIONS] Dir ${dir} falhou:`, e.message); }
 }
 
 // Carrega sessões salvas
