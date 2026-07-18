@@ -229,6 +229,12 @@ app.patch('/api/clients/:platform/:userId', authMiddleware, (req, res) => {
 // ==============================
 app.get('/api/knowledge', authMiddleware, (req, res) => res.json(db.getAllKnowledge()));
 app.post('/api/knowledge', authMiddleware, (req, res) => res.json(db.addKnowledge(req.body)));
+app.patch('/api/knowledge/:id/toggle', authMiddleware, (req, res) => {
+  const { active } = req.body;
+  const result = db.toggleKnowledge(req.params.id, active);
+  res.json(result);
+});
+
 app.delete('/api/knowledge/:id', authMiddleware, (req, res) => {
   db.deleteKnowledge(req.params.id);
   res.json({ success: true });
