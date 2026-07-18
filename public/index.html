@@ -449,6 +449,9 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
         <div id="ub-step1" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px">
           <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text)">Passo 1 — Credenciais do Telegram</div>
           <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Pegue em <strong style="color:var(--accent)">my.telegram.org</strong> → API development tools</div>
+          <div style="margin-bottom:8px">
+            <input class="form-input" id="ub-account-name" placeholder="Nome da conta (ex: Pessoal, Suporte...)" type="text" style="width:100%">
+          </div>
           <div style="display:flex;gap:8px;margin-bottom:8px">
             <input class="form-input" id="ub-api-id" placeholder="API ID (ex: 12345678)" type="text" style="flex:1">
             <input class="form-input" id="ub-api-hash" placeholder="API Hash (ex: abc123...)" type="text" style="flex:2">
@@ -1833,7 +1836,8 @@ async function startUserbot() {
   if (!apiId || !apiHash) return showNotif('Preencha API ID e API Hash!', 'red');
   showNotif('Conectando ao Telegram...', '');
   const currentUser = JSON.parse(localStorage.getItem('zk00_user') || '{}');
-  const res = await api('POST', '/api/accounts/start', { apiId, apiHash, name: currentUser.name || 'Minha Conta' });
+  const accountName = document.getElementById('ub-account-name')?.value?.trim() || currentUser.name || 'Minha Conta';
+  const res = await api('POST', '/api/accounts/start', { apiId, apiHash, name: accountName });
   if (res.success) {
     ubStep = res.step;
     document.getElementById('ub-step1').style.display = 'none';
@@ -2553,7 +2557,8 @@ async function startUserbot() {
   if (!apiId || !apiHash) return showNotif('Preencha API ID e API Hash!', 'red');
   showNotif('Conectando ao Telegram...', '');
   const currentUser = JSON.parse(localStorage.getItem('zk00_user') || '{}');
-  const res = await api('POST', '/api/accounts/start', { apiId, apiHash, name: currentUser.name || 'Minha Conta' });
+  const accountName = document.getElementById('ub-account-name')?.value?.trim() || currentUser.name || 'Minha Conta';
+  const res = await api('POST', '/api/accounts/start', { apiId, apiHash, name: accountName });
   console.log('[UB] startAuth response:', JSON.stringify(res));
   if (res.success) {
     // Salva o accountId para usar nas próximas etapas
