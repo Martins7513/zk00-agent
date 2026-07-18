@@ -179,6 +179,139 @@
   .empty-state{text-align:center;padding:40px;color:var(--text2)}
   .empty-state .emoji{font-size:32px;margin-bottom:8px}
   .loading{text-align:center;padding:20px;color:var(--text2);font-size:12px}
+
+  /* ========================
+     MOBILE RESPONSIVE
+  ======================== */
+  @media (max-width: 768px) {
+    body { overflow: auto; }
+
+    /* Layout principal */
+    #app { flex-direction: column; height: 100dvh; overflow: hidden; }
+
+    /* Sidebar vira bottom nav no mobile */
+    .sidebar {
+      width: 100%; height: auto;
+      border-right: none;
+      border-top: 1px solid var(--border);
+      order: 2;
+      flex-direction: row;
+      flex-shrink: 0;
+    }
+    .logo { display: none; }
+    .agent-status { display: none; }
+    nav {
+      display: flex; flex-direction: row;
+      padding: 6px 8px; overflow-x: auto;
+      gap: 2px; flex: 1;
+    }
+    nav::-webkit-scrollbar { display: none; }
+    .nav-section { display: none; }
+    .nav-item {
+      flex-direction: column; gap: 2px;
+      padding: 6px 10px; font-size: 9px;
+      border-radius: 8px; white-space: nowrap;
+      flex-shrink: 0; min-width: 52px;
+      text-align: center; justify-content: center;
+    }
+    .nav-item.active::before { display: none; }
+    .nav-item.active {
+      background: rgba(59,130,246,.15);
+    }
+    .nav-badge {
+      position: absolute; top: 2px; right: 2px;
+      font-size: 8px; padding: 1px 4px;
+    }
+    .sidebar-footer { display: none; }
+
+    /* Main */
+    .main { order: 1; flex: 1; overflow: hidden; }
+
+    /* Topbar */
+    .topbar { padding: 0 10px; gap: 6px; height: 48px; }
+    .topbar-title { font-size: 13px; }
+    .topbar-btn { padding: 4px 8px; font-size: 11px; }
+    .topbar-btn span { display: none; }
+    #btn-bootstrap { display: none !important; }
+
+    /* Tabs */
+    .tab { flex-direction: column; overflow-y: auto; }
+
+    /* Dashboard */
+    .stats-grid { grid-template-columns: repeat(2,1fr); padding: 12px; gap: 8px; }
+    .stat-val { font-size: 22px; }
+    .row3 { grid-template-columns: 1fr; padding: 0 12px 12px; }
+
+    /* Conversas — mobile: lista ocupa tela toda, chat abre em cima */
+    #tab-conversations { position: relative; }
+    .conv-list {
+      width: 100% !important;
+      height: 100%;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 1;
+      transition: transform .25s ease;
+    }
+    .conv-list.hidden-mobile {
+      transform: translateX(-100%);
+      pointer-events: none;
+    }
+
+    /* Painéis de chat no mobile */
+    #chat-panels-wrapper {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 2;
+      transform: translateX(100%);
+      transition: transform .25s ease;
+      display: flex !important;
+    }
+    #chat-panels-wrapper.open {
+      transform: translateX(0);
+    }
+    .chat-panel { width: 100% !important; }
+    /* Esconde painel 2 no mobile */
+    #chat-panel-2 { display: none !important; }
+
+    /* Botão voltar no chat header */
+    .mobile-back-btn {
+      display: flex !important;
+      background: none; border: none;
+      color: var(--accent); font-size: 20px;
+      cursor: pointer; padding: 4px 8px 4px 0;
+      flex-shrink: 0;
+    }
+
+    /* Knowledge */
+    .kb-grid { grid-template-columns: repeat(2,1fr); }
+
+    /* Config */
+    .config-grid { grid-template-columns: 1fr; padding: 12px; }
+
+    /* Modal */
+    .modal { width: 100% !important; max-width: 100%; margin: 0; border-radius: 16px 16px 0 0; }
+    .modal-overlay { align-items: flex-end; padding: 0; }
+
+    /* Cards */
+    .card, .stat-card { border-radius: 10px; }
+
+    /* Mensagens */
+    .msg { max-width: 88%; }
+
+    /* Input area */
+    .input-row { padding: 8px; }
+    .msg-input { font-size: 14px; }
+
+    /* Conv item */
+    .conv-item { padding: 10px 12px; }
+  }
+
+  @media (max-width: 380px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px; }
+    .topbar-btn { padding: 4px 6px; font-size: 10px; }
+    .nav-item { min-width: 44px; padding: 5px 6px; font-size: 8px; }
+  }
+
 </style>
 </head>
 <body>
@@ -304,11 +437,12 @@
       </div>
 
       <!-- PAINÉIS DE CHAT DUPLO -->
-      <div style="flex:1;display:flex;overflow:hidden;border-left:1px solid var(--border)">
+      <div id="chat-panels-wrapper" style="flex:1;display:flex;overflow:hidden;border-left:1px solid var(--border)">
 
         <!-- PAINEL 1 -->
         <div class="chat-panel" id="chat-panel-1" style="flex:1;border-right:1px solid var(--border);display:flex;flex-direction:column">
           <div class="chat-header" id="chat-header-1">
+            <button class="mobile-back-btn" style="display:none" onclick="closeMobileChat()">‹</button>
             <div class="avatar" id="chat-avatar-1" style="background:var(--bg4);color:var(--text3);width:36px;height:36px;font-size:13px">?</div>
             <div class="chat-header-info" style="flex:1">
               <div class="chat-header-name" id="chat-name-1" style="color:var(--text2);font-size:13px">Selecione uma conversa</div>
@@ -1355,6 +1489,28 @@ function filterConvs() {
 // Painéis ativos: { 1: conv, 2: conv }
 let chatPanels = { 1: null, 2: null };
 
+// ── Mobile: abre chat e esconde lista ──
+function isMobile() { return window.innerWidth <= 768; }
+
+function openMobileChat() {
+  if (!isMobile()) return;
+  const list = document.querySelector('.conv-list');
+  const panels = document.getElementById('chat-panels-wrapper');
+  const backBtn = document.querySelector('.mobile-back-btn');
+  if (list) list.classList.add('hidden-mobile');
+  if (panels) panels.classList.add('open');
+  if (backBtn) backBtn.style.display = 'flex';
+}
+
+function closeMobileChat() {
+  const list = document.querySelector('.conv-list');
+  const panels = document.getElementById('chat-panels-wrapper');
+  const backBtn = document.querySelector('.mobile-back-btn');
+  if (list) list.classList.remove('hidden-mobile');
+  if (panels) panels.classList.remove('open');
+  if (backBtn) backBtn.style.display = 'none';
+}
+
 function updateUnreadBadge() {
   const total = allConvs.reduce((s, c) => s + (c.unread || 0), 0);
   const badge = document.getElementById('unread-badge');
@@ -1459,6 +1615,9 @@ function choosePanelAndOpen(panel) {
 
 function openInPanel(panel, conv) {
   chatPanels[panel] = conv;
+
+  // Abre chat no mobile
+  openMobileChat();
 
   // Marca como lido e remove flag de atenção
   api('POST', `/api/conversations/${conv.platform}/${conv.userId}/read`).then(() => {
