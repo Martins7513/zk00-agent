@@ -2301,19 +2301,21 @@ async function startNewAccount() {
   if (!apiHash) return showNotif('Digite o API Hash!', 'red');
   if (!phone) return showNotif('Digite o número de telefone!', 'red');
 
-  const accountId = 'acc_' + Date.now();
-  newAccAuth.accountId = accountId;
+  // ID estável baseado no telefone (evita duplicatas ao re-autenticar)
+  const stableId = 'acc_' + phone.replace(/[^0-9]/g, '');
+  newAccAuth.accountId = stableId;
   showNotif('Conectando e enviando código...', '');
-  console.log('[MODAL] Iniciando conta + código:', accountId);
 
-  // UMA única chamada no servidor — conecta + envia código
-  const res = await api('POST', `/api/accounts/${accountId}/start-and-phone`, { apiId, apiHash, name, phone });
+  localStorage.setItem('last_api_id', apiId);
+  localStorage.setItem('last_api_hash', apiHash);
+
+  const res = await api('POST', `/api/accounts/${stableId}/start-and-phone`, { apiId, apiHash, name, phone });
   if (res.success) {
     document.getElementById('new-acc-step1').style.display = 'none';
     document.getElementById('new-acc-step3').style.display = 'block';
     showNotif('✅ Código enviado! Verifique seu Telegram.', 'green');
   } else {
-    showNotif('Erro: ' + (res.error || 'Verifique os dados e tente novamente'), 'red');
+    showNotif('Erro: ' + (res.error || 'Verifique os dados'), 'red');
   }
 }
 
