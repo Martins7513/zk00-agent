@@ -83,7 +83,10 @@ function loadDB() {
         saved.settings = { ...FIXED_SETTINGS, ...saved.settings };
         saved.settings.panelUsers = savedPanelUsers;
         saved.settings.telegramAccounts = savedTelegramAccounts;
-        console.log(`[DB] Carregado: ${(saved.knowledge||[]).length} conhecimentos, ${Object.keys(saved.clients||{}).length} clientes`);
+        console.log(`[DB] ✅ Carregado de ${DB_PATH}`);
+        console.log(`[DB] Usuários: ${savedPanelUsers.length} | Contas: ${savedTelegramAccounts.length} | Conhecimentos: ${(saved.knowledge||[]).length}`);
+        if (savedPanelUsers.length) console.log(`[DB] Usuários: ${savedPanelUsers.map(u=>u.username).join(', ')}`);
+        if (savedTelegramAccounts.length) console.log(`[DB] Contas: ${savedTelegramAccounts.map(a=>a.name).join(', ')}`);
         return saved;
       }
     } catch(e) { console.error('[DB] Erro ao carregar:', e.message); }
