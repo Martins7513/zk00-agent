@@ -291,40 +291,76 @@
     </div>
 
     <!-- CONVERSATIONS -->
-    <div class="tab" id="tab-conversations">
-      <div class="conv-list" style="display:flex;flex-direction:column">
+    <div class="tab" id="tab-conversations" style="flex-direction:row">
+
+      <!-- LISTA DE CONVERSAS -->
+      <div class="conv-list" style="display:flex;flex-direction:column;width:260px;min-width:260px">
         <div class="conv-search" style="display:flex;gap:6px;align-items:center">
           <input class="search-input" placeholder="🔍 Buscar..." type="text" id="conv-search" oninput="filterConvs()" style="flex:1">
         </div>
-        <!-- Account filter tabs -->
         <div id="account-tabs" style="display:flex;gap:0;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0"></div>
         <div class="conv-items" id="conv-list-items"><div class="loading">Carregando...</div></div>
       </div>
-      <div class="chat-panel">
-        <div class="chat-header">
-          <div class="avatar" id="chat-avatar" style="background:rgba(42,171,238,.15);color:var(--tg);width:38px;height:38px">?</div>
-          <div class="chat-header-info">
-            <div class="chat-header-name" id="chat-name">Selecione uma conversa</div>
-            <div class="chat-header-sub" id="chat-sub">Clique em um contato à esquerda</div>
+
+      <!-- PAINÉIS DE CHAT DUPLO -->
+      <div style="flex:1;display:flex;overflow:hidden;border-left:1px solid var(--border)">
+
+        <!-- PAINEL 1 -->
+        <div class="chat-panel" id="chat-panel-1" style="flex:1;border-right:1px solid var(--border);display:flex;flex-direction:column">
+          <div class="chat-header" id="chat-header-1">
+            <div class="avatar" id="chat-avatar-1" style="background:var(--bg4);color:var(--text3);width:36px;height:36px;font-size:13px">?</div>
+            <div class="chat-header-info" style="flex:1">
+              <div class="chat-header-name" id="chat-name-1" style="color:var(--text2);font-size:13px">Selecione uma conversa</div>
+              <div class="chat-header-sub" id="chat-sub-1" style="font-size:11px">Painel 1</div>
+            </div>
+            <div class="chat-actions" id="chat-actions-1" style="display:none">
+              <button class="action-btn green" id="btn-human-1" onclick="toggleHumanModePanel(1)">👤 Assumir</button>
+              <button class="action-btn red-btn" onclick="closeChatPanel(1)">✕ Fechar</button>
+            </div>
           </div>
-          <div class="chat-actions" id="chat-actions" style="display:none">
-            <button class="action-btn green" id="btn-human" onclick="toggleHumanModeChat()">👤 Assumir</button>
-            <button class="action-btn red-btn" onclick="closeCurrentChat()">✕ Fechar</button>
+          <div class="chat-messages" id="chat-messages-1">
+            <div class="empty-state"><div class="emoji">💬</div><p>Selecione uma conversa</p></div>
+          </div>
+          <div class="chat-input-area" id="chat-input-1" style="display:none">
+            <div class="ai-mode-bar">
+              <span class="mode-tag ai" id="mode-badge-1">🤖 IA respondendo</span>
+              <span style="flex:1" id="mode-text-1">— o agente responde automaticamente</span>
+            </div>
+            <div class="input-row">
+              <textarea class="msg-input" placeholder="Mensagem manual..." id="manual-input-1" rows="1"></textarea>
+              <button class="send-btn" onclick="sendManualMsgPanel(1)">➤</button>
+            </div>
           </div>
         </div>
-        <div class="chat-messages" id="chat-messages">
-          <div class="empty-state"><div class="emoji">💬</div><p>Selecione uma conversa</p></div>
-        </div>
-        <div class="chat-input-area">
-          <div class="ai-mode-bar">
-            <span class="mode-tag ai" id="mode-badge">🤖 IA respondendo</span>
-            <span style="flex:1" id="mode-text">— o agente responde automaticamente</span>
+
+        <!-- PAINEL 2 -->
+        <div class="chat-panel" id="chat-panel-2" style="flex:1;display:flex;flex-direction:column">
+          <div class="chat-header" id="chat-header-2">
+            <div class="avatar" id="chat-avatar-2" style="background:var(--bg4);color:var(--text3);width:36px;height:36px;font-size:13px">?</div>
+            <div class="chat-header-info" style="flex:1">
+              <div class="chat-header-name" id="chat-name-2" style="color:var(--text2);font-size:13px">Selecione uma conversa</div>
+              <div class="chat-header-sub" id="chat-sub-2" style="font-size:11px">Painel 2</div>
+            </div>
+            <div class="chat-actions" id="chat-actions-2" style="display:none">
+              <button class="action-btn green" id="btn-human-2" onclick="toggleHumanModePanel(2)">👤 Assumir</button>
+              <button class="action-btn red-btn" onclick="closeChatPanel(2)">✕ Fechar</button>
+            </div>
           </div>
-          <div class="input-row">
-            <textarea class="msg-input" placeholder="Mensagem manual (desativa IA neste chat)..." id="manual-input" rows="1"></textarea>
-            <button class="send-btn" onclick="sendManualMsg()">➤</button>
+          <div class="chat-messages" id="chat-messages-2">
+            <div class="empty-state"><div class="emoji">💬</div><p>Selecione uma conversa</p></div>
+          </div>
+          <div class="chat-input-area" id="chat-input-2" style="display:none">
+            <div class="ai-mode-bar">
+              <span class="mode-tag ai" id="mode-badge-2">🤖 IA respondendo</span>
+              <span style="flex:1" id="mode-text-2">— o agente responde automaticamente</span>
+            </div>
+            <div class="input-row">
+              <textarea class="msg-input" placeholder="Mensagem manual..." id="manual-input-2" rows="1"></textarea>
+              <button class="send-btn" onclick="sendManualMsgPanel(2)">➤</button>
+            </div>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -1300,29 +1336,70 @@ function filterConvs() {
   renderConvList(filtered);
 }
 
-async function selectConv(conv) {
-  currentChat = conv;
-  document.getElementById('chat-name').textContent = conv.clientName;
-  document.getElementById('chat-sub').textContent = `${conv.platform==='telegram'?'📱 Telegram':'💬 WhatsApp'} · ${conv.userId}`;
-  document.getElementById('chat-actions').style.display = 'flex';
-  document.getElementById('chat-avatar').textContent = conv.clientName?.charAt(0)?.toUpperCase()||'?';
-  updateChatMode(conv.isHumanMode);
-  await loadChatHistory(conv.platform, conv.userId);
+// Painéis ativos: { 1: conv, 2: conv }
+let chatPanels = { 1: null, 2: null };
+
+function getAccountName(platform) {
+  if (!platform || !platform.startsWith('telegram_')) return platform === 'whatsapp' ? 'WhatsApp' : 'Telegram';
+  const accId = platform.replace('telegram_', '');
+  const acc = (window._accountCache || []).find(a => a.id === accId);
+  return acc ? acc.name : accId.substring(0, 14);
+}
+
+function selectConv(conv) {
+  // Descobre qual painel usar baseado na conta
+  // Painel 1 = primeira conta, Painel 2 = segunda conta
+  const accounts = window._accountCache || [];
+  let panel = 1;
+
+  if (accounts.length >= 2) {
+    // Pega o accountId da conversa
+    const convAccId = conv.platform.startsWith('telegram_') ? conv.platform.replace('telegram_','') : conv.platform;
+    // Se já tem um painel aberto com essa conta, usa ele
+    if (chatPanels[1] && chatPanels[1].platform === conv.platform) panel = 1;
+    else if (chatPanels[2] && chatPanels[2].platform === conv.platform) panel = 2;
+    // Senão, distribui por conta
+    else {
+      const acc1 = accounts[0]?.id;
+      panel = convAccId === acc1 ? 1 : 2;
+    }
+  }
+
+  openInPanel(panel, conv);
+  currentChat = conv; // mantém compatibilidade
   renderConvList(allConvs);
 }
 
-async function loadChatHistory(platform, userId) {
-  const data = await api('GET', `/api/conversations/${platform}/${userId}`);
-  if (data.error) return;
-  const el = document.getElementById('chat-messages');
-  if (!data.history?.length) {
-    el.innerHTML = '<div class="empty-state"><div class="emoji">💬</div><p>Sem mensagens</p></div>';
+function openInPanel(panel, conv) {
+  chatPanels[panel] = conv;
+
+  const accName = getAccountName(conv.platform);
+  const avatarBg = conv.platform.includes('telegram') ? 'rgba(42,171,238,.15)' : 'rgba(37,211,102,.15)';
+  const avatarColor = conv.platform.includes('telegram') ? 'var(--tg)' : 'var(--wa)';
+
+  document.getElementById(`chat-avatar-${panel}`).textContent = conv.clientName?.charAt(0)?.toUpperCase()||'?';
+  document.getElementById(`chat-avatar-${panel}`).style.background = avatarBg;
+  document.getElementById(`chat-avatar-${panel}`).style.color = avatarColor;
+  document.getElementById(`chat-name-${panel}`).textContent = conv.clientName;
+  document.getElementById(`chat-name-${panel}`).style.color = 'var(--text)';
+  document.getElementById(`chat-sub-${panel}`).textContent = accName + ' · ' + conv.userId;
+  document.getElementById(`chat-actions-${panel}`).style.display = 'flex';
+  document.getElementById(`chat-input-${panel}`).style.display = 'block';
+  updatePanelMode(panel, conv.isHumanMode);
+  loadPanelHistory(panel, conv);
+}
+
+async function loadPanelHistory(panel, conv) {
+  const data = await api('GET', `/api/conversations/${conv.platform}/${conv.userId}`);
+  const el = document.getElementById(`chat-messages-${panel}`);
+  if (!data || data.error || !data.history?.length) {
+    el.innerHTML = '<div class="empty-state"><div class="emoji">💬</div><p>Sem mensagens ainda</p></div>';
     return;
   }
   el.innerHTML = data.history.map(m => `
     <div class="msg-group">
       <div class="msg-label ${m.role==='user'?'':'right'}">
-        ${m.role==='user'?(currentChat?.clientName||'Usuário'):(`Tele Agent <span class="ai-tag">IA</span>`)} · ${timeAgo(m.timestamp)}
+        ${m.role==='user'?(conv.clientName||'Usuário'):'Tele Agent'} · ${timeAgo(m.timestamp)}
       </div>
       <div class="msg ${m.role==='user'?'user':'agent'}">${m.content}</div>
     </div>
@@ -1330,14 +1407,63 @@ async function loadChatHistory(platform, userId) {
   el.scrollTop = el.scrollHeight;
 }
 
-async function toggleHumanModeChat() {
-  if (!currentChat) return;
-  const newMode = !currentChat.isHumanMode;
-  await api('POST', '/api/human-mode', { platform: currentChat.platform, userId: currentChat.userId, active: newMode });
-  currentChat.isHumanMode = newMode;
-  updateChatMode(newMode);
-  showNotif(newMode ? 'Modo humano ativo — você controla este chat' : 'IA reativada neste chat', newMode ? 'yellow' : 'green');
+function updatePanelMode(panel, isHuman) {
+  const badge = document.getElementById(`mode-badge-${panel}`);
+  const text = document.getElementById(`mode-text-${panel}`);
+  const btn = document.getElementById(`btn-human-${panel}`);
+  if (badge) { badge.textContent = isHuman ? '👤 Você' : '🤖 IA respondendo'; badge.className = isHuman ? 'mode-tag human' : 'mode-tag ai'; }
+  if (text) text.textContent = isHuman ? '— você está no controle' : '— o agente responde automaticamente';
+  if (btn) btn.textContent = isHuman ? '🤖 Devolver IA' : '👤 Assumir';
 }
+
+async function toggleHumanModePanel(panel) {
+  const conv = chatPanels[panel];
+  if (!conv) return;
+  const newMode = !conv.isHumanMode;
+  await api('POST', '/api/human-mode', { platform: conv.platform, userId: conv.userId, active: newMode });
+  conv.isHumanMode = newMode;
+  chatPanels[panel] = conv;
+  updatePanelMode(panel, newMode);
+  showNotif(newMode ? 'Você assumiu o chat' : 'IA reativada', newMode ? 'yellow' : 'green');
+}
+
+function closeChatPanel(panel) {
+  chatPanels[panel] = null;
+  document.getElementById(`chat-name-${panel}`).textContent = 'Selecione uma conversa';
+  document.getElementById(`chat-name-${panel}`).style.color = 'var(--text2)';
+  document.getElementById(`chat-sub-${panel}`).textContent = `Painel ${panel}`;
+  document.getElementById(`chat-actions-${panel}`).style.display = 'none';
+  document.getElementById(`chat-input-${panel}`).style.display = 'none';
+  document.getElementById(`chat-messages-${panel}`).innerHTML = '<div class="empty-state"><div class="emoji">💬</div><p>Selecione uma conversa</p></div>';
+  document.getElementById(`chat-avatar-${panel}`).textContent = '?';
+  document.getElementById(`chat-avatar-${panel}`).style.background = 'var(--bg4)';
+  document.getElementById(`chat-avatar-${panel}`).style.color = 'var(--text3)';
+}
+
+async function sendManualMsgPanel(panel) {
+  const conv = chatPanels[panel];
+  if (!conv) return;
+  const input = document.getElementById(`manual-input-${panel}`);
+  const text = input.value.trim();
+  if (!text) return;
+  await api('POST', '/api/send', { platform: conv.platform, userId: conv.userId, message: text });
+  input.value = '';
+  await loadPanelHistory(panel, conv);
+}
+
+// Compatibilidade com funções antigas
+async function loadChatHistory(platform, userId) {
+  const panel = chatPanels[1]?.platform === platform && chatPanels[1]?.userId === userId ? 1 : 2;
+  if (chatPanels[panel]) await loadPanelHistory(panel, chatPanels[panel]);
+}
+
+async function toggleHumanModeChat() { toggleHumanModePanel(1); }
+
+async function sendManualMsg() { sendManualMsgPanel(1); }
+
+function closeCurrentChat() { closeChatPanel(1); }
+
+function updateChatMode(isHuman) { updatePanelMode(1, isHuman); }
 
 function updateChatMode(isHuman) {
   const badge = document.getElementById('mode-badge');
