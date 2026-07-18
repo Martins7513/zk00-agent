@@ -1355,27 +1355,85 @@ function getAccountName(platform, short=false) {
   return idx >= 0 ? `Conta ${idx+1}` : 'TG';
 }
 
+let _pendingConv = null;
+
 function selectConv(conv) {
+  // Se só tem 1 painel (1 conta), abre direto
   const accounts = window._accountCache || [];
-  let panel = 1;
-  const convAccId = conv.platform.startsWith('telegram_') ? conv.platform.replace('telegram_','') : conv.platform;
-
-  if (accounts.length >= 2) {
-    // Painel fixo por conta: conta[0] → painel 1, conta[1] → painel 2
-    const acc0 = accounts[0]?.id;
-    const acc1 = accounts[1]?.id;
-
-    if (convAccId === acc0) panel = 1;
-    else if (convAccId === acc1) panel = 2;
-    else {
-      // Conta não mapeada: abre no painel que não tem nada, ou no 1
-      panel = (!chatPanels[1]) ? 1 : (!chatPanels[2]) ? 2 : 1;
-    }
+  if (accounts.length <= 1) {
+    openInPanel(1, conv);
+    currentChat = conv;
+    renderConvList(allConvs);
+    return;
   }
 
-  openInPanel(panel, conv);
-  currentChat = conv;
-  renderConvList(allConvs);
+  // Verifica se algum painel já tem essa conta aberta
+  if (chatPanels[1]?.platform === conv.platform) {
+    openInPanel(1, conv);
+    currentChat = conv;
+    renderConvList(allConvs);
+    return;
+  }
+  if (chatPanels[2]?.platform === conv.platform) {
+    openInPanel(2, conv);
+    currentChat = conv;
+    renderConvList(allConvs);
+    return;
+  }
+
+  // Painel 1 vazio → abre lá
+  if (!chatPanels[1]) {
+    openInPanel(1, conv);
+    currentChat = conv;
+    renderConvList(allConvs);
+    return;
+  }
+  // Painel 2 vazio → abre lá
+  if (!chatPanels[2]) {
+    openInPanel(2, conv);
+    currentChat = conv;
+    renderConvList(allConvs);
+    return;
+  }
+
+  // Ambos ocupados → mostra seletor de painel
+  _pendingConv = conv;
+  showPanelChooser(conv);
+}
+
+function showPanelChooser(conv) {
+  const p1Name = chatPanels[1] ? chatPanels[1].clientName : 'Vazio';
+  const p2Name = chatPanels[2] ? chatPanels[2].clientName : 'Vazio';
+  const overlay = document.createElement('div');
+  overlay.id = 'panel-chooser';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:800;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:24px;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">Abrir em qual painel?</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:18px">${conv.clientName}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="choosePanelAndOpen(1)" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;font-family:inherit;color:var(--text);text-align:left;transition:border-color .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-size:12px;font-weight:600">Painel 1</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">Substituir: ${p1Name}</div>
+        </button>
+        <button onclick="choosePanelAndOpen(2)" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;font-family:inherit;color:var(--text);text-align:left;transition:border-color .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-size:12px;font-weight:600">Painel 2</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">Substituir: ${p2Name}</div>
+        </button>
+        <button onclick="document.getElementById('panel-chooser').remove()" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px;cursor:pointer;font-family:inherit;color:var(--text2);font-size:12px">Cancelar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function choosePanelAndOpen(panel) {
+  document.getElementById('panel-chooser')?.remove();
+  if (_pendingConv) {
+    openInPanel(panel, _pendingConv);
+    currentChat = _pendingConv;
+    _pendingConv = null;
+    renderConvList(allConvs);
+  }
 }
 
 function openInPanel(panel, conv) {
