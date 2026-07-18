@@ -541,6 +541,48 @@ app.post('/api/users/:userId/link-account', authMiddleware, (req, res) => {
 });
 
 // ==============================
+// DELETAR MENSAGEM
+// ==============================
+app.delete('/api/messages/:platform/:userId/:msgIndex', authMiddleware, async (req, res) => {
+  const { platform, userId, msgIndex } = req.params;
+  const { forEveryone } = req.body || {};
+  const idx = parseInt(msgIndex);
+
+  try {
+    const history = db.getHistory(platform, userId);
+    const msg = history[idx];
+    if (!msg) return res.status(404).json({ error: 'Mensagem não encontrada' });
+
+    // Apaga no Telegram se for para todos
+    if (forEveryone && platform.startsWith('telegram_')) {
+      const accountId = platform.replace('telegram_', '');
+      const ac = userbotManager.activeClients[accountId];
+      const legacyClient = userbot.getClient ? userbot.getClient() : null;
+      const client = ac?.client || legacyClient;
+
+      if (client && msg.telegramMsgId) {
+        try {
+          await client.invoke(new (require('telegram/tl').Api.messages.DeleteMessages)({
+            revoke: true,
+            id: [msg.telegramMsgId]
+          }));
+        } catch(e) {
+          console.log('[DELETE] Telegram delete failed:', e.message);
+          // Continua mesmo se falhar no Telegram
+        }
+      }
+    }
+
+    // Remove do banco local
+    db.deleteMessage(platform, userId, idx);
+    res.json({ success: true });
+  } catch(e) {
+    console.error('[DELETE]', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==============================
 // BACKUP & RESTORE
 // ==============================
 app.get('/api/backup', authMiddleware, (req, res) => {
