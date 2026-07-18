@@ -13,6 +13,28 @@ const broadcast = require('./broadcast');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ── Graceful shutdown: salva banco antes de fechar ──
+process.on('SIGTERM', () => {
+  console.log('[SERVER] SIGTERM recebido — salvando banco antes de fechar...');
+  try {
+    const backup = db.exportBackup();
+    const fs = require('fs');
+    const dirs = ['/data', require('path').join(__dirname, '../data')];
+    for (const dir of dirs) {
+      try {
+        if (fs.existsSync(dir)) {
+          fs.writeFileSync(require('path').join(dir, 'zk00.json'), JSON.stringify(backup, null, 2));
+          console.log(`[SERVER] ✅ Banco salvo em ${dir}/zk00.json`);
+          break;
+        }
+      } catch(e) {}
+    }
+  } catch(e) { console.error('[SERVER] Erro ao salvar banco:', e.message); }
+  setTimeout(() => process.exit(0), 1000);
+});
+
+process.on('SIGINT', () => process.emit('SIGTERM'));
+
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '../public')));
