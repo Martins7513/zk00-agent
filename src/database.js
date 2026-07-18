@@ -99,7 +99,18 @@ setInterval(() => saveDB(db), 30000);
 // ==============================
 // USUÁRIOS
 // ==============================
-function getUsers() { return db.settings.panelUsers || []; }
+function getUsers() {
+  // Recarrega do arquivo para garantir dados frescos
+  try {
+    if (DB_PATH && require('fs').existsSync(DB_PATH)) {
+      const fresh = JSON.parse(require('fs').readFileSync(DB_PATH, 'utf8'));
+      if (fresh.settings?.panelUsers) {
+        db.settings.panelUsers = fresh.settings.panelUsers;
+      }
+    }
+  } catch(e) {}
+  return db.settings.panelUsers || [];
+}
 
 function getUserByCredentials(username, password) {
   const adminPass = process.env.ADMIN_PASSWORD || 'zk00admin123';
