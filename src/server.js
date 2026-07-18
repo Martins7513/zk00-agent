@@ -252,11 +252,10 @@ app.get('/api/accounts', authMiddleware, (req, res) => {
   const user = db.getUsers().find(u => u.id === req.user?.id);
   if (!user) return res.json([]);
   const userAccountIds = user.accountIds || [];
-  // Se não tem nenhuma conta vinculada, mostra todas (para facilitar conexão inicial)
-  if (userAccountIds.length === 0) return res.json(all);
+  if (userAccountIds.length === 0) return res.json([]);
+  // Filtra por accountIds — SEMPRE usa o array completo salvo no usuário
   const filtered = all.filter(a => userAccountIds.includes(a.id));
-  // Log para debug
-  console.log(`[ACCOUNTS] User ${req.user.username} has ${userAccountIds.length} accountIds, found ${filtered.length} accounts`);
+  console.log(`[ACCOUNTS] ${req.user.username}: accountIds=${JSON.stringify(userAccountIds)} found=${filtered.length}`);
   res.json(filtered);
 });
 
@@ -304,16 +303,18 @@ app.post('/api/accounts/:accountId/code', authMiddleware, async (req, res) => {
     const accountId = req.params.accountId;
     if (!req.user?.isAdmin && req.user?.id) {
       // Usuário comum — vincula à conta dele (APPEND seguro)
-      const userObj = db.getUsers().find(u => u.id === req.user.id);
-      if (userObj) {
-        const currentIds = Array.isArray(userObj.accountIds) ? [...userObj.accountIds] : [];
+      // Lê o usuário FRESCO do banco a cada vez
+      const freshUsers = db.getUsers();
+      const freshUser = freshUsers.find(u => u.id === req.user.id);
+      if (freshUser) {
+        const currentIds = Array.isArray(freshUser.accountIds) ? [...freshUser.accountIds] : [];
+        console.log(`[AUTH] ${req.user.username} accountIds ANTES: ${JSON.stringify(currentIds)}`);
         if (!currentIds.includes(accountId)) {
           currentIds.push(accountId);
-          db.updateUser(req.user.id, { accountIds: currentIds });
-          console.log(`[AUTH] ✅ Conta ${accountId} vinculada a ${req.user.username}. accountIds agora: ${JSON.stringify(currentIds)}`);
-        } else {
-          console.log(`[AUTH] Conta ${accountId} já vinculada a ${req.user.username}`);
         }
+        // Salva o array completo
+        db.updateUser(req.user.id, { accountIds: currentIds });
+        console.log(`[AUTH] ✅ ${req.user.username} accountIds DEPOIS: ${JSON.stringify(currentIds)}`);
       }
       console.log(`[AUTH] Conta ${accountId} vinculada ao usuário ${req.user.username}`);
     }
