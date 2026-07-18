@@ -684,9 +684,17 @@ app.post('/api/users/:userId/link-account', authMiddleware, (req, res) => {
 // ==============================
 // DELETAR MENSAGEM
 // ==============================
-// Marca conversa como lida
+// Marca conversa como lida E remove flag de atenção
 app.post('/api/conversations/:platform/:userId/read', authMiddleware, (req, res) => {
   db.markAsRead(req.params.platform, req.params.userId);
+  db.flagConversation(req.params.platform, req.params.userId, null); // remove flag
+  res.json({ success: true });
+});
+
+// Remove/seta flag de atenção
+app.post('/api/flag', authMiddleware, (req, res) => {
+  const { platform, userId, flag } = req.body;
+  db.flagConversation(platform, userId, flag || null);
   res.json({ success: true });
 });
 
