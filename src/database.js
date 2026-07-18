@@ -317,6 +317,15 @@ function getStats(ownerId=null) {
   };
 }
 
+function markAsRead(platform, userId) {
+  const key = getClientKey(platform, userId);
+  if (!db.conversations[key]) return;
+  db.conversations[key].forEach(m => {
+    if (m.role === 'user') m.read = true;
+  });
+  saveDB(db);
+}
+
 function deleteMessage(platform, userId, msgIndex) {
   const key = getClientKey(platform, userId);
   if (!db.conversations[key]) return false;
@@ -352,6 +361,6 @@ module.exports = {
   getHistory, addMessage, getRecentConversations,
   searchKnowledge, getAllKnowledge, addKnowledge, deleteKnowledge,
   getSettings, updateSettings, isHumanMode, setHumanMode, flagConversation,
-  getStats, exportBackup, importBackup, deleteMessage, toggleKnowledge,
+  getStats, exportBackup, importBackup, deleteMessage, toggleKnowledge, markAsRead,
   getUsers, getUserByCredentials, addUser, updateUser, deleteUser
 };
