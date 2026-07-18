@@ -1462,15 +1462,38 @@ async function loadPanelHistory(panel, conv) {
     el.innerHTML = '<div class="empty-state"><div class="emoji">💬</div><p>Sem mensagens ainda</p></div>';
     return;
   }
-  el.innerHTML = data.history.map(m => `
-    <div class="msg-group">
+  el.innerHTML = data.history.map((m, i) => `
+    <div class="msg-group" style="position:relative" onmouseenter="this.querySelector('.msg-actions')?.style.setProperty('opacity','1')" onmouseleave="this.querySelector('.msg-actions')?.style.setProperty('opacity','0')">
       <div class="msg-label ${m.role==='user'?'':'right'}">
         ${m.role==='user'?(conv.clientName||'Usuário'):'Tele Agent'} · ${timeAgo(m.timestamp)}
       </div>
-      <div class="msg ${m.role==='user'?'user':'agent'}">${m.content}</div>
+      <div style="display:flex;align-items:flex-end;gap:6px;justify-content:${m.role==='user'?'flex-start':'flex-end'}">
+        ${m.role==='agent' ? `<div class="msg-actions" style="opacity:0;transition:opacity .15s;display:flex;gap:4px">
+          <button onclick="deleteMsg(${panel},'${conv.platform}','${conv.userId}',${i},false)" title="Apagar só para mim" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 7px;font-size:10px;cursor:pointer;color:var(--text2);font-family:inherit">🗑</button>
+          <button onclick="deleteMsg(${panel},'${conv.platform}','${conv.userId}',${i},true)" title="Apagar para todos" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:3px 7px;font-size:10px;cursor:pointer;color:var(--red);font-family:inherit">✕ todos</button>
+        </div>` : ''}
+        <div class="msg ${m.role==='user'?'user':'agent'}" style="position:relative">${m.content}</div>
+        ${m.role==='user' ? `<div class="msg-actions" style="opacity:0;transition:opacity .15s;display:flex;gap:4px">
+          <button onclick="deleteMsg(${panel},'${conv.platform}','${conv.userId}',${i},true)" title="Apagar para todos" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:3px 7px;font-size:10px;cursor:pointer;color:var(--red);font-family:inherit">✕ apagar</button>
+        </div>` : ''}
+      </div>
     </div>
   `).join('');
   el.scrollTop = el.scrollHeight;
+}
+
+async function deleteMsg(panel, platform, userId, msgIndex, forEveryone) {
+  const label = forEveryone ? 'para todos' : 'só para você';
+  if (!confirm(`Apagar esta mensagem ${label}?`)) return;
+
+  const res = await api('DELETE', `/api/messages/${platform}/${userId}/${msgIndex}`, { forEveryone });
+  if (res.success) {
+    showNotif(forEveryone ? '✅ Mensagem apagada para todos' : '✅ Mensagem removida', 'green');
+    const conv = chatPanels[panel];
+    if (conv) await loadPanelHistory(panel, conv);
+  } else {
+    showNotif('Erro: ' + (res.error || 'Não foi possível apagar'), 'red');
+  }
 }
 
 function updatePanelMode(panel, isHuman) {
