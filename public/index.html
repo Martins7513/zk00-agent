@@ -670,6 +670,36 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
   </div>
 </main>
 
+<!-- MODAL: LABEL -->
+<div class="modal-overlay" id="modal-label">
+  <div class="modal" style="width:340px">
+    <div class="modal-title">🏷 Etiquetar Conversa <button class="close-btn" onclick="closeModal('label')">✕</button></div>
+    <div class="form-group">
+      <label class="form-label">Nome da etiqueta</label>
+      <input class="form-input" id="label-name" placeholder="Ex: VIP, Interessado, Quente..." type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cor</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px" id="label-colors">
+        <div onclick="selectLabelColor('#6366f1')" style="width:28px;height:28px;border-radius:50%;background:#6366f1;cursor:pointer;border:2px solid transparent" data-color="#6366f1"></div>
+        <div onclick="selectLabelColor('#22c55e')" style="width:28px;height:28px;border-radius:50%;background:#22c55e;cursor:pointer;border:2px solid transparent" data-color="#22c55e"></div>
+        <div onclick="selectLabelColor('#f59e0b')" style="width:28px;height:28px;border-radius:50%;background:#f59e0b;cursor:pointer;border:2px solid transparent" data-color="#f59e0b"></div>
+        <div onclick="selectLabelColor('#ef4444')" style="width:28px;height:28px;border-radius:50%;background:#ef4444;cursor:pointer;border:2px solid transparent" data-color="#ef4444"></div>
+        <div onclick="selectLabelColor('#2AABEE')" style="width:28px;height:28px;border-radius:50%;background:#2AABEE;cursor:pointer;border:2px solid transparent" data-color="#2AABEE"></div>
+        <div onclick="selectLabelColor('#a855f7')" style="width:28px;height:28px;border-radius:50%;background:#a855f7;cursor:pointer;border:2px solid transparent" data-color="#a855f7"></div>
+        <div onclick="selectLabelColor('#f43f5e')" style="width:28px;height:28px;border-radius:50%;background:#f43f5e;cursor:pointer;border:2px solid transparent" data-color="#f43f5e"></div>
+        <div onclick="selectLabelColor('#0ea5e9')" style="width:28px;height:28px;border-radius:50%;background:#0ea5e9;cursor:pointer;border:2px solid transparent" data-color="#0ea5e9"></div>
+      </div>
+      <input type="hidden" id="label-color" value="#6366f1">
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="removeLabel()">🗑 Remover</button>
+      <button class="btn ghost" onclick="closeModal('label')">Cancelar</button>
+      <button class="btn primary" onclick="saveLabel()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: ADD KNOWLEDGE -->
 <div class="modal-overlay" id="modal-add-knowledge">
   <div class="modal">
@@ -961,6 +991,48 @@ async function doLogin() {
   }
 }
 
+// ============================================
+// ETIQUETAS DE CONVERSA
+// ============================================
+let _labelTargetKey = null;
+
+function openLabelModal(key) {
+  _labelTargetKey = key;
+  const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
+  const existing = labels[key];
+  document.getElementById('label-name').value = existing ? existing.name : '';
+  selectLabelColor(existing ? existing.color : '#6366f1');
+  openModal('label');
+}
+
+function selectLabelColor(color) {
+  document.getElementById('label-color').value = color;
+  document.querySelectorAll('#label-colors div').forEach(el => {
+    el.style.border = el.dataset.color === color ? '2px solid white' : '2px solid transparent';
+  });
+}
+
+function saveLabel() {
+  const name = document.getElementById('label-name').value.trim();
+  const color = document.getElementById('label-color').value;
+  if (!name) return showNotif('Digite um nome para a etiqueta!', 'red');
+  const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
+  labels[_labelTargetKey] = { name, color };
+  localStorage.setItem('conv_labels', JSON.stringify(labels));
+  closeModal('label');
+  filterConvs();
+  showNotif('Etiqueta salva!', 'green');
+}
+
+function removeLabel() {
+  const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
+  delete labels[_labelTargetKey];
+  localStorage.setItem('conv_labels', JSON.stringify(labels));
+  closeModal('label');
+  filterConvs();
+  showNotif('Etiqueta removida!', '');
+}
+
 function doLogout() {
   if (!confirm('Deseja sair do painel?')) return;
   localStorage.removeItem('zk00_token');
@@ -1118,11 +1190,11 @@ async function renderAccountTabs(convs) {
     countByAccount[accId] = (countByAccount[accId] || 0) + 1;
   });
 
-  // Pega contas únicas das conversas + contas conectadas
-  const accountIds = new Set([
-    ...Object.keys(countByAccount),
-    ...Object.keys(accountMap)
-  ]);
+  // Cache accounts globally for use in renderConvList
+  window._accountCache = Object.values(accountMap);
+
+  // Só mostra abas das contas que têm conversas
+  const accountIds = new Set(Object.keys(countByAccount));
 
   // Monta as abas
   let tabs = `<button class="acc-tab ${activeAccountFilter==='all'?'active':''}" onclick="setAccountFilter('all')">
@@ -1158,27 +1230,50 @@ function setAccountFilter(accId) {
   filterConvs();
 }
 
+function getAccountName(platform) {
+  if (!platform.startsWith('telegram_')) return platform === 'whatsapp' ? 'WA' : 'TG';
+  const accId = platform.replace('telegram_', '');
+  const acc = (window._accountCache || []).find(a => a.id === accId);
+  return acc ? acc.name.substring(0, 12) : 'TG';
+}
+
+function getLabelHtml(label) {
+  if (!label) return '';
+  return `<span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;background:${label.color}22;color:${label.color};border:1px solid ${label.color}44;margin-right:3px">${label.name}</span>`;
+}
+
 function renderConvList(convs) {
   const el = document.getElementById('conv-list-items');
   if (!convs.length) {
     el.innerHTML = '<div class="empty-state"><div class="emoji">💬</div><p>Nenhuma conversa ainda</p></div>';
     return;
   }
-  el.innerHTML = convs.map(c => `
-    <div class="conv-item ${currentChat?.key===c.key?'active':''}" onclick="selectConv(${JSON.stringify(c).replace(/"/g,'&quot;')})" style="${c.flag==='attention'?'border-left:3px solid var(--red);':''}">
-      <div class="avatar" style="background:${c.flag==='attention'?'rgba(239,68,68,.15)':c.platform==='telegram'?'rgba(42,171,238,.15)':'rgba(37,211,102,.15)'};color:${c.flag==='attention'?'var(--red)':c.platform==='telegram'?'var(--tg)':'var(--wa)'}">
+  const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
+  el.innerHTML = convs.map(c => {
+    const label = labels[c.key];
+    const borderColor = c.flag==='attention' ? 'var(--red)' : label ? label.color : '';
+    const accName = getAccountName(c.platform);
+    return `
+    <div class="conv-item ${currentChat?.key===c.key?'active':''}" onclick="selectConv(${JSON.stringify(c).replace(/"/g,'&quot;')})" style="${borderColor?'border-left:3px solid '+borderColor+';':''}">
+      <div class="avatar" style="background:${c.flag==='attention'?'rgba(239,68,68,.15)':c.platform.includes('telegram')?'rgba(42,171,238,.15)':'rgba(37,211,102,.15)'};color:${c.flag==='attention'?'var(--red)':c.platform.includes('telegram')?'var(--tg)':'var(--wa)'}">
         ${c.clientName?.charAt(0)?.toUpperCase()||'?'}
       </div>
       <div class="conv-info">
-        <div class="conv-name">${c.clientName} <span style="font-size:10px;color:${c.flag==='attention'?'var(--red)':c.isHumanMode?'var(--yellow)':'var(--text3)'}">${c.flag==='attention'?'⚠️ Atenção':c.isHumanMode?'👤 Humano':c.platform.startsWith('telegram_')?'TG':'WA'}</span></div>
-        <div class="conv-last" style="${c.flag==='attention'?'color:var(--red);':''}">${c.lastMessage?.substring(0,40)||''}</div>
+        <div class="conv-name" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+          <span>${c.clientName}</span>
+          <span style="font-size:9px;color:var(--text3);background:var(--bg4);padding:1px 5px;border-radius:5px">${accName}</span>
+          ${c.flag==='attention'?'<span style="font-size:9px;color:var(--red)">⚠️</span>':c.isHumanMode?'<span style="font-size:9px;color:var(--yellow)">👤</span>':''}
+          ${getLabelHtml(label)}
+        </div>
+        <div class="conv-last" style="${c.flag==='attention'?'color:var(--red);':''}">${c.lastMessage?.substring(0,38)||''}</div>
       </div>
       <div class="conv-meta">
         <span class="conv-time">${timeAgo(c.lastTime)}</span>
-        ${c.flag==='attention'?'<span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block"></span>':c.unread>0?`<span class="unread-badge">${c.unread}</span>`:''}
+        ${c.unread>0?`<span class="unread-badge">${c.unread}</span>`:''}
+        <button onclick="event.stopPropagation();openLabelModal('${c.key}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:1px 3px;border-radius:4px;line-height:1" title="Etiquetar">🏷</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function filterConvs() {
