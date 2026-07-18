@@ -1017,6 +1017,7 @@ async function doLogin() {
     TOKEN = data.token;
     localStorage.setItem('zk00_token', TOKEN);
     localStorage.setItem('zk00_user', JSON.stringify(data.user));
+    window._currentUser = data.user;
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('main-app').style.display = 'flex';
@@ -1090,6 +1091,7 @@ if (TOKEN) {
   if (savedUser) {
     try {
       const u = JSON.parse(savedUser);
+      window._currentUser = u;
       document.querySelector('.logo-sub').textContent = u.name || u.username || 'FM';
       const sidebarUser = document.getElementById('sidebar-username');
       if (sidebarUser) sidebarUser.textContent = '👤 ' + (u.name || u.username);
@@ -1103,10 +1105,14 @@ if (TOKEN) {
 // ============================================
 async function initApp() {
   // Mostra botão de bootstrap permanente para admin
-  if (window._currentUser?.isAdmin) {
-    const btn = document.getElementById('btn-bootstrap');
-    if (btn) btn.style.display = 'flex';
-  }
+  try {
+    const savedUser = localStorage.getItem('zk00_user');
+    const u = savedUser ? JSON.parse(savedUser) : null;
+    if (u?.isAdmin || !u?.role) {
+      const btn = document.getElementById('btn-bootstrap');
+      if (btn) btn.style.display = 'flex';
+    }
+  } catch(e) {}
   await loadStats();
   await loadIntegrationStatus();
   await loadConversations();
