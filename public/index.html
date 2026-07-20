@@ -309,7 +309,7 @@
       </div>
 
       <!-- HANDLE: resize lista -->
-      <div id="conv-drag-handle" style="width:8px;cursor:col-resize;background:transparent;flex-shrink:0;border-left:2px solid var(--border);transition:border-color .15s"
+      <div id="conv-drag-handle" style="width:8px;cursor:col-resize;flex-shrink:0;border-left:2px solid var(--border);transition:border-color .15s"
            onmouseenter="this.style.borderColor='var(--accent)'"
            onmouseleave="if(!window._resizing)this.style.borderColor='var(--border)'"></div>
 
@@ -345,7 +345,7 @@
         </div>
 
         <!-- HANDLE: resize painéis -->
-        <div id="panels-drag-handle" style="width:8px;cursor:col-resize;background:transparent;flex-shrink:0;border-left:2px solid var(--border);transition:border-color .15s"
+        <div id="panels-drag-handle" style="width:8px;cursor:col-resize;flex-shrink:0;border-left:2px solid var(--border);transition:border-color .15s"
              onmouseenter="this.style.borderColor='var(--accent)'"
              onmouseleave="if(!window._resizing2)this.style.borderColor='var(--border)'"></div>
         <div class="chat-panel" id="chat-panel-2" style="flex:1;display:flex;flex-direction:column">
@@ -1845,9 +1845,13 @@ function makeDraggable({ handleId, targetId, otherId, min, max, storageKey, flag
   handle.addEventListener('mousedown', e => {
     e.preventDefault();
     window[flagKey] = true;
-    handle.style.background = 'var(--accent)';
+    handle.style.borderColor = 'var(--accent)';
     startX = e.clientX;
     startW = target.getBoundingClientRect().width;
+
+    // Fix: remove overflow:hidden from tab during drag
+    const tab = document.getElementById('tab-conversations');
+    if (tab) tab.style.overflow = 'visible';
 
     const onMove = e => {
       let w = startW + (e.clientX - startX);
@@ -1860,7 +1864,8 @@ function makeDraggable({ handleId, targetId, otherId, min, max, storageKey, flag
 
     const onUp = e => {
       window[flagKey] = false;
-      handle.style.background = 'transparent';
+      handle.style.borderColor = 'var(--border)';
+      if (tab) tab.style.overflow = 'hidden';
       localStorage.setItem(storageKey, target.getBoundingClientRect().width);
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
