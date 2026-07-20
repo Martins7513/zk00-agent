@@ -1393,6 +1393,7 @@ function renderConvList(convs) {
         <span class="conv-time">${timeAgo(c.lastTime)}</span>
         ${c.unread>0?`<span class="unread-badge">${c.unread}</span>`:''}
         <button onclick="event.stopPropagation();openLabelModal('${c.key}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:1px 3px;border-radius:4px;line-height:1" title="Etiquetar">🏷</button>
+        <button onclick="event.stopPropagation();openFolderAssign('${c.key}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:1px 3px;border-radius:4px;line-height:1" title="Mover para pasta">📁</button>
       </div>
     </div>`;
   }).join('');
@@ -1920,6 +1921,67 @@ function selectFolderColor(color) {
   document.querySelectorAll('#folder-colors div').forEach(el => {
     el.style.border = el.dataset.color === color ? '2px solid white' : '2px solid transparent';
   });
+}
+
+function openFolderAssign(key) {
+  const folders = getFolders();
+  if (!folders.length) {
+    showNotif('Crie uma pasta primeiro! Clique em 📁 na barra de busca.', 'yellow');
+    return;
+  }
+
+  // Remove any existing popup
+  document.getElementById('folder-assign-popup')?.remove();
+
+  const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
+  const currentFolder = labels[key]?.folderId || '';
+
+  const popup = document.createElement('div');
+  popup.id = 'folder-assign-popup';
+  popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:800;display:flex;align-items:center;justify-content:center';
+  popup.innerHTML = `
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:20px;width:300px;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">📁 Mover para Pasta</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+        <div onclick="assignFolder('${key}','')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${''}===currentFolder?'rgba(59,130,246,.1)':'var(--bg3)';border-radius:8px;cursor:pointer;border:1px solid var(--border)" 
+          onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <span style="font-size:16px">🚫</span>
+          <span style="font-size:13px">Remover da pasta</span>
+        </div>
+        ${folders.map(f => `
+          <div onclick="assignFolder('${key}','${f.id}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${currentFolder===f.id?`${f.color}15`:'var(--bg3)'};border-radius:8px;cursor:pointer;border:1px solid ${currentFolder===f.id?f.color:'var(--border)'}"
+            onmouseover="this.style.borderColor='${f.color}'" onmouseout="this.style.borderColor='${currentFolder===f.id?f.color:'var(--border)'}'">
+            <span style="width:12px;height:12px;border-radius:50%;background:${f.color};flex-shrink:0;display:inline-block"></span>
+            <span style="font-size:13px;font-weight:500">${f.name}</span>
+            ${currentFolder===f.id?'<span style="margin-left:auto;color:'+f.color+';font-size:12px">✓</span>':''}
+          </div>
+        `).join('')}
+      </div>
+      <button onclick="document.getElementById('folder-assign-popup').remove()" 
+        style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:8px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">
+        Cancelar
+      </button>
+    </div>`;
+  document.body.appendChild(popup);
+  // Close on backdrop click
+  popup.addEventListener('click', e => { if (e.target === popup) popup.remove(); });
+}
+
+function assignFolder(key, folderId) {
+  const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
+  if (!labels[key]) labels[key] = { name: '', color: '#6366f1' };
+  if (folderId) {
+    labels[key].folderId = folderId;
+    const folder = getFolders().find(f => f.id === folderId);
+    showNotif(`📁 Movido para "${folder?.name}"`, 'green');
+  } else {
+    delete labels[key].folderId;
+    showNotif('Removido da pasta', '');
+  }
+  localStorage.setItem('conv_labels', JSON.stringify(labels));
+  document.getElementById('folder-assign-popup')?.remove();
+  renderAccountTabs(allConvs);
+  filterConvs();
 }
 
 function saveFolder() {
