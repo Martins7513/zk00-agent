@@ -1454,6 +1454,7 @@ function renderConvList(convs) {
       </div>
       <div class="conv-meta">
         <span class="conv-time">${timeAgo(c.lastTime)}</span>
+        ${c.lastReadByLead && c.lastRole === 'agent' ? '<span style="color:var(--accent);font-size:11px" title="Lead leu a mensagem">✓✓</span>' : ''}
         ${c.unread>0?`<span class="unread-badge">${c.unread}</span>`:''}
         <button onclick="event.stopPropagation();openLabelModal('${c.key}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:1px 3px;border-radius:4px;line-height:1" title="Etiquetar">🏷</button>
         <button onclick="event.stopPropagation();openFolderAssign('${c.key}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:1px 3px;border-radius:4px;line-height:1" title="Mover para pasta">📁</button>
