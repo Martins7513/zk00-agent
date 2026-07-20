@@ -197,6 +197,22 @@ function startListener(accountId, client, account, sendFn) {
     }
   }, new (require('telegram/events').NewMessage)({}));
 
+  // ── Detecta quando o lead leu nossa mensagem (outbox read) ──
+  client.addEventHandler(async (update) => {
+    try {
+      // UpdateReadHistoryOutbox = o peer leu nossas mensagens
+      if (update.className === 'UpdateReadHistoryOutbox') {
+        const peer = update.peer;
+        if (!peer) return;
+        const userId = String(peer.userId || peer.chatId || peer.channelId);
+        const platform = `telegram_${accountId}`;
+        // Marca como lido no sistema
+        db.markReadByLead(platform, userId);
+        console.log(`[USERBOT:${name}] 👁 ${userId} leu a mensagem`);
+      }
+    } catch(e) {}
+  }, new (require('telegram/events').Raw)({}));
+
   console.log(`[USERBOT:${name}] 🎧 Ouvindo mensagens...`);
 }
 
