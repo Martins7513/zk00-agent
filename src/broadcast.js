@@ -116,7 +116,7 @@ function filterLeads(filters = {}) {
 }
 
 // Executa o disparo
-async function startBroadcast({ message, imageUrl, filters, sendFn }) {
+async function startBroadcast({ message, imageUrl, audioUrl, button, filters, sendFn }) {
   if (broadcastState.active) {
     return { error: 'Já existe um disparo em andamento' };
   }
@@ -153,7 +153,7 @@ async function startBroadcast({ message, imageUrl, filters, sendFn }) {
       const name = lead.name || userId;
 
       try {
-        await sendFn(platform, userId, message, imageUrl);
+        await sendFn(platform, userId, message, imageUrl, audioUrl, button);
 
         broadcastState.sent++;
         broadcastState.log.push({
