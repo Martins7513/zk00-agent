@@ -311,7 +311,20 @@
       <!-- HANDLE: resize lista -->
       <div id="conv-drag-handle" style="width:8px;cursor:col-resize;flex-shrink:0;border-left:2px solid var(--border);transition:border-color .15s"
            onmouseenter="this.style.borderColor='var(--accent)'"
-           onmouseleave="if(!window._resizing)this.style.borderColor='var(--border)'"></div>
+           onmouseleave="this.style.borderColor='var(--border)'"
+           onmousedown="(function(e){
+             e.preventDefault();
+             var panel=document.getElementById('conv-list-panel');
+             var tab=document.getElementById('tab-conversations');
+             var startX=e.clientX, startW=panel.offsetWidth;
+             tab.style.overflow='visible';
+             document.body.style.cursor='col-resize';
+             document.body.style.userSelect='none';
+             function mv(e){var w=Math.max(160,Math.min(500,startW+e.clientX-startX));panel.style.width=w+'px';}
+             function up(){tab.style.overflow='hidden';document.body.style.cursor='';document.body.style.userSelect='';document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);localStorage.setItem('conv_list_width',panel.offsetWidth);}
+             document.addEventListener('mousemove',mv);
+             document.addEventListener('mouseup',up);
+           })(event)"></div>
 
       <!-- PAINÉIS DE CHAT DUPLO -->
       <div id="chat-panels-wrapper" style="flex:1;display:flex;overflow:hidden">
@@ -347,7 +360,21 @@
         <!-- HANDLE: resize painéis -->
         <div id="panels-drag-handle" style="width:8px;cursor:col-resize;flex-shrink:0;border-left:2px solid var(--border);transition:border-color .15s"
              onmouseenter="this.style.borderColor='var(--accent)'"
-             onmouseleave="if(!window._resizing2)this.style.borderColor='var(--border)'"></div>
+             onmouseleave="this.style.borderColor='var(--border)'"
+             onmousedown="(function(e){
+               e.preventDefault();
+               var p1=document.getElementById('chat-panel-1');
+               var p2=document.getElementById('chat-panel-2');
+               var tab=document.getElementById('tab-conversations');
+               var startX=e.clientX, startW=p1.offsetWidth;
+               tab.style.overflow='visible';
+               document.body.style.cursor='col-resize';
+               document.body.style.userSelect='none';
+               function mv(e){var w=Math.max(200,startW+e.clientX-startX);p1.style.flex='none';p1.style.width=w+'px';p2.style.flex='1';}
+               function up(){tab.style.overflow='hidden';document.body.style.cursor='';document.body.style.userSelect='';document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);localStorage.setItem('panel1_width',p1.offsetWidth);}
+               document.addEventListener('mousemove',mv);
+               document.addEventListener('mouseup',up);
+             })(event)"></div>
         <div class="chat-panel" id="chat-panel-2" style="flex:1;display:flex;flex-direction:column">
           <div class="chat-header" id="chat-header-2">
             <div class="avatar" id="chat-avatar-2" style="background:var(--bg4);color:var(--text3);width:36px;height:36px;font-size:13px">?</div>
@@ -1145,6 +1172,7 @@ async function initApp() {
 async function refreshData() {
   await loadStats();
   await loadConversations();
+  setTimeout(initResize, 300);
   await loadKnowledge();
   showNotif('Dados atualizados!', 'green');
 }
