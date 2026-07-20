@@ -66,7 +66,7 @@
   .card-title span{color:var(--text2);font-weight:400;font-size:11px}
   /* CONVERSATIONS */
   #tab-conversations{flex-direction:row;overflow:hidden}
-  .conv-list{width:290px;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;height:100%}
+  .conv-list{width:280px;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;height:100%;min-width:160px;max-width:500px;overflow:hidden}
   .conv-search{padding:12px;border-bottom:1px solid var(--border)}
   .search-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;font-family:inherit;outline:none}
   .search-input:focus{border-color:var(--accent)}
@@ -314,7 +314,7 @@
         title="Arraste para redimensionar"></div>
 
       <!-- PAINÉIS DE CHAT DUPLO -->
-      <div id="chat-panels-wrapper" style="flex:1;display:flex;overflow:hidden">
+      <div id="chat-panels-wrapper" style="flex:1;display:flex;overflow:hidden;border-left:1px solid var(--border)">
 
         <!-- PAINEL 1 -->
         <div class="chat-panel" id="chat-panel-1" style="flex:1;border-right:1px solid var(--border);display:flex;flex-direction:column">
@@ -550,109 +550,70 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
     </div>
 
     <!-- BROADCAST -->
-    <div class="tab" id="tab-broadcast" style="flex-direction:column;padding:20px;overflow-y:auto;gap:14px">
+    <div class="tab" id="tab-broadcast" style="flex-direction:row;overflow:hidden">
 
-      <!-- COMPOSER -->
-      <div class="card" style="margin:0" id="broadcast-composer">
-        <div class="card-title">📣 Disparo em Massa</div>
+  <!-- ESQUERDA: Lista de conversas para selecionar -->
+  <div style="width:300px;min-width:300px;border-right:1px solid var(--border);display:flex;flex-direction:column;height:100%">
+    <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center">
+      <input class="search-input" id="bc-search" placeholder="🔍 Buscar lead..." oninput="filterBcLeads()" style="flex:1">
+      <button onclick="selectAllBcLeads(true)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">✓ Todos</button>
+      <button onclick="selectAllBcLeads(false)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">✗</button>
+    </div>
+    <div style="flex:1;overflow-y:auto" id="bc-conv-list">
+      <div class="loading">Carregando conversas...</div>
+    </div>
+    <div style="padding:8px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--text2)" id="bc-selected-count">0 selecionados</div>
+  </div>
 
-        <!-- FILTROS -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-          <div>
-            <label class="form-label">Plataforma</label>
-            <select class="form-select" id="bc-platform">
-              <option value="all">Todas</option>
-              <option value="telegram">Telegram</option>
-              <option value="whatsapp">WhatsApp</option>
-            </select>
-          </div>
-          <div>
-            <label class="form-label">Data de cadastro — De</label>
-            <input class="form-input" id="bc-date-from" type="date">
-          </div>
-          <div>
-            <label class="form-label">Data de cadastro — Até</label>
-            <input class="form-input" id="bc-date-to" type="date">
-          </div>
-          <div>
-            <label class="form-label">Filtrar por tag</label>
-            <input class="form-input" id="bc-tag" placeholder="Ex: VIP, interessado..." type="text">
-          </div>
-        </div>
+  <!-- DIREITA: Composer -->
+  <div style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px">
+    <div class="card" style="margin:0" id="broadcast-composer">
+      <div class="card-title">📣 Disparo em Massa</div>
 
-        <!-- LISTA MANUAL -->
-        <div class="form-group">
-          <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
-            Lista manual <span style="color:var(--text3);font-weight:400">(opcional — substitui os filtros acima)</span>
-            <button class="btn ghost" style="font-size:10px;padding:3px 8px" onclick="loadLeadsIntoList()">📋 Carregar do painel</button>
-          </label>
-          <textarea class="form-textarea" id="bc-manual" placeholder="Cole usernames ou IDs, um por linha:&#10;@usuario1&#10;@usuario2&#10;123456789&#10;&#10;Ou clique em 'Carregar do painel' para importar seus leads automaticamente" style="min-height:100px;font-family:monospace;font-size:11px"></textarea>
-          <div id="bc-manual-count" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
-        </div>
-
-        <button class="btn ghost" style="width:100%;margin-bottom:14px;font-size:12px" onclick="previewBroadcast()">🔍 Ver quantos leads serão atingidos</button>
-        <div id="bc-preview" style="display:none;background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:14px"></div>
-
-        <!-- MENSAGEM -->
-        <div class="form-group">
-          <label class="form-label">Mensagem</label>
-          <textarea class="form-textarea" id="bc-message" placeholder="Digite a mensagem do disparo..." style="min-height:100px"></textarea>
-        </div>
-
-        <!-- IMAGEM -->
-        <div class="form-group">
-          <label class="form-label">URL da imagem <span style="color:var(--text3)">(opcional)</span></label>
-          <input class="form-input" id="bc-image" placeholder="https://..." type="url">
-          <div style="font-size:10px;color:var(--text3);margin-top:3px">Cole a URL de uma imagem (JPG, PNG) para enviar junto com a mensagem</div>
-        </div>
-
-        <!-- AVISO -->
-        <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--yellow);margin-bottom:14px;line-height:1.7">
-          ⚠️ O disparo usa delay de 8-20 segundos entre cada mensagem para evitar ban.<br>
-          Não feche o painel enquanto o disparo estiver ativo.
-        </div>
-
-        <button class="btn primary" style="width:100%;font-size:13px;padding:10px" onclick="startBroadcast()">📣 Iniciar Disparo</button>
+      <div class="form-group">
+        <label class="form-label">Mensagem</label>
+        <textarea class="form-textarea" id="bc-message" placeholder="Digite a mensagem que será enviada..." style="min-height:120px"></textarea>
       </div>
 
-      <!-- PROGRESSO -->
-      <div class="card" style="margin:0;display:none" id="broadcast-progress">
-        <div class="card-title">📊 Progresso do Disparo <span id="bc-status-label" style="color:var(--green)">Em andamento</span></div>
+      <div class="form-group">
+        <label class="form-label">URL da Imagem (opcional)</label>
+        <input class="form-input" id="bc-image-url" placeholder="https://...">
+      </div>
 
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
-          <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:10px">
-            <div style="font-size:22px;font-weight:700;color:var(--accent)" id="bc-total">0</div>
-            <div style="font-size:11px;color:var(--text2)">Total</div>
-          </div>
-          <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:10px">
-            <div style="font-size:22px;font-weight:700;color:var(--green)" id="bc-sent">0</div>
-            <div style="font-size:11px;color:var(--text2)">Enviados</div>
-          </div>
-          <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:10px">
-            <div style="font-size:22px;font-weight:700;color:var(--red)" id="bc-failed">0</div>
-            <div style="font-size:11px;color:var(--text2)">Falhas</div>
-          </div>
-          <div style="text-align:center;background:var(--bg3);border-radius:8px;padding:10px">
-            <div style="font-size:22px;font-weight:700;color:var(--text2)" id="bc-remaining">0</div>
-            <div style="font-size:11px;color:var(--text2)">Restantes</div>
-          </div>
-        </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+        <span>⏱</span>
+        <span style="color:var(--text2)">Delay entre envios: <strong style="color:var(--text)">8–20 segundos</strong> (anti-ban)</span>
+      </div>
 
-        <!-- BARRA DE PROGRESSO -->
-        <div style="background:var(--bg4);border-radius:6px;height:8px;margin-bottom:14px;overflow:hidden">
-          <div id="bc-progress-bar" style="height:100%;background:var(--green);border-radius:6px;width:0%;transition:width .5s"></div>
-        </div>
-
-        <div style="display:flex;gap:8px;margin-bottom:14px">
-          <button class="btn ghost" style="font-size:12px" onclick="abortBroadcast()" id="bc-abort-btn">⛔ Interromper</button>
-          <button class="btn primary" style="font-size:12px;display:none" onclick="resetBroadcast()" id="bc-new-btn">+ Novo disparo</button>
-        </div>
-
-        <!-- LOG -->
-        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Log de envios</div>
-        <div id="bc-log" style="background:var(--bg);border-radius:8px;padding:10px;max-height:200px;overflow-y:auto;font-size:11px;font-family:monospace;color:var(--text2)"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn primary" style="flex:1" onclick="startBroadcast()">🚀 Iniciar Disparo</button>
       </div>
     </div>
+
+    <!-- PROGRESS -->
+    <div id="broadcast-progress" style="display:none" class="card">
+      <div class="card-title">🚀 Disparo em andamento... <span id="bc-status-label" style="font-size:12px;color:var(--text2)"></span></div>
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+          <span>Progresso</span>
+          <span><span id="bc-sent">0</span> / <span id="bc-total">0</span></span>
+        </div>
+        <div style="background:var(--bg4);border-radius:6px;height:8px;overflow:hidden">
+          <div id="bc-progress-bar" style="background:var(--accent);height:100%;width:0%;transition:width .3s;border-radius:6px"></div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:10px">
+        ✅ <span id="bc-ok">0</span> enviados &nbsp; ❌ <span id="bc-fail">0</span> falhas &nbsp; ⏭ <span id="bc-skip">0</span> ignorados
+      </div>
+      <div id="bc-log" style="background:var(--bg3);border-radius:8px;padding:10px;font-size:11px;font-family:monospace;max-height:150px;overflow-y:auto;color:var(--text2)"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn ghost" onclick="abortBroadcast()">⛔ Interromper</button>
+        <button class="btn primary" onclick="resetBroadcast()" id="bc-abort-btn" style="display:none">✅ Novo Disparo</button>
+      </div>
+    </div>
+  </div>
+
+</div>
 
     <!-- USERS -->
     <div class="tab" id="tab-users" style="flex-direction:column;padding:20px;overflow-y:auto;gap:14px">
@@ -1775,88 +1736,75 @@ async function saveKnowledge() {
 
 // ── Resize das colunas ──
 function initResize() {
-  // Resize: lista de conversas
-  const convHandle = document.getElementById('conv-resize-handle');
-  const convPanel = document.getElementById('conv-list-panel');
+  setupResizeHandle(
+    'conv-resize-handle',
+    'conv-list-panel',
+    null,
+    160, 500,
+    'conv_list_width'
+  );
+  setupResizeHandle(
+    'panels-resize-handle',
+    'chat-panel-1',
+    'chat-panel-2',
+    200, null,
+    'panel1_width'
+  );
+}
 
-  if (convHandle && convPanel) {
-    let dragging = false, startX = 0, startW = 0;
+function setupResizeHandle(handleId, leftId, rightId, minW, maxW, storageKey) {
+  const handle = document.getElementById(handleId);
+  const left = document.getElementById(leftId);
+  if (!handle || !left) return;
 
-    convHandle.addEventListener('mousedown', e => {
-      dragging = true;
-      startX = e.clientX;
-      startW = convPanel.offsetWidth;
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-      convHandle.style.background = 'var(--accent)';
-    });
+  let dragging = false, startX = 0, startW = 0;
 
-    document.addEventListener('mousemove', e => {
-      if (!dragging) return;
-      const newW = Math.max(160, Math.min(500, startW + (e.clientX - startX)));
-      convPanel.style.width = newW + 'px';
-      convPanel.style.minWidth = newW + 'px';
-    });
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    dragging = true;
+    startX = e.clientX;
+    startW = left.getBoundingClientRect().width;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    handle.style.background = 'var(--accent)';
+  });
 
-    document.addEventListener('mouseup', () => {
-      if (!dragging) return;
-      dragging = false;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      convHandle.style.background = 'transparent';
-      // Salva preferência
-      localStorage.setItem('conv_list_width', convPanel.offsetWidth);
-    });
-
-    // Restaura largura salva
-    const saved = localStorage.getItem('conv_list_width');
-    if (saved) {
-      convPanel.style.width = saved + 'px';
-      convPanel.style.minWidth = saved + 'px';
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    e.preventDefault();
+    const delta = e.clientX - startX;
+    let newW = startW + delta;
+    if (minW) newW = Math.max(minW, newW);
+    if (maxW) newW = Math.min(maxW, newW);
+    left.style.width = newW + 'px';
+    left.style.minWidth = newW + 'px';
+    left.style.maxWidth = newW + 'px';
+    left.style.flex = 'none';
+    if (rightId) {
+      const right = document.getElementById(rightId);
+      if (right) right.style.flex = '1';
     }
-  }
+  });
 
-  // Resize: entre painel 1 e painel 2
-  const panelsHandle = document.getElementById('panels-resize-handle');
-  const panel1 = document.getElementById('chat-panel-1');
-  const panel2 = document.getElementById('chat-panel-2');
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    handle.style.background = 'transparent';
+    localStorage.setItem(storageKey, left.getBoundingClientRect().width);
+  });
 
-  if (panelsHandle && panel1 && panel2) {
-    let dragging = false, startX = 0, startW1 = 0;
-
-    panelsHandle.addEventListener('mousedown', e => {
-      dragging = true;
-      startX = e.clientX;
-      startW1 = panel1.offsetWidth;
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-      panelsHandle.style.background = 'var(--accent)';
-    });
-
-    document.addEventListener('mousemove', e => {
-      if (!dragging) return;
-      const wrapper = document.getElementById('chat-panels-wrapper');
-      const totalW = wrapper.offsetWidth - 5; // minus handle
-      const newW1 = Math.max(200, Math.min(totalW - 200, startW1 + (e.clientX - startX)));
-      panel1.style.flex = 'none';
-      panel1.style.width = newW1 + 'px';
-      panel2.style.flex = '1';
-    });
-
-    document.addEventListener('mouseup', () => {
-      if (!dragging) return;
-      dragging = false;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      panelsHandle.style.background = 'transparent';
-      localStorage.setItem('panel1_width', panel1.offsetWidth);
-    });
-
-    // Restaura largura salva
-    const saved = localStorage.getItem('panel1_width');
-    if (saved) {
-      panel1.style.flex = 'none';
-      panel1.style.width = saved + 'px';
+  // Restaura largura salva
+  const saved = localStorage.getItem(storageKey);
+  if (saved && parseFloat(saved) > 0) {
+    left.style.width = saved + 'px';
+    left.style.minWidth = saved + 'px';
+    left.style.maxWidth = saved + 'px';
+    left.style.flex = 'none';
+    if (rightId) {
+      const right = document.getElementById(rightId);
+      if (right) right.style.flex = '1';
     }
   }
 }
@@ -1866,6 +1814,82 @@ const _origShowTab = showTab;
 function showTab(id, el) {
   _origShowTab(id, el);
   if (id === 'conversations') setTimeout(initResize, 100);
+}
+
+// ── Disparo em massa: lista de conversas ──
+let bcAllLeads = [];
+let bcSelected = new Set();
+
+async function loadBroadcastLeads() {
+  const res = await api('POST', '/api/broadcast/preview', { filters: {} });
+  if (!res || res.error) return;
+  
+  bcAllLeads = res.preview || [];
+  bcSelected = new Set(bcAllLeads.map(l => `${l.platform}_${l.userId}`));
+  renderBcLeads();
+}
+
+function renderBcLeads() {
+  const el = document.getElementById('bc-conv-list');
+  const q = document.getElementById('bc-search')?.value?.toLowerCase() || '';
+  const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
+
+  const filtered = bcAllLeads.filter(l =>
+    !q || (l.name||l.userId).toLowerCase().includes(q)
+  );
+
+  if (!filtered.length) {
+    el.innerHTML = '<div class="loading">Nenhuma conversa encontrada</div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map(l => {
+    const key = `${l.platform}_${l.userId}`;
+    const label = labels[key];
+    const checked = bcSelected.has(key);
+    const platColor = l.platform?.includes('telegram') ? 'var(--tg)' : 'var(--wa)';
+    const platName = l.platform?.includes('telegram') ? 'TG' : 'WA';
+    const avatarBg = l.platform?.includes('telegram') ? 'rgba(42,171,238,.15)' : 'rgba(37,211,102,.15)';
+
+    return `<div class="conv-item ${checked?'active':''}" onclick="toggleBcLead('${key}')" style="cursor:pointer;${checked?'border-left:2px solid var(--accent);':''}">
+      <div class="avatar" style="background:${avatarBg};color:${platColor};width:36px;height:36px;font-size:13px;flex-shrink:0">
+        ${(l.name||l.userId)?.charAt(0)?.toUpperCase()||'?'}
+      </div>
+      <div class="conv-info">
+        <div class="conv-name" style="font-size:13px">
+          ${l.name||l.userId}
+          <span style="font-size:9px;background:var(--bg4);color:var(--text3);padding:1px 5px;border-radius:4px;margin-left:3px">${platName}</span>
+          ${label ? `<span style="font-size:9px;background:${label.color}22;color:${label.color};border:1px solid ${label.color}44;padding:1px 5px;border-radius:10px;margin-left:3px">${label.name}</span>` : ''}
+        </div>
+        <div class="conv-last" style="font-size:11px">${l.lastMessage?.substring(0,40)||''}</div>
+      </div>
+      <div style="flex-shrink:0">
+        <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();toggleBcLead('${key}')"
+          style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
+      </div>
+    </div>`;
+  }).join('');
+
+  updateBcCount();
+}
+
+function toggleBcLead(key) {
+  if (bcSelected.has(key)) bcSelected.delete(key);
+  else bcSelected.add(key);
+  renderBcLeads();
+}
+
+function selectAllBcLeads(all) {
+  if (all) bcAllLeads.forEach(l => bcSelected.add(`${l.platform}_${l.userId}`));
+  else bcSelected.clear();
+  renderBcLeads();
+}
+
+function filterBcLeads() { renderBcLeads(); }
+
+function updateBcCount() {
+  const el = document.getElementById('bc-selected-count');
+  if (el) el.textContent = `${bcSelected.size} de ${bcAllLeads.length} selecionados`;
 }
 
 async function markAllRead() {
@@ -2021,6 +2045,7 @@ function showTab(id, el) {
     if (id === 'accounts') loadAccounts();
     if (id === 'broadcast') { updateBroadcastStatus(); }
     if (id === 'users') loadUsers();
+    if (id === 'broadcast') loadBroadcastLeads();
 }
 
 function openModal(id) {
@@ -2388,34 +2413,26 @@ async function startBroadcast() {
   const message = document.getElementById('bc-message').value.trim();
   if (!message) return showNotif('Digite a mensagem!', 'red');
 
-  // Pega leads selecionados via checkbox
-  const checked = [...document.querySelectorAll('.bc-lead-check:checked')];
-  
-  let filters = getBroadcastFilters();
-  let manualList = null;
+  if (bcSelected.size === 0) return showNotif('Selecione pelo menos 1 conversa!', 'red');
+  if (!confirm(`Confirmar disparo para ${bcSelected.size} conversa(s)?`)) return;
 
-  if (checked.length > 0) {
-    // Usa os leads selecionados manualmente
-    manualList = checked.map(cb => `${cb.dataset.platform}:${cb.dataset.userid}`);
-    if (!confirm(`Confirmar disparo para ${checked.length} conversa(s) selecionada(s)?`)) return;
-  } else {
-    if (!confirm(`Confirmar disparo com os filtros selecionados?`)) return;
-  }
-
+  // Monta lista de leads selecionados
+  const selectedLeads = bcAllLeads.filter(l => bcSelected.has(`${l.platform}_${l.userId}`));
+  const manualList = selectedLeads.map(l => `${l.platform}:${l.userId}`);
   const imageUrl = document.getElementById('bc-image-url')?.value?.trim() || '';
 
   const res = await api('POST', '/api/broadcast/start', {
     message,
     imageUrl,
-    filters,
-    ...(manualList ? { manualList } : {})
+    filters: {},
+    manualList
   });
 
   if (res.error) return showNotif('Erro: ' + res.error, 'red');
 
   document.getElementById('broadcast-composer').style.display = 'none';
   document.getElementById('broadcast-progress').style.display = 'block';
-  document.getElementById('bc-total').textContent = res.total || '?';
+  document.getElementById('bc-total').textContent = res.total || bcSelected.size;
   broadcastInterval = setInterval(updateBroadcastStatus, 3000);
 }
 
