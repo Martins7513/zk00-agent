@@ -1384,7 +1384,7 @@ function renderConvList(convs) {
         <div class="conv-name" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
           <span>${c.clientName}</span>
           <span style="font-size:9px;color:var(--text3);background:var(--bg4);padding:1px 5px;border-radius:5px">${accName}</span>
-          ${c.flag==='attention'?'<span style="font-size:9px;color:var(--red)">⚠️</span>':c.isHumanMode?'<span style="font-size:9px;color:var(--yellow)">👤</span>':''}
+          ${c.flag==='attention'?'<span style="font-size:9px;color:var(--red)">⚠️</span>':c.flag==='waiting'?'<span style="font-size:9px;color:var(--yellow)">⏳</span>':c.isHumanMode?'<span style="font-size:9px;color:var(--yellow)">👤</span>':''}
           ${getLabelHtml(label)}
         </div>
         <div class="conv-last" style="${c.flag==='attention'?'color:var(--red);':''}">${c.lastMessage?.substring(0,38)||''}</div>
