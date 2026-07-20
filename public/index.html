@@ -598,23 +598,58 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
     <div class="card" style="margin:0" id="broadcast-composer">
       <div class="card-title">📣 Disparo em Massa</div>
 
+      <!-- MENSAGEM -->
       <div class="form-group">
-        <label class="form-label">Mensagem</label>
-        <textarea class="form-textarea" id="bc-message" placeholder="Digite a mensagem que será enviada..." style="min-height:120px"></textarea>
+        <label class="form-label">💬 Mensagem</label>
+        <textarea class="form-textarea" id="bc-message" placeholder="Digite a mensagem..." style="min-height:100px"></textarea>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">URL da Imagem (opcional)</label>
-        <input class="form-input" id="bc-image-url" placeholder="https://...">
+      <!-- MÍDIA -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">🖼 URL da Imagem</label>
+          <input class="form-input" id="bc-image-url" placeholder="https://...imagem.jpg">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">🎵 URL do Áudio</label>
+          <input class="form-input" id="bc-audio-url" placeholder="https://...audio.mp3">
+        </div>
       </div>
 
+      <!-- BOTÃO COM LINK -->
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          🔗 Botão com Link <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional)</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="bc-btn-text" placeholder="Texto do botão (ex: Ver oferta)" style="flex:1">
+          <input class="form-input" id="bc-btn-url" placeholder="https://..." style="flex:2">
+        </div>
+      </div>
+
+      <!-- AGENDAMENTO -->
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:12px;font-weight:600">⏰ Agendar Envio</span>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;margin-left:auto">
+            <div class="toggle-switch off" id="bc-schedule-toggle" onclick="toggleSchedule()" style="width:28px;height:16px"></div>
+            <span style="font-size:11px;color:var(--text2)" id="bc-schedule-label">Desativado</span>
+          </label>
+        </div>
+        <div id="bc-schedule-inputs" style="display:none">
+          <input class="form-input" type="datetime-local" id="bc-schedule-time" style="width:100%">
+          <div style="font-size:11px;color:var(--text3);margin-top:5px">O disparo iniciará automaticamente na data/hora escolhida</div>
+        </div>
+      </div>
+
+      <!-- DELAY -->
       <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
         <span>⏱</span>
         <span style="color:var(--text2)">Delay entre envios: <strong style="color:var(--text)">8–20 segundos</strong> (anti-ban)</span>
       </div>
 
       <div style="display:flex;gap:10px">
-        <button class="btn primary" style="flex:1" onclick="startBroadcast()">🚀 Iniciar Disparo</button>
+        <button class="btn primary" style="flex:1" onclick="startBroadcast()" id="bc-start-btn">🚀 Iniciar Disparo</button>
       </div>
     </div>
 
@@ -2656,6 +2691,31 @@ function selectAllLeads(check) {
   document.querySelectorAll('.bc-lead-check').forEach(cb => cb.checked = check);
 }
 
+let bcScheduleTimer = null;
+
+function toggleSchedule() {
+  const toggle = document.getElementById('bc-schedule-toggle');
+  const inputs = document.getElementById('bc-schedule-inputs');
+  const label = document.getElementById('bc-schedule-label');
+  const btn = document.getElementById('bc-start-btn');
+  const isOn = toggle.classList.contains('off');
+  if (isOn) {
+    toggle.classList.remove('off');
+    inputs.style.display = 'block';
+    label.textContent = 'Ativado';
+    btn.textContent = '📅 Agendar Disparo';
+    // Set default to 1 hour from now
+    const d = new Date(Date.now() + 3600000);
+    document.getElementById('bc-schedule-time').value = 
+      d.toISOString().slice(0,16);
+  } else {
+    toggle.classList.add('off');
+    inputs.style.display = 'none';
+    label.textContent = 'Desativado';
+    btn.textContent = '🚀 Iniciar Disparo';
+  }
+}
+
 async function startBroadcast() {
   const message = document.getElementById('bc-message').value.trim();
   if (!message) return showNotif('Digite a mensagem!', 'red');
@@ -2667,20 +2727,64 @@ async function startBroadcast() {
   const selectedLeads = bcAllLeads.filter(l => bcSelected.has(`${l.platform}_${l.userId}`));
   const manualList = selectedLeads.map(l => `${l.platform}:${l.userId}`);
   const imageUrl = document.getElementById('bc-image-url')?.value?.trim() || '';
+  const audioUrl = document.getElementById('bc-audio-url')?.value?.trim() || '';
+  const btnText = document.getElementById('bc-btn-text')?.value?.trim() || '';
+  const btnUrl = document.getElementById('bc-btn-url')?.value?.trim() || '';
+  const scheduleOn = !document.getElementById('bc-schedule-toggle').classList.contains('off');
+  const scheduleTime = document.getElementById('bc-schedule-time')?.value;
 
-  const res = await api('POST', '/api/broadcast/start', {
+  // Validate button
+  if (btnText && !btnUrl) return showNotif('Digite a URL do botão!', 'red');
+  if (btnUrl && !btnText) return showNotif('Digite o texto do botão!', 'red');
+
+  const payload = {
     message,
     imageUrl,
+    audioUrl,
+    button: btnText ? { text: btnText, url: btnUrl } : null,
     filters: {},
     manualList
-  });
+  };
 
+  // Agendamento
+  if (scheduleOn && scheduleTime) {
+    const schedDate = new Date(scheduleTime);
+    const delay = schedDate.getTime() - Date.now();
+    if (delay < 0) return showNotif('Escolha uma data/hora futura!', 'red');
+    const mins = Math.round(delay / 60000);
+    showNotif(`📅 Disparo agendado para ${schedDate.toLocaleString('pt-BR')} (em ${mins} min)`, 'green');
+    // Save to localStorage for display
+    localStorage.setItem('bc_scheduled', JSON.stringify({ ...payload, scheduleTime }));
+    bcScheduleTimer = setTimeout(async () => {
+      const res = await api('POST', '/api/broadcast/start', payload);
+      if (!res.error) {
+        document.getElementById('broadcast-composer').style.display = 'none';
+        document.getElementById('broadcast-progress').style.display = 'block';
+        document.getElementById('bc-total').textContent = res.total || bcSelected.size;
+        broadcastInterval = setInterval(updateBroadcastStatus, 3000);
+      }
+    }, delay);
+    // Show cancel button
+    document.getElementById('bc-start-btn').textContent = '❌ Cancelar Agendamento';
+    document.getElementById('bc-start-btn').onclick = cancelSchedule;
+    return;
+  }
+
+  const res = await api('POST', '/api/broadcast/start', payload);
   if (res.error) return showNotif('Erro: ' + res.error, 'red');
 
   document.getElementById('broadcast-composer').style.display = 'none';
   document.getElementById('broadcast-progress').style.display = 'block';
   document.getElementById('bc-total').textContent = res.total || bcSelected.size;
   broadcastInterval = setInterval(updateBroadcastStatus, 3000);
+}
+
+function cancelSchedule() {
+  if (bcScheduleTimer) { clearTimeout(bcScheduleTimer); bcScheduleTimer = null; }
+  localStorage.removeItem('bc_scheduled');
+  document.getElementById('bc-start-btn').textContent = '🚀 Iniciar Disparo';
+  document.getElementById('bc-start-btn').onclick = startBroadcast;
+  showNotif('Agendamento cancelado', 'yellow');
 }
 
 async function updateBroadcastStatus() {
