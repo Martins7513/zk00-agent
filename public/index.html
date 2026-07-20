@@ -298,10 +298,7 @@
     <div class="tab" id="tab-conversations" style="flex-direction:row">
 
       <!-- LISTA DE CONVERSAS -->
-      <div class="conv-list" id="conv-list-panel" style="display:flex;flex-direction:column;width:260px;position:relative">
-      <div id="conv-drag-handle" style="position:absolute;right:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:20;background:transparent" 
-           onmouseenter="this.style.background='rgba(59,130,246,.4)'" 
-           onmouseleave="if(!window._resizing)this.style.background='transparent'"></div>
+      <div class="conv-list" id="conv-list-panel" style="display:flex;flex-direction:column;width:260px">
         <div class="conv-search" style="display:flex;gap:6px;align-items:center">
           <input class="search-input" placeholder="🔍 Buscar..." type="text" id="conv-search" oninput="filterConvs()" style="flex:1">
           <button onclick="markAllRead()" title="Marcar todas como lidas" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 8px;border-radius:7px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">✓ Lidas</button>
@@ -311,8 +308,13 @@
         <div class="conv-items" id="conv-list-items"><div class="loading">Carregando...</div></div>
       </div>
 
+      <!-- HANDLE: resize lista -->
+      <div id="conv-drag-handle" style="width:8px;cursor:col-resize;background:transparent;flex-shrink:0;border-left:2px solid var(--border);transition:border-color .15s"
+           onmouseenter="this.style.borderColor='var(--accent)'"
+           onmouseleave="if(!window._resizing)this.style.borderColor='var(--border)'"></div>
+
       <!-- PAINÉIS DE CHAT DUPLO -->
-      <div id="chat-panels-wrapper" style="flex:1;display:flex;overflow:hidden;border-left:1px solid var(--border)">
+      <div id="chat-panels-wrapper" style="flex:1;display:flex;overflow:hidden">
 
         <!-- PAINEL 1 -->
         <div class="chat-panel" id="chat-panel-1" style="flex:1;border-right:1px solid var(--border);display:flex;flex-direction:column">
@@ -342,10 +344,10 @@
           </div>
         </div>
 
-        <!-- PAINEL 2 -->
-        <div id="panels-drag-handle" style="width:6px;cursor:col-resize;z-index:20;background:transparent;flex-shrink:0"
-             onmouseenter="this.style.background='rgba(59,130,246,.4)'"
-             onmouseleave="if(!window._resizing2)this.style.background='transparent'"></div>
+        <!-- HANDLE: resize painéis -->
+        <div id="panels-drag-handle" style="width:8px;cursor:col-resize;background:transparent;flex-shrink:0;border-left:2px solid var(--border);transition:border-color .15s"
+             onmouseenter="this.style.borderColor='var(--accent)'"
+             onmouseleave="if(!window._resizing2)this.style.borderColor='var(--border)'"></div>
         <div class="chat-panel" id="chat-panel-2" style="flex:1;display:flex;flex-direction:column">
           <div class="chat-header" id="chat-header-2">
             <div class="avatar" id="chat-avatar-2" style="background:var(--bg4);color:var(--text3);width:36px;height:36px;font-size:13px">?</div>
