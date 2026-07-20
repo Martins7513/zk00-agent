@@ -26,8 +26,31 @@ function randomDelay(min = 8000, max = 20000) {
 
 // Filtra leads conforme critérios
 function filterLeads(filters = {}) {
-  const clients = db.getAllClients();
-  let leads = clients;
+  // Pega clientes do banco de clientes E das conversas
+  const clientsMap = {};
+  
+  // 1. Clientes registrados
+  db.getAllClients().forEach(c => {
+    const key = `${c.platform}_${c.userId}`;
+    clientsMap[key] = c;
+  });
+  
+  // 2. Leads das conversas (garante que todos apareçam)
+  const convs = db.getRecentConversations(1000, null);
+  convs.forEach(c => {
+    const key = `${c.platform}_${c.userId}`;
+    if (!clientsMap[key]) {
+      clientsMap[key] = {
+        platform: c.platform,
+        userId: c.userId,
+        name: c.clientName || c.userId,
+        createdAt: c.lastTime,
+        updatedAt: c.lastTime
+      };
+    }
+  });
+
+  let leads = Object.values(clientsMap);
 
   // Filtro por plataforma
   if (filters.platform && filters.platform !== 'all') {
