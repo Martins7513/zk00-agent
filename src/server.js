@@ -666,23 +666,47 @@ app.post('/api/analyze-conversations', authMiddleware, async (req, res) => {
 // ==============================
 
 // Função de envio unificada (Telegram + WhatsApp)
-async function broadcastSendFn(platform, userId, message, imageUrl) {
+async function broadcastSendFn(platform, userId, message, imageUrl, audioUrl, button) {
   if (platform.startsWith('telegram')) {
-    // Pega o cliente certo pelo accountId
+    const { Api } = require('telegram');
     const accountId = platform.replace('telegram_', '');
     const ac = userbotManager.activeClients[accountId];
     const legacyClient = userbot.getClient ? userbot.getClient() : null;
-
     const client = (ac?.client) || legacyClient;
     if (!client) throw new Error('Cliente Telegram não conectado');
 
+    const peer = parseInt(userId);
+
+    // Botão inline (link)
+    const replyMarkup = button?.text && button?.url ? new Api.ReplyInlineMarkup({
+      rows: [new Api.KeyboardButtonRow({
+        buttons: [new Api.KeyboardButtonUrl({ text: button.text, url: button.url })]
+      })]
+    }) : undefined;
+
+    // Imagem
     if (imageUrl) {
-      await client.sendFile(parseInt(userId), {
+      await client.sendFile(peer, {
         file: imageUrl,
-        caption: message
+        caption: message,
+        ...(replyMarkup ? { buttons: replyMarkup } : {})
       });
-    } else {
-      await client.sendMessage(parseInt(userId), { message });
+    }
+    // Áudio
+    else if (audioUrl) {
+      await client.sendFile(peer, {
+        file: audioUrl,
+        caption: message,
+        voiceNote: audioUrl.includes('.ogg'),
+        ...(replyMarkup ? { buttons: replyMarkup } : {})
+      });
+    }
+    // Só texto (com ou sem botão)
+    else {
+      await client.sendMessage(peer, {
+        message,
+        ...(replyMarkup ? { buttons: replyMarkup } : {})
+      });
     }
   } else if (platform === 'whatsapp') {
     const { sendManual } = require('./whatsapp');
@@ -698,7 +722,7 @@ app.post('/api/broadcast/preview', authMiddleware, (req, res) => {
 
 // Inicia o disparo
 app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
-  const { message, imageUrl, filters, manualList } = req.body;
+  const { message, imageUrl, audioUrl, button, filters, manualList } = req.body;
   if (!message) return res.status(400).json({ error: 'Mensagem obrigatória' });
   
   // Se vieram leads selecionados manualmente (formato platform:userid)
@@ -715,6 +739,8 @@ app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
   const result = await broadcast.startBroadcast({
     message,
     imageUrl,
+    audioUrl,
+    button,
     filters: finalFilters,
     sendFn: broadcastSendFn
   });
