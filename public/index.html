@@ -298,7 +298,7 @@
     <div class="tab" id="tab-conversations" style="flex-direction:row">
 
       <!-- LISTA DE CONVERSAS -->
-      <div class="conv-list" style="display:flex;flex-direction:column;width:260px;min-width:260px">
+      <div class="conv-list" id="conv-list-panel" style="display:flex;flex-direction:column;width:260px;min-width:160px;max-width:500px">
         <div class="conv-search" style="display:flex;gap:6px;align-items:center">
           <input class="search-input" placeholder="🔍 Buscar..." type="text" id="conv-search" oninput="filterConvs()" style="flex:1">
           <button onclick="markAllRead()" title="Marcar todas como lidas" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:7px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">✓ Ler Todas</button>
@@ -307,8 +307,14 @@
         <div class="conv-items" id="conv-list-items"><div class="loading">Carregando...</div></div>
       </div>
 
+      <!-- RESIZE HANDLE -->
+      <div id="conv-resize-handle" style="width:5px;background:transparent;cursor:col-resize;flex-shrink:0;position:relative;z-index:10;transition:background .15s" 
+        onmouseenter="this.style.background='var(--accent)'"
+        onmouseleave="this.style.background='transparent'"
+        title="Arraste para redimensionar"></div>
+
       <!-- PAINÉIS DE CHAT DUPLO -->
-      <div id="chat-panels-wrapper" style="flex:1;display:flex;overflow:hidden;border-left:1px solid var(--border)">
+      <div id="chat-panels-wrapper" style="flex:1;display:flex;overflow:hidden">
 
         <!-- PAINEL 1 -->
         <div class="chat-panel" id="chat-panel-1" style="flex:1;border-right:1px solid var(--border);display:flex;flex-direction:column">
@@ -337,6 +343,12 @@
             </div>
           </div>
         </div>
+
+        <!-- RESIZE HANDLE PAINEIS -->
+        <div id="panels-resize-handle" style="width:5px;background:transparent;cursor:col-resize;flex-shrink:0;position:relative;z-index:10;transition:background .15s"
+          onmouseenter="this.style.background='var(--accent)'"
+          onmouseleave="this.style.background='transparent'"
+          title="Arraste para redimensionar painéis"></div>
 
         <!-- PAINEL 2 -->
         <div class="chat-panel" id="chat-panel-2" style="flex:1;display:flex;flex-direction:column">
@@ -1761,6 +1773,101 @@ async function saveKnowledge() {
   showNotif(editingId ? 'Conhecimento atualizado!' : 'Adicionado à base de conhecimento!', 'green');
 }
 
+// ── Resize das colunas ──
+function initResize() {
+  // Resize: lista de conversas
+  const convHandle = document.getElementById('conv-resize-handle');
+  const convPanel = document.getElementById('conv-list-panel');
+
+  if (convHandle && convPanel) {
+    let dragging = false, startX = 0, startW = 0;
+
+    convHandle.addEventListener('mousedown', e => {
+      dragging = true;
+      startX = e.clientX;
+      startW = convPanel.offsetWidth;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      convHandle.style.background = 'var(--accent)';
+    });
+
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const newW = Math.max(160, Math.min(500, startW + (e.clientX - startX)));
+      convPanel.style.width = newW + 'px';
+      convPanel.style.minWidth = newW + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      convHandle.style.background = 'transparent';
+      // Salva preferência
+      localStorage.setItem('conv_list_width', convPanel.offsetWidth);
+    });
+
+    // Restaura largura salva
+    const saved = localStorage.getItem('conv_list_width');
+    if (saved) {
+      convPanel.style.width = saved + 'px';
+      convPanel.style.minWidth = saved + 'px';
+    }
+  }
+
+  // Resize: entre painel 1 e painel 2
+  const panelsHandle = document.getElementById('panels-resize-handle');
+  const panel1 = document.getElementById('chat-panel-1');
+  const panel2 = document.getElementById('chat-panel-2');
+
+  if (panelsHandle && panel1 && panel2) {
+    let dragging = false, startX = 0, startW1 = 0;
+
+    panelsHandle.addEventListener('mousedown', e => {
+      dragging = true;
+      startX = e.clientX;
+      startW1 = panel1.offsetWidth;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      panelsHandle.style.background = 'var(--accent)';
+    });
+
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const wrapper = document.getElementById('chat-panels-wrapper');
+      const totalW = wrapper.offsetWidth - 5; // minus handle
+      const newW1 = Math.max(200, Math.min(totalW - 200, startW1 + (e.clientX - startX)));
+      panel1.style.flex = 'none';
+      panel1.style.width = newW1 + 'px';
+      panel2.style.flex = '1';
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      panelsHandle.style.background = 'transparent';
+      localStorage.setItem('panel1_width', panel1.offsetWidth);
+    });
+
+    // Restaura largura salva
+    const saved = localStorage.getItem('panel1_width');
+    if (saved) {
+      panel1.style.flex = 'none';
+      panel1.style.width = saved + 'px';
+    }
+  }
+}
+
+// Inicia resize quando carregar a aba de conversas
+const _origShowTab = showTab;
+function showTab(id, el) {
+  _origShowTab(id, el);
+  if (id === 'conversations') setTimeout(initResize, 100);
+}
+
 async function markAllRead() {
   // Marca todas as conversas visíveis como lidas
   const toRead = allConvs.filter(c => c.unread > 0 || c.flag === 'attention');
@@ -2245,40 +2352,70 @@ async function previewBroadcast() {
   const res = await api('POST', '/api/broadcast/preview', { filters });
   const el = document.getElementById('bc-preview');
   el.style.display = 'block';
-  if (res.error) {
-    el.innerHTML = `<span style="color:var(--red)">${res.error}</span>`;
-    return;
-  }
+  if (res.error) { el.innerHTML = `<span style="color:var(--red)">${res.error}</span>`; return; }
+
+  // Mostra conversas como checkboxes para selecionar
+  const selected = new Set(res.preview.map(l => `${l.platform}_${l.userId}`));
+
   el.innerHTML = `
-    <strong style="color:var(--green)">${res.total} leads</strong> serão atingidos.
-    ${res.preview.length ? '<div style="margin-top:8px;color:var(--text3)">Primeiros ' + res.preview.length + ':</div>' : ''}
-    ${res.preview.map(l => `<div style="color:var(--text2)">• ${l.name} (${l.platform})</div>`).join('')}
-    ${res.total > 20 ? `<div style="color:var(--text3)">... e mais ${res.total - 20}</div>` : ''}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <strong style="color:var(--green)">${res.total} conversas encontradas</strong>
+      <div style="display:flex;gap:6px">
+        <button onclick="selectAllLeads(true)" style="background:none;border:1px solid var(--border);color:var(--text2);padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer">✓ Todos</button>
+        <button onclick="selectAllLeads(false)" style="background:none;border:1px solid var(--border);color:var(--text2);padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer">✗ Nenhum</button>
+      </div>
+    </div>
+    <div style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:4px" id="bc-lead-list">
+      ${res.preview.map(l => `
+        <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg4);border-radius:6px;cursor:pointer;font-size:12px">
+          <input type="checkbox" class="bc-lead-check" value="${l.platform}_${l.userId}" checked
+            data-platform="${l.platform}" data-userid="${l.userId}" data-name="${l.name||l.userId}"
+            style="accent-color:var(--accent)">
+          <span style="flex:1">${l.name||l.userId}</span>
+          <span style="font-size:10px;color:var(--text3)">${l.platform?.includes('telegram')?'TG':'WA'}</span>
+        </label>
+      `).join('')}
+    </div>
+    ${res.total > 20 ? `<div style="color:var(--text3);font-size:11px;margin-top:6px">Mostrando 20 de ${res.total}. Use filtros para refinar.</div>` : ''}
   `;
+}
+
+function selectAllLeads(check) {
+  document.querySelectorAll('.bc-lead-check').forEach(cb => cb.checked = check);
 }
 
 async function startBroadcast() {
   const message = document.getElementById('bc-message').value.trim();
   if (!message) return showNotif('Digite a mensagem!', 'red');
 
-  const total = parseInt(document.getElementById('bc-preview').textContent) || 0;
-  const confirm_msg = `Confirmar disparo para os leads filtrados?\n\nIsso vai enviar mensagens reais no Telegram/WhatsApp.`;
-  if (!confirm(confirm_msg)) return;
+  // Pega leads selecionados via checkbox
+  const checked = [...document.querySelectorAll('.bc-lead-check:checked')];
+  
+  let filters = getBroadcastFilters();
+  let manualList = null;
+
+  if (checked.length > 0) {
+    // Usa os leads selecionados manualmente
+    manualList = checked.map(cb => `${cb.dataset.platform}:${cb.dataset.userid}`);
+    if (!confirm(`Confirmar disparo para ${checked.length} conversa(s) selecionada(s)?`)) return;
+  } else {
+    if (!confirm(`Confirmar disparo com os filtros selecionados?`)) return;
+  }
+
+  const imageUrl = document.getElementById('bc-image-url')?.value?.trim() || '';
 
   const res = await api('POST', '/api/broadcast/start', {
     message,
-    imageUrl: document.getElementById('bc-image').value.trim() || null,
-    filters: getBroadcastFilters()
+    imageUrl,
+    filters,
+    ...(manualList ? { manualList } : {})
   });
 
-  if (res.error) return showNotif(res.error, 'red');
+  if (res.error) return showNotif('Erro: ' + res.error, 'red');
 
   document.getElementById('broadcast-composer').style.display = 'none';
   document.getElementById('broadcast-progress').style.display = 'block';
-  document.getElementById('bc-total').textContent = res.total;
-  showNotif('Disparo iniciado!', 'green');
-
-  // Polling do status
+  document.getElementById('bc-total').textContent = res.total || '?';
   broadcastInterval = setInterval(updateBroadcastStatus, 3000);
 }
 
