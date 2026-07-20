@@ -301,7 +301,8 @@
       <div class="conv-list" id="conv-list-panel" style="display:flex;flex-direction:column;width:260px;min-width:160px;max-width:500px">
         <div class="conv-search" style="display:flex;gap:6px;align-items:center">
           <input class="search-input" placeholder="🔍 Buscar..." type="text" id="conv-search" oninput="filterConvs()" style="flex:1">
-          <button onclick="markAllRead()" title="Marcar todas como lidas" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:7px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">✓ Ler Todas</button>
+          <button onclick="markAllRead()" title="Marcar todas como lidas" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 8px;border-radius:7px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">✓ Lidas</button>
+          <button onclick="openModal('folder')" title="Criar pasta" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 8px;border-radius:7px;font-size:13px;cursor:pointer;font-family:inherit">📁</button>
         </div>
         <div id="account-tabs" style="display:flex;gap:0;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0"></div>
         <div class="conv-items" id="conv-list-items"><div class="loading">Carregando...</div></div>
@@ -554,10 +555,14 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
 
   <!-- ESQUERDA: Lista de conversas para selecionar -->
   <div style="width:300px;min-width:300px;border-right:1px solid var(--border);display:flex;flex-direction:column;height:100%">
-    <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center">
-      <input class="search-input" id="bc-search" placeholder="🔍 Buscar lead..." oninput="filterBcLeads()" style="flex:1">
-      <button onclick="selectAllBcLeads(true)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">✓ Todos</button>
+    <div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center">
+      <input class="search-input" id="bc-search" placeholder="🔍 Buscar..." oninput="filterBcLeads()" style="flex:1">
+      <button onclick="selectAllBcLeads(true)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">✓</button>
       <button onclick="selectAllBcLeads(false)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">✗</button>
+    </div>
+    <!-- Abas por conta -->
+    <div id="bc-acc-tabs" style="display:flex;overflow-x:auto;border-bottom:1px solid var(--border);flex-shrink:0">
+      <button class="acc-tab active" onclick="setBcFilter('all',this)">Todas</button>
     </div>
     <div style="flex:1;overflow-y:auto" id="bc-conv-list">
       <div class="loading">Carregando conversas...</div>
@@ -713,6 +718,36 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
       <button class="btn ghost" onclick="removeLabel()">🗑 Remover</button>
       <button class="btn ghost" onclick="closeModal('label')">Cancelar</button>
       <button class="btn primary" onclick="saveLabel()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CRIAR PASTA -->
+<div class="modal-overlay" id="modal-folder">
+  <div class="modal" style="width:380px">
+    <div class="modal-title">📁 Criar Pasta <button class="close-btn" onclick="closeModal('folder')">✕</button></div>
+    <div class="form-group">
+      <label class="form-label">Nome da pasta</label>
+      <input class="form-input" id="folder-name" placeholder="Ex: VIP, Interessados, Clientes..." type="text"
+        onkeydown="if(event.key==='Enter')saveFolder()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cor</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px" id="folder-colors">
+        <div onclick="selectFolderColor('#6366f1')" style="width:28px;height:28px;border-radius:50%;background:#6366f1;cursor:pointer;border:2px solid white" data-color="#6366f1"></div>
+        <div onclick="selectFolderColor('#22c55e')" style="width:28px;height:28px;border-radius:50%;background:#22c55e;cursor:pointer;border:2px solid transparent" data-color="#22c55e"></div>
+        <div onclick="selectFolderColor('#f59e0b')" style="width:28px;height:28px;border-radius:50%;background:#f59e0b;cursor:pointer;border:2px solid transparent" data-color="#f59e0b"></div>
+        <div onclick="selectFolderColor('#ef4444')" style="width:28px;height:28px;border-radius:50%;background:#ef4444;cursor:pointer;border:2px solid transparent" data-color="#ef4444"></div>
+        <div onclick="selectFolderColor('#2AABEE')" style="width:28px;height:28px;border-radius:50%;background:#2AABEE;cursor:pointer;border:2px solid transparent" data-color="#2AABEE"></div>
+        <div onclick="selectFolderColor('#a855f7')" style="width:28px;height:28px;border-radius:50%;background:#a855f7;cursor:pointer;border:2px solid transparent" data-color="#a855f7"></div>
+        <div onclick="selectFolderColor('#f43f5e')" style="width:28px;height:28px;border-radius:50%;background:#f43f5e;cursor:pointer;border:2px solid transparent" data-color="#f43f5e"></div>
+        <div onclick="selectFolderColor('#0ea5e9')" style="width:28px;height:28px;border-radius:50%;background:#0ea5e9;cursor:pointer;border:2px solid transparent" data-color="#0ea5e9"></div>
+      </div>
+      <input type="hidden" id="folder-color" value="#6366f1">
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('folder')">Cancelar</button>
+      <button class="btn primary" onclick="saveFolder()">Criar Pasta</button>
     </div>
   </div>
 </div>
@@ -1020,6 +1055,13 @@ function openLabelModal(key) {
   const existing = labels[key];
   document.getElementById('label-name').value = existing ? existing.name : '';
   selectLabelColor(existing ? existing.color : '#6366f1');
+
+  // Popula select de pastas
+  const folderSelect = document.getElementById('label-folder');
+  const folders = getFolders();
+  folderSelect.innerHTML = '<option value="">— Sem pasta —</option>' +
+    folders.map(f => `<option value="${f.id}" ${existing?.folderId===f.id?'selected':''}>${f.name}</option>`).join('');
+
   openModal('label');
 }
 
@@ -1033,11 +1075,13 @@ function selectLabelColor(color) {
 function saveLabel() {
   const name = document.getElementById('label-name').value.trim();
   const color = document.getElementById('label-color').value;
+  const folderId = document.getElementById('label-folder').value;
   if (!name) return showNotif('Digite um nome para a etiqueta!', 'red');
   const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
-  labels[_labelTargetKey] = { name, color };
+  labels[_labelTargetKey] = { name, color, ...(folderId ? { folderId } : {}) };
   localStorage.setItem('conv_labels', JSON.stringify(labels));
   closeModal('label');
+  renderAccountTabs(allConvs);
   filterConvs();
   showNotif('Etiqueta salva!', 'green');
 }
@@ -1247,6 +1291,21 @@ async function renderAccountTabs(convs) {
     </button>`;
   });
 
+  // Add folder tabs
+  if (folders.length > 0) {
+    const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
+    folders.forEach(f => {
+      const count = convs.filter(c => labels[c.key]?.folderId === f.id).length;
+      tabs += `<button class="acc-tab ${activeFolder===f.id?'active':''}" onclick="setActiveFolder('${f.id}')"
+        style="display:flex;align-items:center;gap:4px">
+        <span style="width:8px;height:8px;border-radius:50%;background:${f.color};display:inline-block;flex-shrink:0"></span>
+        ${f.name}
+        <span style="color:var(--text3);font-size:10px">${count}</span>
+        <span onclick="event.stopPropagation();deleteFolder('${f.id}')" style="color:var(--text3);font-size:10px;margin-left:2px;cursor:pointer" title="Remover pasta">✕</span>
+      </button>`;
+    });
+  }
+
   tabsEl.innerHTML = tabs;
 }
 
@@ -1269,6 +1328,15 @@ function getAccountName(platform) {
 function getLabelHtml(label) {
   if (!label) return '';
   return `<span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;background:${label.color}22;color:${label.color};border:1px solid ${label.color}44;margin-right:3px">${label.name}</span>`;
+}
+
+function getFolderBadge(key) {
+  const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
+  const folderId = labels[key]?.folderId;
+  if (!folderId) return '';
+  const folder = getFolders().find(f => f.id === folderId);
+  if (!folder) return '';
+  return `<span style="display:inline-block;padding:1px 5px;border-radius:10px;font-size:9px;background:${folder.color}22;color:${folder.color};border:1px solid ${folder.color}44">📁 ${folder.name}</span>`;
 }
 
 function renderConvList(convs) {
@@ -1308,6 +1376,12 @@ function renderConvList(convs) {
 function filterConvs() {
   const q = document.getElementById('conv-search').value.toLowerCase();
   let filtered = allConvs;
+
+  // Filtra por pasta
+  if (activeFolder && activeFolder !== 'all') {
+    const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
+    filtered = filtered.filter(c => labels[c.key]?.folderId === activeFolder);
+  }
 
   // Filtra por conta selecionada
   if (activeAccountFilter && activeAccountFilter !== 'all') {
@@ -1757,55 +1831,60 @@ function setupResizeHandle(handleId, leftId, rightId, minW, maxW, storageKey) {
   const left = document.getElementById(leftId);
   if (!handle || !left) return;
 
+  // Remove any old listeners by cloning
+  const newHandle = handle.cloneNode(true);
+  handle.parentNode.replaceChild(newHandle, handle);
+
   let dragging = false, startX = 0, startW = 0;
 
-  handle.addEventListener('mousedown', e => {
+  newHandle.addEventListener('mousedown', e => {
     e.preventDefault();
+    e.stopPropagation();
     dragging = true;
     startX = e.clientX;
-    startW = left.getBoundingClientRect().width;
+    startW = left.offsetWidth;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-    handle.style.background = 'var(--accent)';
+    document.body.style.pointerEvents = 'none';
+    newHandle.style.background = 'var(--accent)';
+    newHandle.style.pointerEvents = 'auto';
   });
 
-  document.addEventListener('mousemove', e => {
+  const onMove = e => {
     if (!dragging) return;
-    e.preventDefault();
     const delta = e.clientX - startX;
-    let newW = startW + delta;
+    let newW = Math.round(startW + delta);
     if (minW) newW = Math.max(minW, newW);
     if (maxW) newW = Math.min(maxW, newW);
-    left.style.width = newW + 'px';
-    left.style.minWidth = newW + 'px';
-    left.style.maxWidth = newW + 'px';
-    left.style.flex = 'none';
+    left.style.cssText += `;width:${newW}px !important;min-width:${newW}px !important;max-width:${newW}px !important;flex:none !important`;
     if (rightId) {
       const right = document.getElementById(rightId);
-      if (right) right.style.flex = '1';
+      if (right) right.style.flex = '1 1 0';
     }
-  });
+  };
 
-  document.addEventListener('mouseup', () => {
+  const onUp = e => {
     if (!dragging) return;
     dragging = false;
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
-    handle.style.background = 'transparent';
-    localStorage.setItem(storageKey, left.getBoundingClientRect().width);
-  });
+    document.body.style.pointerEvents = '';
+    newHandle.style.background = 'transparent';
+    newHandle.style.pointerEvents = '';
+    localStorage.setItem(storageKey, left.offsetWidth);
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
 
   // Restaura largura salva
   const saved = localStorage.getItem(storageKey);
-  if (saved && parseFloat(saved) > 0) {
-    left.style.width = saved + 'px';
-    left.style.minWidth = saved + 'px';
-    left.style.maxWidth = saved + 'px';
+  if (saved && parseInt(saved) > 50) {
+    const w = parseInt(saved);
+    left.style.width = w + 'px';
+    left.style.minWidth = w + 'px';
+    left.style.maxWidth = w + 'px';
     left.style.flex = 'none';
-    if (rightId) {
-      const right = document.getElementById(rightId);
-      if (right) right.style.flex = '1';
-    }
   }
 }
 
@@ -1816,16 +1895,108 @@ function showTab(id, el) {
   if (id === 'conversations') setTimeout(initResize, 100);
 }
 
+// ── PASTAS ──
+function getFolders() {
+  return JSON.parse(localStorage.getItem('conv_folders') || '[]');
+}
+function saveFolders(folders) {
+  localStorage.setItem('conv_folders', JSON.stringify(folders));
+}
+
+function selectFolderColor(color) {
+  document.getElementById('folder-color').value = color;
+  document.querySelectorAll('#folder-colors div').forEach(el => {
+    el.style.border = el.dataset.color === color ? '2px solid white' : '2px solid transparent';
+  });
+}
+
+function saveFolder() {
+  const name = document.getElementById('folder-name').value.trim();
+  const color = document.getElementById('folder-color').value;
+  if (!name) return showNotif('Digite um nome!', 'red');
+  const folders = getFolders();
+  if (folders.find(f => f.name === name)) return showNotif('Pasta já existe!', 'red');
+  folders.push({ id: 'folder_' + Date.now(), name, color });
+  saveFolders(folders);
+  closeModal('folder');
+  document.getElementById('folder-name').value = '';
+  renderFolderTabs();
+  showNotif(`📁 Pasta "${name}" criada!`, 'green');
+}
+
+function deleteFolder(id) {
+  const folders = getFolders().filter(f => f.id !== id);
+  saveFolders(folders);
+  // Remove conversas desta pasta
+  const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
+  Object.keys(labels).forEach(k => {
+    if (labels[k].folderId === id) delete labels[k].folderId;
+  });
+  localStorage.setItem('conv_labels', JSON.stringify(labels));
+  renderFolderTabs();
+  showNotif('Pasta removida', '');
+}
+
+let activeFolder = 'all';
+function renderFolderTabs() {
+  const tabs = document.getElementById('account-tabs');
+  if (!tabs) return;
+  const folders = getFolders();
+  // Keep existing account tabs logic but add folders
+  renderAccountTabs(allConvs);
+}
+
+function setActiveFolder(id) {
+  activeFolder = id;
+  filterConvs();
+}
+
+// Override filterConvs to also filter by folder
+const _origFilterConvs = filterConvs;
+
 // ── Disparo em massa: lista de conversas ──
 let bcAllLeads = [];
 let bcSelected = new Set();
 
+let bcActiveFilter = 'all';
+let bcAccFilter = 'all';
+
+function setBcFilter(id, el) {
+  bcAccFilter = id;
+  document.querySelectorAll('#bc-acc-tabs .acc-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderBcLeads();
+}
+
 async function loadBroadcastLeads() {
   const res = await api('POST', '/api/broadcast/preview', { filters: {} });
   if (!res || res.error) return;
-  
+
   bcAllLeads = res.preview || [];
   bcSelected = new Set(bcAllLeads.map(l => `${l.platform}_${l.userId}`));
+
+  // Populate account tabs
+  const tabsEl = document.getElementById('bc-acc-tabs');
+  if (tabsEl) {
+    const accounts = await api('GET', '/api/accounts');
+    const accMap = {};
+    (accounts||[]).forEach(a => accMap[a.id] = a);
+
+    const accIds = new Set();
+    bcAllLeads.forEach(l => {
+      if (l.platform?.startsWith('telegram_')) accIds.add(l.platform.replace('telegram_',''));
+    });
+
+    let tabs = `<button class="acc-tab ${bcAccFilter==='all'?'active':''}" onclick="setBcFilter('all',this)">Todas ${bcAllLeads.length}</button>`;
+    accIds.forEach(id => {
+      const acc = accMap[id];
+      const name = acc?.name || 'Conta';
+      const count = bcAllLeads.filter(l => l.platform === `telegram_${id}`).length;
+      tabs += `<button class="acc-tab ${bcAccFilter===id?'active':''}" onclick="setBcFilter('${id}',this)">${name} <span style="color:var(--text3);font-size:10px">${count}</span></button>`;
+    });
+    tabsEl.innerHTML = tabs;
+  }
+
   renderBcLeads();
 }
 
@@ -1834,9 +2005,11 @@ function renderBcLeads() {
   const q = document.getElementById('bc-search')?.value?.toLowerCase() || '';
   const labels = JSON.parse(localStorage.getItem('conv_labels') || '{}');
 
-  const filtered = bcAllLeads.filter(l =>
-    !q || (l.name||l.userId).toLowerCase().includes(q)
-  );
+  let filtered = bcAllLeads;
+  if (bcAccFilter !== 'all') {
+    filtered = filtered.filter(l => l.platform === `telegram_${bcAccFilter}`);
+  }
+  if (q) filtered = filtered.filter(l => (l.name||l.userId).toLowerCase().includes(q));
 
   if (!filtered.length) {
     el.innerHTML = '<div class="loading">Nenhuma conversa encontrada</div>';
