@@ -187,6 +187,10 @@ async function processMessage(platform, userId, userName, text) {
   const response = await generateResponse(platform, userId, text, knowledgeAnswer);
   db.addMessage(platform, userId, 'agent', response);
 
+  // Remove flag de espera quando agente responde
+  const curClient = db.getClient(platform, userId);
+  if (curClient?.flag === 'waiting') db.flagConversation(platform, userId, null);
+
   // Agenda follow-up se esse gatilho tiver config
   followup.scheduleFromKnowledge(platform, userId, knowledgeAnswer, getSendFn(platform));
   // Marca que usuário respondeu (cancela follow-ups do tipo 'reply')
