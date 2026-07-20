@@ -229,6 +229,7 @@ function getRecentConversations(limit=20, ownerId=null) {
       lastRole: last.role,
       lastTime: last.timestamp,
       unread: msgs.filter(m=>m.role==='user'&&!m.read).length,
+      lastReadByLead: client.lastReadByLead || null,
       isHumanMode: (db.settings.humanModeChats||[]).includes(key),
       flag: client.flag || null
     });
@@ -317,6 +318,14 @@ function getStats(ownerId=null) {
   };
 }
 
+// Marca que o lead leu as mensagens do agente
+function markReadByLead(platform, userId) {
+  const key = getClientKey(platform, userId);
+  if (!db.clients[key]) return;
+  db.clients[key].lastReadByLead = new Date().toISOString();
+  saveDB(db);
+}
+
 function markAsRead(platform, userId) {
   const key = getClientKey(platform, userId);
   if (!db.conversations[key]) return;
@@ -361,6 +370,6 @@ module.exports = {
   getHistory, addMessage, getRecentConversations,
   searchKnowledge, getAllKnowledge, addKnowledge, deleteKnowledge,
   getSettings, updateSettings, isHumanMode, setHumanMode, flagConversation,
-  getStats, exportBackup, importBackup, deleteMessage, toggleKnowledge, markAsRead,
+  getStats, exportBackup, importBackup, deleteMessage, toggleKnowledge, markAsRead, markReadByLead,
   getUsers, getUserByCredentials, addUser, updateUser, deleteUser
 };
