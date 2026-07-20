@@ -301,6 +301,7 @@
       <div class="conv-list" style="display:flex;flex-direction:column;width:260px;min-width:260px">
         <div class="conv-search" style="display:flex;gap:6px;align-items:center">
           <input class="search-input" placeholder="🔍 Buscar..." type="text" id="conv-search" oninput="filterConvs()" style="flex:1">
+          <button onclick="markAllRead()" title="Marcar todas como lidas" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:7px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">✓ Ler Todas</button>
         </div>
         <div id="account-tabs" style="display:flex;gap:0;border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0"></div>
         <div class="conv-items" id="conv-list-items"><div class="loading">Carregando...</div></div>
@@ -1758,6 +1759,22 @@ async function saveKnowledge() {
 
   await loadKnowledge();
   showNotif(editingId ? 'Conhecimento atualizado!' : 'Adicionado à base de conhecimento!', 'green');
+}
+
+async function markAllRead() {
+  // Marca todas as conversas visíveis como lidas
+  const toRead = allConvs.filter(c => c.unread > 0 || c.flag === 'attention');
+  if (!toRead.length) { showNotif('Nenhuma mensagem para marcar', ''); return; }
+
+  for (const c of toRead) {
+    await api('POST', `/api/conversations/${c.platform}/${c.userId}/read`);
+    c.unread = 0;
+    c.flag = null;
+  }
+
+  renderConvList(allConvs);
+  updateUnreadBadge();
+  showNotif(`✅ ${toRead.length} conversa(s) marcadas como lidas`, 'green');
 }
 
 async function toggleKnowledgeItem(id, currentlyInactive) {
