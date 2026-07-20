@@ -605,26 +605,54 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
       </div>
 
       <!-- MÍDIA -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <div class="form-group" style="margin:0">
-          <label class="form-label">🖼 URL da Imagem</label>
-          <input class="form-input" id="bc-image-url" placeholder="https://...imagem.jpg">
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:10px">📎 Anexar Mídia <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional)</span></div>
+        
+        <!-- Tipo de mídia -->
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button onclick="setBcMedia('none')" id="bc-media-none" class="btn ghost" style="flex:1;font-size:11px;padding:5px 0;border-color:var(--accent);color:var(--accent)">Nenhuma</button>
+          <button onclick="setBcMedia('image')" id="bc-media-image" class="btn ghost" style="flex:1;font-size:11px;padding:5px 0">🖼 Imagem</button>
+          <button onclick="setBcMedia('audio')" id="bc-media-audio" class="btn ghost" style="flex:1;font-size:11px;padding:5px 0">🎵 Áudio</button>
         </div>
-        <div class="form-group" style="margin:0">
-          <label class="form-label">🎵 URL do Áudio</label>
-          <input class="form-input" id="bc-audio-url" placeholder="https://...audio.mp3">
+
+        <!-- Upload de imagem -->
+        <div id="bc-image-area" style="display:none">
+          <input type="file" id="bc-image-file" accept="image/*" onchange="previewBcMedia('image')" style="display:none">
+          <div onclick="document.getElementById('bc-image-file').click()" id="bc-image-drop"
+            style="border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:border-color .15s"
+            onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:24px;margin-bottom:6px">🖼</div>
+            <div style="font-size:12px;color:var(--text2)">Clique para selecionar imagem</div>
+            <div style="font-size:10px;color:var(--text3)">JPG, PNG, GIF, WebP</div>
+          </div>
+          <div id="bc-image-preview" style="display:none;margin-top:8px;position:relative">
+            <img id="bc-image-preview-img" style="width:100%;max-height:150px;object-fit:cover;border-radius:8px">
+            <button onclick="clearBcMedia('image')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px">✕</button>
+          </div>
+        </div>
+
+        <!-- Upload de áudio -->
+        <div id="bc-audio-area" style="display:none">
+          <input type="file" id="bc-audio-file" accept="audio/*" onchange="previewBcMedia('audio')" style="display:none">
+          <div onclick="document.getElementById('bc-audio-file').click()" id="bc-audio-drop"
+            style="border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:border-color .15s"
+            onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:24px;margin-bottom:6px">🎵</div>
+            <div style="font-size:12px;color:var(--text2)">Clique para selecionar áudio</div>
+            <div style="font-size:10px;color:var(--text3)">MP3, OGG, WAV, M4A</div>
+          </div>
+          <div id="bc-audio-preview" style="display:none;margin-top:8px">
+            <audio id="bc-audio-preview-player" controls style="width:100%;height:32px"></audio>
+            <button onclick="clearBcMedia('audio')" style="width:100%;background:none;border:1px solid var(--border);color:var(--text2);padding:4px;border-radius:6px;cursor:pointer;font-size:11px;margin-top:4px">✕ Remover áudio</button>
+          </div>
         </div>
       </div>
 
-      <!-- BOTÃO COM LINK -->
-      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">
-        <div style="font-size:12px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
-          🔗 Botão com Link <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional)</span>
-        </div>
-        <div style="display:flex;gap:8px">
-          <input class="form-input" id="bc-btn-text" placeholder="Texto do botão (ex: Ver oferta)" style="flex:1">
-          <input class="form-input" id="bc-btn-url" placeholder="https://..." style="flex:2">
-        </div>
+      <!-- LINK NO TEXTO -->
+      <div class="form-group">
+        <label class="form-label">🔗 Link (opcional — será adicionado à mensagem)</label>
+        <input class="form-input" id="bc-link-url" placeholder="https://...">
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">O link aparece diretamente no texto da mensagem</div>
       </div>
 
       <!-- AGENDAMENTO -->
@@ -2691,6 +2719,60 @@ function selectAllLeads(check) {
   document.querySelectorAll('.bc-lead-check').forEach(cb => cb.checked = check);
 }
 
+// ── Mídia no disparo ──
+let bcMediaType = 'none';
+let bcMediaBase64 = null;
+let bcMediaMime = null;
+
+function setBcMedia(type) {
+  bcMediaType = type;
+  bcMediaBase64 = null;
+  bcMediaMime = null;
+
+  // Update buttons
+  ['none','image','audio'].forEach(t => {
+    const btn = document.getElementById(`bc-media-${t}`);
+    if (btn) {
+      btn.style.borderColor = t === type ? 'var(--accent)' : 'var(--border)';
+      btn.style.color = t === type ? 'var(--accent)' : 'var(--text2)';
+    }
+  });
+
+  // Show/hide areas
+  document.getElementById('bc-image-area').style.display = type === 'image' ? 'block' : 'none';
+  document.getElementById('bc-audio-area').style.display = type === 'audio' ? 'block' : 'none';
+}
+
+function previewBcMedia(type) {
+  const file = document.getElementById(`bc-${type}-file`).files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    bcMediaBase64 = e.target.result.split(',')[1];
+    bcMediaMime = file.type;
+
+    if (type === 'image') {
+      document.getElementById('bc-image-drop').style.display = 'none';
+      document.getElementById('bc-image-preview').style.display = 'block';
+      document.getElementById('bc-image-preview-img').src = e.target.result;
+    } else {
+      document.getElementById('bc-audio-drop').style.display = 'none';
+      document.getElementById('bc-audio-preview').style.display = 'block';
+      document.getElementById('bc-audio-preview-player').src = e.target.result;
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearBcMedia(type) {
+  bcMediaBase64 = null;
+  bcMediaMime = null;
+  document.getElementById(`bc-${type}-file`).value = '';
+  document.getElementById(`bc-${type}-drop`).style.display = 'block';
+  document.getElementById(`bc-${type}-preview`).style.display = 'none';
+}
+
 let bcScheduleTimer = null;
 
 function toggleSchedule() {
@@ -2726,22 +2808,27 @@ async function startBroadcast() {
   // Monta lista de leads selecionados
   const selectedLeads = bcAllLeads.filter(l => bcSelected.has(`${l.platform}_${l.userId}`));
   const manualList = selectedLeads.map(l => `${l.platform}:${l.userId}`);
-  const imageUrl = document.getElementById('bc-image-url')?.value?.trim() || '';
-  const audioUrl = document.getElementById('bc-audio-url')?.value?.trim() || '';
-  const btnText = document.getElementById('bc-btn-text')?.value?.trim() || '';
-  const btnUrl = document.getElementById('bc-btn-url')?.value?.trim() || '';
+  // Mídia anexada
+  const imageUrl = bcMediaType === 'image' && bcMediaBase64 ? null : '';
+  const audioUrl = bcMediaType === 'audio' && bcMediaBase64 ? null : '';
+  const mediaBase64 = bcMediaBase64 || null;
+  const mediaMime = bcMediaMime || null;
+  const mediaType = bcMediaType !== 'none' ? bcMediaType : null;
+
+  // Link no texto
+  const linkUrl = document.getElementById('bc-link-url')?.value?.trim() || '';
+  const fullMessage = linkUrl ? `${message}\n\n${linkUrl}` : message;
+
+  const btnText = '';
+  const btnUrl = '';
   const scheduleOn = !document.getElementById('bc-schedule-toggle').classList.contains('off');
   const scheduleTime = document.getElementById('bc-schedule-time')?.value;
 
-  // Validate button
-  if (btnText && !btnUrl) return showNotif('Digite a URL do botão!', 'red');
-  if (btnUrl && !btnText) return showNotif('Digite o texto do botão!', 'red');
-
   const payload = {
-    message,
-    imageUrl,
-    audioUrl,
-    button: btnText ? { text: btnText, url: btnUrl } : null,
+    message: fullMessage,
+    mediaBase64,
+    mediaMime,
+    mediaType,
     filters: {},
     manualList
   };
