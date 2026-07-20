@@ -728,6 +728,21 @@ app.post('/api/users/:userId/link-account', authMiddleware, (req, res) => {
 // ==============================
 // DELETAR MENSAGEM
 // ==============================
+// Marca TODAS as conversas como lidas
+app.post('/api/conversations/read-all', authMiddleware, (req, res) => {
+  const ownerId = req.user?.isAdmin ? null : req.user?.id;
+  const convs = db.getRecentConversations(1000, ownerId);
+  let count = 0;
+  for (const c of convs) {
+    if (c.unread > 0 || c.flag === 'attention') {
+      db.markAsRead(c.platform, c.userId);
+      db.flagConversation(c.platform, c.userId, null);
+      count++;
+    }
+  }
+  res.json({ success: true, count });
+});
+
 // Marca conversa como lida E remove flag de atenção
 app.post('/api/conversations/:platform/:userId/read', authMiddleware, (req, res) => {
   db.markAsRead(req.params.platform, req.params.userId);
