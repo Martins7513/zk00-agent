@@ -14,12 +14,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const ntfy = require('./ntfy');
 
-// ── Verifica leads sem resposta a cada 2 minutos ──
+// ── Verifica leads esperando e sem resposta ──
 const notifiedUnanswered = new Set();
 setInterval(async () => {
   try {
     const convs = db.getRecentConversations(100, null);
     const now = Date.now();
+    const FIVE_MIN = 5 * 60 * 1000;
     const TEN_MIN = 10 * 60 * 1000;
 
     for (const conv of convs) {
@@ -28,9 +29,15 @@ setInterval(async () => {
       if (conv.isHumanMode) continue;
 
       const elapsed = now - new Date(conv.lastTime).getTime();
+
+      // 5 min esperando → flag laranja
+      if (elapsed >= FIVE_MIN && conv.flag !== 'attention' && conv.flag !== 'waiting') {
+        db.flagConversation(conv.platform, conv.userId, 'waiting');
+      }
+
+      // 10 min → notifica via Ntfy
       const block = Math.floor(elapsed / TEN_MIN);
       const key = `${conv.key}_${block}`;
-
       if (elapsed >= TEN_MIN && !notifiedUnanswered.has(key)) {
         notifiedUnanswered.add(key);
         if (notifiedUnanswered.size > 200) notifiedUnanswered.clear();
@@ -39,7 +46,7 @@ setInterval(async () => {
       }
     }
   } catch(e) {}
-}, 2 * 60 * 1000); // a cada 2 minutos
+}, 60 * 1000); // a cada 1 minuto
 
 // ── Auto-restore: carrega dados do env var BOOTSTRAP_DATA na startup ──
 (function autoRestore() {
@@ -755,10 +762,10 @@ app.post('/api/conversations/read-all', authMiddleware, (req, res) => {
   res.json({ success: true, count });
 });
 
-// Marca conversa como lida E remove flag de atenção
+// Marca conversa como lida E remove flags
 app.post('/api/conversations/:platform/:userId/read', authMiddleware, (req, res) => {
   db.markAsRead(req.params.platform, req.params.userId);
-  db.flagConversation(req.params.platform, req.params.userId, null); // remove flag
+  db.flagConversation(req.params.platform, req.params.userId, null);
   res.json({ success: true });
 });
 
