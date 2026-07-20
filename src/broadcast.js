@@ -81,22 +81,26 @@ function filterLeads(filters = {}) {
 
   // Lista manual de IDs/usernames (substitui os outros filtros se fornecida)
   if (filters.manualList && filters.manualList.length > 0) {
-    const manual = filters.manualList.map(id => id.trim().replace('@', ''));
-    leads = manual.map(id => {
-      // Tenta achar nos clientes existentes
-      const found = clients.find(c =>
-        c.userId === id ||
-        c.username === id ||
-        c.name?.toLowerCase() === id.toLowerCase()
-      );
-      // Se não achou, cria um lead temporário
-      return found || {
-        userId: id,
-        platform: filters.platform || 'telegram',
-        name: id,
-        isManual: true
-      };
-    });
+    // Suporta formato "platform:userId" ou só "userId"
+    leads = filters.manualList.map(item => {
+      const trimmed = item.trim();
+      
+      // Formato platform:userId (ex: telegram_acc_xxx:123456789)
+      const colonIdx = trimmed.indexOf(':');
+      if (colonIdx > 0) {
+        const platform = trimmed.substring(0, colonIdx);
+        const userId = trimmed.substring(colonIdx + 1);
+        // Busca nos clientes existentes
+        const found = Object.values(clientsMap).find(c => 
+          c.platform === platform && c.userId === userId
+        );
+        return found || { userId, platform, name: userId };
+      }
+      
+      // Formato só userId
+      const found = Object.values(clientsMap).find(c => c.userId === trimmed);
+      return found || { userId: trimmed, platform: filters.platform || 'telegram', name: trimmed };
+    }).filter(Boolean);
   }
 
   // Remove duplicatas por userId+platform
