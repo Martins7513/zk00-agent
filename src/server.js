@@ -691,12 +691,24 @@ app.post('/api/broadcast/preview', authMiddleware, (req, res) => {
 
 // Inicia o disparo
 app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
-  const { message, imageUrl, filters } = req.body;
+  const { message, imageUrl, filters, manualList } = req.body;
   if (!message) return res.status(400).json({ error: 'Mensagem obrigatória' });
+  
+  // Se vieram leads selecionados manualmente (formato platform:userid)
+  const finalFilters = filters || {};
+  if (manualList && manualList.length > 0) {
+    // Converte platform:userid para lista de userIds
+    finalFilters.manualList = manualList.map(item => {
+      const parts = item.split(':');
+      return parts[parts.length - 1]; // pega o userId
+    });
+    finalFilters._rawList = manualList; // guarda o formato completo
+  }
+
   const result = await broadcast.startBroadcast({
     message,
     imageUrl,
-    filters: filters || {},
+    filters: finalFilters,
     sendFn: broadcastSendFn
   });
   res.json(result);
