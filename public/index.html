@@ -725,11 +725,18 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
           </div>
           <div id="bc-video-preview" style="display:none;margin-top:8px">
             <video id="bc-video-preview-player" controls style="width:100%;max-height:150px;border-radius:8px;background:#000"></video>
-            <div style="display:flex;gap:6px;margin-top:6px">
-              <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);cursor:pointer">
-                <input type="checkbox" id="bc-video-round" style="accent-color:var(--accent)">
-                Enviar como vídeo bolinha (circular)
-              </label>
+            <div style="display:flex;gap:6px;margin-top:8px">
+              <div style="background:var(--bg3);border-radius:8px;padding:8px 12px;width:100%;display:flex;flex-direction:column;gap:6px">
+                <div style="font-size:11px;font-weight:600;color:var(--text2)">Formato do vídeo:</div>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0">
+                  <input type="radio" name="bc-video-format" id="bc-video-normal" value="normal" checked style="accent-color:var(--accent)">
+                  <span style="font-size:12px">📹 Vídeo normal</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0">
+                  <input type="radio" name="bc-video-format" id="bc-video-round" value="round" style="accent-color:var(--accent)">
+                  <span style="font-size:12px">⭕ Vídeo bolinha (circular)</span>
+                </label>
+              </div>
             </div>
             <button onclick="clearBcMedia('video')" style="width:100%;background:none;border:1px solid var(--border);color:var(--text2);padding:4px;border-radius:6px;cursor:pointer;font-size:11px;margin-top:4px">✕ Remover</button>
           </div>
@@ -2209,8 +2216,9 @@ function setBcListTab(tab) {
 
 function updateUsernameCount() {
   const lines = document.getElementById('bc-usernames-input').value
-    .split('\n').map(l => l.trim()).filter(Boolean);
-  document.getElementById('bc-username-count').textContent = `${lines.length} usernames`;
+    .split(/[\n,;\s]+/).map(l => l.trim().replace('@','')).filter(l => l.length > 2);
+  const unique = [...new Set(lines)];
+  document.getElementById('bc-username-count').textContent = `${unique.length} username(s)`;
 }
 
 function validateUsernames() {
@@ -3026,8 +3034,10 @@ async function startBroadcast() {
 
   if (bcListTab === 'usernames') {
     // Modo username
-    const lines = document.getElementById('bc-usernames-input').value
-      .split('\n').map(l => l.trim().replace('@','')).filter(Boolean);
+    const lines = [...new Set(
+      document.getElementById('bc-usernames-input').value
+        .split(/[\n,;\s]+/).map(l => l.trim().replace('@','')).filter(l => l.length > 2)
+    )];
     if (!lines.length) return showNotif('Cole pelo menos 1 username!', 'red');
     const accountId = document.getElementById('bc-username-account').value;
     if (!accountId) return showNotif('Selecione uma conta para enviar!', 'red');
@@ -3047,7 +3057,7 @@ async function startBroadcast() {
   const mediaBase64 = bcMediaBase64 || null;
   const mediaMime = bcMediaMime || null;
   const mediaType = bcMediaType !== 'none' ? bcMediaType : null;
-  const videoRound = mediaType === 'video' && document.getElementById('bc-video-round')?.checked;
+  const videoRound = mediaType === 'video' && document.querySelector('input[name="bc-video-format"]:checked')?.value === 'round';
 
   // Link no texto
   const linkUrl = document.getElementById('bc-link-url')?.value?.trim() || '';
