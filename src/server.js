@@ -770,14 +770,20 @@ async function broadcastSendWithClient(client, userId, message, mediaBase64, med
     let buf = Buffer.from(mediaBase64, 'base64');
     console.log(`[BROADCAST] Enviando ${mediaType} (${(buf.length/1024).toFixed(0)}KB) para ${targetPeer}`);
 
+    const { Api } = require('telegram');
+
     if (mediaType === 'image') {
-      // Foto nativa — não aparece como arquivo
-      await client.sendFile(targetPeer, {
-        file: buf,
-        caption: message || '',
-        forceDocument: false,
-        attributes: []
+      // Upload como foto nativa
+      const uploaded = await client.uploadFile({
+        file: new (require('telegram').utils.CustomFile)(`photo_${Date.now()}.jpg`, buf.length, '', buf),
+        workers: 1
       });
+      await client.invoke(new Api.messages.SendMedia({
+        peer: await client.getInputEntity(targetPeer),
+        media: new Api.InputMediaUploadedPhoto({ file: uploaded }),
+        message: message || '',
+        randomId: BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER))
+      }));
 
     } else if (mediaType === 'audio') {
       // Converte para OGG/OPUS se necessário
@@ -786,35 +792,76 @@ async function broadcastSendWithClient(client, userId, message, mediaBase64, med
         console.log('[BROADCAST] Convertendo áudio para OGG...');
         buf = await convertToVoiceNote(buf, mediaMime);
       }
-      // Envia como nota de voz (bolinha de áudio)
-      await client.sendFile(targetPeer, {
-        file: buf,
-        caption: '',
-        voiceNote: true,
-        forceDocument: false
+      // Upload como nota de voz
+      const uploaded = await client.uploadFile({
+        file: new (require('telegram').utils.CustomFile)(`voice_${Date.now()}.ogg`, buf.length, '', buf),
+        workers: 1
       });
+      await client.invoke(new Api.messages.SendMedia({
+        peer: await client.getInputEntity(targetPeer),
+        media: new Api.InputMediaUploadedDocument({
+          file: uploaded,
+          mimeType: 'audio/ogg',
+          attributes: [
+            new Api.DocumentAttributeAudio({ voice: true, duration: 0 })
+          ]
+        }),
+        message: '',
+        randomId: BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER))
+      }));
       if (message) await client.sendMessage(targetPeer, { message });
 
     } else if (mediaType === 'video' && videoRound) {
       // Vídeo bolinha circular
       console.log('[BROADCAST] Convertendo vídeo para bolinha...');
       buf = await convertToVideoNote(buf, mediaMime);
-      await client.sendFile(targetPeer, {
-        file: buf,
-        caption: '',
-        videoNote: true,
-        forceDocument: false
+      const uploaded = await client.uploadFile({
+        file: new (require('telegram').utils.CustomFile)(`round_${Date.now()}.mp4`, buf.length, '', buf),
+        workers: 1
       });
+      await client.invoke(new Api.messages.SendMedia({
+        peer: await client.getInputEntity(targetPeer),
+        media: new Api.InputMediaUploadedDocument({
+          file: uploaded,
+          mimeType: 'video/mp4',
+          attributes: [
+            new Api.DocumentAttributeVideo({
+              roundMessage: true,
+              supportsStreaming: true,
+              duration: 0,
+              w: 384,
+              h: 384
+            })
+          ]
+        }),
+        message: '',
+        randomId: BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER))
+      }));
       if (message) await client.sendMessage(targetPeer, { message });
 
     } else if (mediaType === 'video') {
-      // Vídeo normal inline (não arquivo)
-      await client.sendFile(targetPeer, {
-        file: buf,
-        caption: message || '',
-        supportsStreaming: true,
-        forceDocument: false
+      // Vídeo normal inline
+      const uploaded = await client.uploadFile({
+        file: new (require('telegram').utils.CustomFile)(`video_${Date.now()}.mp4`, buf.length, '', buf),
+        workers: 1
       });
+      await client.invoke(new Api.messages.SendMedia({
+        peer: await client.getInputEntity(targetPeer),
+        media: new Api.InputMediaUploadedDocument({
+          file: uploaded,
+          mimeType: 'video/mp4',
+          attributes: [
+            new Api.DocumentAttributeVideo({
+              supportsStreaming: true,
+              duration: 0,
+              w: 0,
+              h: 0
+            })
+          ]
+        }),
+        message: message || '',
+        randomId: BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER))
+      }));
     }
 
   } else {
