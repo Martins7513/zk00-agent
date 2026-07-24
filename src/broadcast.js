@@ -169,6 +169,10 @@ async function startBroadcast({ message, mediaBase64, mediaMime, mediaType, vide
       const userId = lead.userId;
       const name = lead.name || userId;
 
+      // Marca como enviando
+      broadcastState.log = broadcastState.log.filter(l => !(l.userId === userId && l.status === 'sending'));
+      broadcastState.log.push({ name, userId, platform, status: 'sending', time: new Date().toISOString() });
+
       try {
         await sendFn(platform, userId, message, mediaBase64, mediaMime, mediaType, videoRound);
 
@@ -178,7 +182,8 @@ async function startBroadcast({ message, mediaBase64, mediaMime, mediaType, vide
           userId,
           platform,
           status: 'sent',
-          time: new Date().toISOString()
+          time: new Date().toISOString(),
+          index: broadcastState.sent + broadcastState.failed + broadcastState.skipped - 1
         });
 
         // Salva no histórico do lead
