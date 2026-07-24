@@ -666,7 +666,7 @@ app.post('/api/analyze-conversations', authMiddleware, async (req, res) => {
 // ==============================
 
 // Função de envio unificada (Telegram + WhatsApp)
-async function broadcastSendFn(platform, userId, message, mediaBase64, mediaMime, mediaType) {
+async function broadcastSendFn(platform, userId, message, mediaBase64, mediaMime, mediaType, videoRound) {
   if (platform.startsWith('telegram')) {
     const accountId = platform.replace('telegram_', '');
     const ac = userbotManager.activeClients[accountId];
@@ -676,20 +676,36 @@ async function broadcastSendFn(platform, userId, message, mediaBase64, mediaMime
 
     const peer = parseInt(userId);
 
-    if (mediaBase64 && mediaType) {
-      // Converte base64 para Buffer
-      const buf = Buffer.from(mediaBase64, 'base64');
-      const ext = mediaMime?.split('/')[1]?.split(';')[0] || (mediaType === 'image' ? 'jpg' : 'mp3');
-      const isVoice = mediaMime?.includes('ogg') || mediaMime?.includes('opus');
+    // Se for username, resolve para userId primeiro
+    let targetPeer = peer;
+    if (isNaN(parseInt(userId)) || lead?.isUsername) {
+      try {
+        const entity = await client.getEntity(userId.startsWith('@') ? userId : `@${userId}`);
+        targetPeer = entity.id;
+        console.log(`[BROADCAST] Resolveu @${userId} → ${targetPeer}`);
+      } catch(e) {
+        console.error(`[BROADCAST] Não encontrou @${userId}:`, e.message);
+        throw new Error(`Usuário @${userId} não encontrado`);
+      }
+    }
 
-      await client.sendFile(peer, {
+    if (mediaBase64 && mediaType) {
+      const buf = Buffer.from(mediaBase64, 'base64');
+      const ext = mediaMime?.split('/')[1]?.split(';')[0]?.replace('mpeg','mp3') || 
+        (mediaType === 'image' ? 'jpg' : mediaType === 'video' ? 'mp4' : 'mp3');
+      const isVoice = mediaMime?.includes('ogg') || mediaMime?.includes('opus') || mediaMime?.includes('webm');
+      const isVideo = mediaType === 'video';
+
+      await client.sendFile(targetPeer, {
         file: buf,
-        caption: message,
-        attributes: [{ className: 'DocumentAttributeFilename', fileName: `file.${ext}` }],
-        ...(isVoice ? { voiceNote: true } : {})
+        caption: message || '',
+        ...(isVoice ? { voiceNote: true } : {}),
+        ...(isVideo && videoRound ? { videoNote: true } : {}),
+        ...(isVideo && !videoRound ? { supportsStreaming: true } : {}),
+        forceDocument: false
       });
     } else {
-      await client.sendMessage(peer, { message });
+      await client.sendMessage(targetPeer, { message });
     }
   } else if (platform === 'whatsapp') {
     const { sendManual } = require('./whatsapp');
@@ -705,18 +721,26 @@ app.post('/api/broadcast/preview', authMiddleware, (req, res) => {
 
 // Inicia o disparo
 app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
-  const { message, mediaBase64, mediaMime, mediaType, filters, manualList } = req.body;
+  const { message, mediaBase64, mediaMime, mediaType, videoRound, filters, manualList } = req.body;
   if (!message) return res.status(400).json({ error: 'Mensagem obrigatória' });
   
   // Se vieram leads selecionados manualmente (formato platform:userid)
   const finalFilters = filters || {};
   if (manualList && manualList.length > 0) {
-    // Converte platform:userid para lista de userIds
-    finalFilters.manualList = manualList.map(item => {
-      const parts = item.split(':');
-      return parts[parts.length - 1]; // pega o userId
-    });
-    finalFilters._rawList = manualList; // guarda o formato completo
+    finalFilters._rawList = manualList;
+    // Separa usernames de IDs normais
+    const usernameItems = manualList.filter(i => i.startsWith('username:'));
+    const normalItems = manualList.filter(i => !i.startsWith('username:'));
+    
+    if (usernameItems.length > 0) {
+      finalFilters._usernameList = usernameItems;
+    }
+    if (normalItems.length > 0) {
+      finalFilters.manualList = normalItems.map(item => {
+        const parts = item.split(':');
+        return parts[parts.length - 1];
+      });
+    }
   }
 
   const result = await broadcast.startBroadcast({
@@ -724,6 +748,7 @@ app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
     mediaBase64,
     mediaMime,
     mediaType,
+    videoRound: videoRound || false,
     filters: finalFilters,
     sendFn: broadcastSendFn
   });
