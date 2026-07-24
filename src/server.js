@@ -14,8 +14,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const { execFile } = require('child_process');
 const os = require('os');
-const path = require('path');
-const fs = require('fs');
 
 // Converte vídeo para formato bolinha do Telegram
 async function convertToVideoNote(inputBuffer, inputMime) {
