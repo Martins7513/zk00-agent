@@ -709,72 +709,60 @@ app.post('/api/analyze-conversations', authMiddleware, async (req, res) => {
 // ==============================
 
 // Função de envio unificada (Telegram + WhatsApp)
+async function broadcastSendWithClient(client, userId, message, mediaBase64, mediaMime, mediaType, videoRound) {
+  let targetPeer = parseInt(userId);
+  if (isNaN(targetPeer)) {
+    try {
+      const entity = await client.getEntity(userId.startsWith('@') ? userId : `@${userId}`);
+      targetPeer = entity.id;
+      console.log(`[BROADCAST] Resolveu @${userId} → ${targetPeer}`);
+    } catch(e) {
+      throw new Error(`Usuário @${userId} não encontrado: ${e.message}`);
+    }
+  }
+
+  if (mediaBase64 && mediaType) {
+    let buf = Buffer.from(mediaBase64, 'base64');
+    const isVoice = mediaType === 'audio' && (mediaMime?.includes('ogg') || mediaMime?.includes('opus') || mediaMime?.includes('webm'));
+    const isVideo = mediaType === 'video';
+
+    if (isVideo && videoRound) {
+      console.log('[BROADCAST] Convertendo vídeo para bolinha...');
+      buf = await convertToVideoNote(buf, mediaMime);
+      await client.sendFile(targetPeer, { file: buf, caption: '', videoNote: true, forceDocument: false });
+      if (message) await client.sendMessage(targetPeer, { message });
+    } else if (isVideo) {
+      await client.sendFile(targetPeer, { file: buf, caption: message || '', supportsStreaming: true, forceDocument: false });
+    } else {
+      await client.sendFile(targetPeer, { file: buf, caption: message || '', ...(isVoice ? { voiceNote: true } : {}), forceDocument: false });
+    }
+  } else {
+    await client.sendMessage(targetPeer, { message });
+  }
+}
+
 async function broadcastSendFn(platform, userId, message, mediaBase64, mediaMime, mediaType, videoRound) {
   if (platform.startsWith('telegram')) {
     const accountId = platform.replace('telegram_', '');
     const ac = userbotManager.activeClients[accountId];
     const legacyClient = userbot.getClient ? userbot.getClient() : null;
     const client = (ac?.client) || legacyClient;
-    if (!client) throw new Error('Cliente Telegram não conectado');
-
-    const peer = parseInt(userId);
-
-    // Se for username, resolve para userId primeiro
-    let targetPeer = peer;
-    if (isNaN(parseInt(userId)) || lead?.isUsername) {
-      try {
-        const entity = await client.getEntity(userId.startsWith('@') ? userId : `@${userId}`);
-        targetPeer = entity.id;
-        console.log(`[BROADCAST] Resolveu @${userId} → ${targetPeer}`);
-      } catch(e) {
-        console.error(`[BROADCAST] Não encontrou @${userId}:`, e.message);
-        throw new Error(`Usuário @${userId} não encontrado`);
+    
+    console.log(`[BROADCAST] platform=${platform} accountId=${accountId} hasClient=${!!client} activeClients=${Object.keys(userbotManager.activeClients||{}).join(',')}`);
+    
+    if (!client) {
+      // Tenta qualquer cliente disponível como fallback
+      const fallback = Object.values(userbotManager.activeClients || {}).find(c => c?.client);
+      if (fallback?.client) {
+        console.log(`[BROADCAST] Usando cliente fallback`);
+        const fallbackClient = fallback.client;
+        // usa fallbackClient abaixo
+        return await broadcastSendWithClient(fallbackClient, userId, message, mediaBase64, mediaMime, mediaType, videoRound);
       }
+      throw new Error(`Cliente Telegram não conectado (accountId: ${accountId})`);
     }
 
-    if (mediaBase64 && mediaType) {
-      let buf = Buffer.from(mediaBase64, 'base64');
-      console.log(`[BROADCAST] Mídia: ${mediaType} ${(buf.length/1024/1024).toFixed(1)}MB`);
-
-      // Limite de 20MB para vídeo
-      if (buf.length > 20 * 1024 * 1024) {
-        throw new Error(`Vídeo muito grande (${(buf.length/1024/1024).toFixed(0)}MB). Máximo 20MB.`);
-      }
-
-      const isVoice = mediaType === 'audio' && (mediaMime?.includes('ogg') || mediaMime?.includes('opus') || mediaMime?.includes('webm'));
-      const isVideo = mediaType === 'video';
-
-      if (isVideo && videoRound) {
-        // Converte para formato bolinha real do Telegram
-        console.log('[BROADCAST] Convertendo vídeo para bolinha...');
-        buf = await convertToVideoNote(buf, mediaMime);
-        console.log(`[BROADCAST] Vídeo convertido: ${buf.length} bytes`);
-        await client.sendFile(targetPeer, {
-          file: buf,
-          caption: '',       // bolinha não suporta caption
-          videoNote: true,
-          forceDocument: false
-        });
-        // Envia mensagem separada se tiver texto
-        if (message) await client.sendMessage(targetPeer, { message });
-      } else if (isVideo) {
-        await client.sendFile(targetPeer, {
-          file: buf,
-          caption: message || '',
-          supportsStreaming: true,
-          forceDocument: false
-        });
-      } else {
-        await client.sendFile(targetPeer, {
-          file: buf,
-          caption: message || '',
-          ...(isVoice ? { voiceNote: true } : {}),
-          forceDocument: false
-        });
-      }
-    } else {
-      await client.sendMessage(targetPeer, { message });
-    }
+    return await broadcastSendWithClient(client, userId, message, mediaBase64, mediaMime, mediaType, videoRound);
   } else if (platform === 'whatsapp') {
     const { sendManual } = require('./whatsapp');
     await sendManual(userId, message);
