@@ -733,6 +733,13 @@ async function broadcastSendFn(platform, userId, message, mediaBase64, mediaMime
 
     if (mediaBase64 && mediaType) {
       let buf = Buffer.from(mediaBase64, 'base64');
+      console.log(`[BROADCAST] Mídia: ${mediaType} ${(buf.length/1024/1024).toFixed(1)}MB`);
+
+      // Limite de 20MB para vídeo
+      if (buf.length > 20 * 1024 * 1024) {
+        throw new Error(`Vídeo muito grande (${(buf.length/1024/1024).toFixed(0)}MB). Máximo 20MB.`);
+      }
+
       const isVoice = mediaType === 'audio' && (mediaMime?.includes('ogg') || mediaMime?.includes('opus') || mediaMime?.includes('webm'));
       const isVideo = mediaType === 'video';
 
@@ -803,7 +810,11 @@ app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
     }
   }
 
-  const result = await broadcast.startBroadcast({
+  // Responde imediatamente e processa em background
+  res.json({ success: true, total: finalFilters._usernameList?.length || finalFilters.manualList?.length || 0, message: 'Disparo iniciado!' });
+
+  // Processa em background
+  broadcast.startBroadcast({
     message,
     mediaBase64,
     mediaMime,
@@ -811,8 +822,7 @@ app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
     videoRound: videoRound || false,
     filters: finalFilters,
     sendFn: broadcastSendFn
-  });
-  res.json(result);
+  }).catch(e => console.error('[BROADCAST] Erro:', e.message));
 });
 
 // Status do disparo em andamento
