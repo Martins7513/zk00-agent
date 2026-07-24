@@ -3055,8 +3055,13 @@ async function startBroadcast() {
     const accountId = document.getElementById('bc-username-account').value;
     if (!accountId) return showNotif('Selecione uma conta para enviar!', 'red');
     if (!confirm(`Confirmar disparo para ${lines.length} username(s)?`)) return;
-    // Formato especial: username@accountId
-    manualList = lines.map(u => `username:${accountId}:${u}`);
+    // Formato: username:accountId:@username
+    // Clean usernames - remove @ and any whitespace  
+    manualList = lines.map(u => {
+      const clean = u.replace('@','').trim();
+      return `username:${accountId}:${clean}`;
+    });
+    console.log('[BC] Username list:', manualList);
   } else {
     // Modo conversas
     if (bcSelected.size === 0) return showNotif('Selecione pelo menos 1 conversa!', 'red');
