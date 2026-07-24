@@ -81,12 +81,15 @@ function filterLeads(filters = {}) {
 
   // Lista manual de IDs/usernames (substitui os outros filtros se fornecida)
   // Handle username list (format: username:accountId:username)
+  // REPLACE all leads with username list only
   if (filters._usernameList && filters._usernameList.length > 0) {
-    const usernamLeads = filters._usernameList.map(item => {
-      const parts = item.split(':');
-      // username:accountId:username
-      const accountId = parts[1];
-      const username = parts[2];
+    leads = filters._usernameList.map(item => {
+      // format: "username:accountId:actualUsername"
+      const firstColon = item.indexOf(':');
+      const secondColon = item.indexOf(':', firstColon + 1);
+      const accountId = item.substring(firstColon + 1, secondColon);
+      const username = item.substring(secondColon + 1).replace('@','').trim();
+      console.log(`[BC] Username item: accountId=${accountId} username=${username}`);
       return {
         userId: username,
         platform: `telegram_${accountId}`,
@@ -94,7 +97,7 @@ function filterLeads(filters = {}) {
         isUsername: true
       };
     });
-    leads = [...leads, ...usernamLeads];
+    return leads; // retorna imediatamente, ignora outros filtros
   }
 
   if (filters.manualList && filters.manualList.length > 0) {
