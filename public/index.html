@@ -778,23 +778,32 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
 
     <!-- PROGRESS -->
     <div id="broadcast-progress" style="display:none" class="card">
-      <div class="card-title">🚀 Disparo em andamento... <span id="bc-status-label" style="font-size:12px;color:var(--text2)"></span></div>
-      <div style="margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
-          <span>Progresso</span>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title" style="margin:0">🚀 Disparo em andamento</div>
+        <span id="bc-status-label" style="font-size:11px;color:var(--text2)"></span>
+      </div>
+
+      <!-- Barra geral -->
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">
+          <span>Progresso geral</span>
           <span><span id="bc-sent">0</span> / <span id="bc-total">0</span></span>
         </div>
         <div style="background:var(--bg4);border-radius:6px;height:8px;overflow:hidden">
-          <div id="bc-progress-bar" style="background:var(--accent);height:100%;width:0%;transition:width .3s;border-radius:6px"></div>
+          <div id="bc-progress-bar" style="background:var(--accent);height:100%;width:0%;transition:width .5s;border-radius:6px"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:5px">
+          ✅ <span id="bc-ok">0</span> enviados &nbsp; ❌ <span id="bc-fail">0</span> falhas &nbsp; ⏭ <span id="bc-skip">0</span> ignorados
         </div>
       </div>
-      <div style="font-size:11px;color:var(--text2);margin-bottom:10px">
-        ✅ <span id="bc-ok">0</span> enviados &nbsp; ❌ <span id="bc-fail">0</span> falhas &nbsp; ⏭ <span id="bc-skip">0</span> ignorados
-      </div>
-      <div id="bc-log" style="background:var(--bg3);border-radius:8px;padding:10px;font-size:11px;font-family:monospace;max-height:150px;overflow-y:auto;color:var(--text2)"></div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button class="btn ghost" onclick="abortBroadcast()">⛔ Interromper</button>
-        <button class="btn primary" onclick="resetBroadcast()" id="bc-abort-btn" style="display:none">✅ Novo Disparo</button>
+
+      <!-- Lista por lead com barra individual -->
+      <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Status por contato</div>
+      <div id="bc-lead-status" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto"></div>
+
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn ghost" onclick="abortBroadcast()" id="bc-abort-btn2">⛔ Interromper</button>
+        <button class="btn primary" onclick="resetBroadcast()" id="bc-new-btn" style="display:none">+ Novo Disparo</button>
       </div>
     </div>
   </div>
@@ -2892,11 +2901,15 @@ function previewBcMedia(type) {
   const file = document.getElementById(`bc-${type}-file`).files[0];
   if (!file) return;
 
-  // Verifica tamanho (max 50MB)
-  if (file.size > 50 * 1024 * 1024) {
-    showNotif('Arquivo muito grande! Máximo 50MB.', 'red');
+  // Verifica tamanho
+  const maxSize = type === 'video' ? 20 * 1024 * 1024 : 10 * 1024 * 1024;
+  const maxLabel = type === 'video' ? '20MB' : '10MB';
+  if (file.size > maxSize) {
+    showNotif(`Arquivo muito grande! Máximo ${maxLabel} para ${type === 'video' ? 'vídeo' : 'áudio/imagem'}.`, 'red');
     return;
   }
+  const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+  console.log(`[MÍDIA] ${type}: ${sizeMB}MB`);
 
   const reader = new FileReader();
   reader.onload = e => {
@@ -3093,7 +3106,7 @@ async function startBroadcast() {
         document.getElementById('broadcast-composer').style.display = 'none';
         document.getElementById('broadcast-progress').style.display = 'block';
         document.getElementById('bc-total').textContent = res.total || bcSelected.size;
-        broadcastInterval = setInterval(updateBroadcastStatus, 3000);
+        broadcastInterval = setInterval(updateBroadcastStatus, 2000);
       }
     }, delay);
     // Show cancel button
@@ -3102,13 +3115,19 @@ async function startBroadcast() {
     return;
   }
 
+  // Mostra progresso de upload
+  if (payload.mediaBase64 && payload.mediaType === 'video') {
+    showNotif('⏳ Enviando vídeo... aguarde (pode levar 1-2 min)', 'yellow');
+  }
+
   const res = await api('POST', '/api/broadcast/start', payload);
   if (res.error) return showNotif('Erro: ' + res.error, 'red');
 
   document.getElementById('broadcast-composer').style.display = 'none';
   document.getElementById('broadcast-progress').style.display = 'block';
   document.getElementById('bc-total').textContent = res.total || bcSelected.size;
-  broadcastInterval = setInterval(updateBroadcastStatus, 3000);
+  broadcastInterval = setInterval(updateBroadcastStatus, 2000);
+  setTimeout(updateBroadcastStatus, 500); // primeira atualização rápida
 }
 
 function cancelSchedule() {
@@ -3123,30 +3142,62 @@ async function updateBroadcastStatus() {
   const s = await api('GET', '/api/broadcast/status');
   if (!s || s.error) return;
 
-  document.getElementById('bc-sent').textContent = s.sent;
-  document.getElementById('bc-failed').textContent = s.failed;
-  document.getElementById('bc-total').textContent = s.total;
-  document.getElementById('bc-remaining').textContent = Math.max(0, s.total - s.sent - s.failed);
+  // Atualiza totais
+  document.getElementById('bc-sent').textContent = s.sent || 0;
+  document.getElementById('bc-fail').textContent = s.failed || 0;
+  document.getElementById('bc-skip').textContent = s.skipped || 0;
+  document.getElementById('bc-total').textContent = s.total || 0;
+  document.getElementById('bc-ok').textContent = s.sent || 0;
 
-  const pct = s.total > 0 ? Math.round((s.sent + s.failed) / s.total * 100) : 0;
+  // Barra geral
+  const pct = s.total > 0 ? Math.round((s.sent + s.failed + s.skipped) / s.total * 100) : 0;
   document.getElementById('bc-progress-bar').style.width = pct + '%';
+  document.getElementById('bc-progress-bar').style.background = s.failed > 0 ? 'var(--yellow)' : 'var(--green)';
 
-  // Log
-  const log = document.getElementById('bc-log');
-  log.innerHTML = (s.log || []).slice(-30).reverse().map(l =>
-    `<div style="color:${l.status === 'sent' ? 'var(--green)' : l.status === 'failed' ? 'var(--red)' : 'var(--yellow)'}">` +
-    `${l.status === 'sent' ? '✅' : l.status === 'failed' ? '❌' : '⛔'} ${l.name}` +
-    `${l.error ? ' — ' + l.error : ''}</div>`
-  ).join('');
+  // Status label
+  const label = document.getElementById('bc-status-label');
+  if (s.active) label.textContent = `${pct}% — enviando...`;
+  else if (s.finishedAt) label.textContent = `✅ Concluído`;
+  else label.textContent = '';
 
-  if (!s.active) {
+  // Barra por lead
+  const leadEl = document.getElementById('bc-lead-status');
+  if (leadEl && s.log?.length) {
+    // Monta mapa por userId (pega último status)
+    const map = {};
+    s.log.forEach(l => { map[l.userId] = l; });
+
+    leadEl.innerHTML = Object.values(map).map(l => {
+      const isSent = l.status === 'sent';
+      const isFailed = l.status === 'failed';
+      const isSending = l.status === 'sending';
+      const color = isSent ? 'var(--green)' : isFailed ? 'var(--red)' : 'var(--yellow)';
+      const icon = isSent ? '✅' : isFailed ? '❌' : '⏳';
+      const label = isSent ? 'Enviado' : isFailed ? (l.error?.substring(0,40)||'Falha') : 'Enviando...';
+      const barW = isSent || isFailed ? '100%' : '60%';
+
+      return `<div style="background:var(--bg3);border-radius:8px;padding:8px 12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+          <span style="font-size:12px;font-weight:600">${icon} ${l.name||('@'+l.userId)}</span>
+          <span style="font-size:10px;color:${color};font-weight:600">${label}</span>
+        </div>
+        <div style="background:var(--bg4);border-radius:4px;height:5px;overflow:hidden">
+          <div style="width:${barW};height:100%;background:${color};border-radius:4px;transition:width .5s${isSending?';animation:pulse 1s infinite':''}"></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Finalizado
+  if (!s.active && s.finishedAt) {
     clearInterval(broadcastInterval);
-    const label = document.getElementById('bc-status-label');
-    label.textContent = s.aborted ? 'Interrompido' : 'Concluído ✅';
-    label.style.color = s.aborted ? 'var(--yellow)' : 'var(--green)';
-    document.getElementById('bc-abort-btn').style.display = 'none';
-    document.getElementById('bc-new-btn').style.display = 'inline-flex';
-    showNotif(`Disparo finalizado! ${s.sent} enviados, ${s.failed} falhas.`, 'green');
+    broadcastInterval = null;
+    const newBtn = document.getElementById('bc-new-btn');
+    const abortBtn = document.getElementById('bc-abort-btn2');
+    if (newBtn) newBtn.style.display = 'block';
+    if (abortBtn) abortBtn.style.display = 'none';
+    document.getElementById('bc-status-label').textContent = 
+      `✅ Concluído — ${s.sent} enviados, ${s.failed} falhas`;
   }
 }
 
