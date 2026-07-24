@@ -12,6 +12,49 @@ const broadcast = require('./broadcast');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const { execFile } = require('child_process');
+const os = require('os');
+const path = require('path');
+const fs = require('fs');
+
+// Converte vídeo para formato bolinha do Telegram
+async function convertToVideoNote(inputBuffer, inputMime) {
+  return new Promise((resolve, reject) => {
+    const ext = inputMime?.includes('mp4') ? 'mp4' : inputMime?.includes('mov') ? 'mov' : 'mp4';
+    const tmpIn = path.join(os.tmpdir(), `bc_in_${Date.now()}.${ext}`);
+    const tmpOut = path.join(os.tmpdir(), `bc_out_${Date.now()}.mp4`);
+
+    // Salva input
+    fs.writeFileSync(tmpIn, inputBuffer);
+
+    // FFmpeg: crop quadrado + resize 384x384 + H.264 + max 60s
+    const args = [
+      '-i', tmpIn,
+      '-t', '60',                    // max 60 segundos
+      '-vf', 'crop=min(iw\,ih):min(iw\,ih),scale=384:384', // crop quadrado
+      '-c:v', 'libx264',             // H.264
+      '-preset', 'fast',
+      '-crf', '28',
+      '-c:a', 'aac',
+      '-b:a', '64k',
+      '-movflags', '+faststart',
+      '-y',
+      tmpOut
+    ];
+
+    execFile('ffmpeg', args, { timeout: 60000 }, (err) => {
+      try { fs.unlinkSync(tmpIn); } catch(e) {}
+      if (err) {
+        try { fs.unlinkSync(tmpOut); } catch(e) {}
+        reject(new Error('Erro ao converter vídeo: ' + err.message));
+        return;
+      }
+      const outBuf = fs.readFileSync(tmpOut);
+      try { fs.unlinkSync(tmpOut); } catch(e) {}
+      resolve(outBuf);
+    });
+  });
+}
 const ntfy = require('./ntfy');
 
 // ── Verifica leads esperando e sem resposta ──
@@ -691,20 +734,38 @@ async function broadcastSendFn(platform, userId, message, mediaBase64, mediaMime
     }
 
     if (mediaBase64 && mediaType) {
-      const buf = Buffer.from(mediaBase64, 'base64');
-      const ext = mediaMime?.split('/')[1]?.split(';')[0]?.replace('mpeg','mp3') || 
-        (mediaType === 'image' ? 'jpg' : mediaType === 'video' ? 'mp4' : 'mp3');
-      const isVoice = mediaMime?.includes('ogg') || mediaMime?.includes('opus') || mediaMime?.includes('webm');
+      let buf = Buffer.from(mediaBase64, 'base64');
+      const isVoice = mediaType === 'audio' && (mediaMime?.includes('ogg') || mediaMime?.includes('opus') || mediaMime?.includes('webm'));
       const isVideo = mediaType === 'video';
 
-      await client.sendFile(targetPeer, {
-        file: buf,
-        caption: message || '',
-        ...(isVoice ? { voiceNote: true } : {}),
-        ...(isVideo && videoRound ? { videoNote: true } : {}),
-        ...(isVideo && !videoRound ? { supportsStreaming: true } : {}),
-        forceDocument: false
-      });
+      if (isVideo && videoRound) {
+        // Converte para formato bolinha real do Telegram
+        console.log('[BROADCAST] Convertendo vídeo para bolinha...');
+        buf = await convertToVideoNote(buf, mediaMime);
+        console.log(`[BROADCAST] Vídeo convertido: ${buf.length} bytes`);
+        await client.sendFile(targetPeer, {
+          file: buf,
+          caption: '',       // bolinha não suporta caption
+          videoNote: true,
+          forceDocument: false
+        });
+        // Envia mensagem separada se tiver texto
+        if (message) await client.sendMessage(targetPeer, { message });
+      } else if (isVideo) {
+        await client.sendFile(targetPeer, {
+          file: buf,
+          caption: message || '',
+          supportsStreaming: true,
+          forceDocument: false
+        });
+      } else {
+        await client.sendFile(targetPeer, {
+          file: buf,
+          caption: message || '',
+          ...(isVoice ? { voiceNote: true } : {}),
+          forceDocument: false
+        });
+      }
     } else {
       await client.sendMessage(targetPeer, { message });
     }
