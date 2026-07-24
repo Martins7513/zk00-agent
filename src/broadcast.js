@@ -80,6 +80,23 @@ function filterLeads(filters = {}) {
   }
 
   // Lista manual de IDs/usernames (substitui os outros filtros se fornecida)
+  // Handle username list (format: username:accountId:username)
+  if (filters._usernameList && filters._usernameList.length > 0) {
+    const usernamLeads = filters._usernameList.map(item => {
+      const parts = item.split(':');
+      // username:accountId:username
+      const accountId = parts[1];
+      const username = parts[2];
+      return {
+        userId: username,
+        platform: `telegram_${accountId}`,
+        name: `@${username}`,
+        isUsername: true
+      };
+    });
+    leads = [...leads, ...usernamLeads];
+  }
+
   if (filters.manualList && filters.manualList.length > 0) {
     // Suporta formato "platform:userId" ou só "userId"
     leads = filters.manualList.map(item => {
@@ -116,7 +133,7 @@ function filterLeads(filters = {}) {
 }
 
 // Executa o disparo
-async function startBroadcast({ message, mediaBase64, mediaMime, mediaType, filters, sendFn }) {
+async function startBroadcast({ message, mediaBase64, mediaMime, mediaType, videoRound, filters, sendFn }) {
   if (broadcastState.active) {
     return { error: 'Já existe um disparo em andamento' };
   }
@@ -153,7 +170,7 @@ async function startBroadcast({ message, mediaBase64, mediaMime, mediaType, filt
       const name = lead.name || userId;
 
       try {
-        await sendFn(platform, userId, message, mediaBase64, mediaMime, mediaType);
+        await sendFn(platform, userId, message, mediaBase64, mediaMime, mediaType, videoRound);
 
         broadcastState.sent++;
         broadcastState.log.push({
