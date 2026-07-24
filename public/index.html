@@ -578,19 +578,59 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
 
   <!-- ESQUERDA: Lista de conversas para selecionar -->
   <div style="width:300px;min-width:300px;border-right:1px solid var(--border);display:flex;flex-direction:column;height:100%">
-    <div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center">
-      <input class="search-input" id="bc-search" placeholder="🔍 Buscar..." oninput="filterBcLeads()" style="flex:1">
-      <button onclick="selectAllBcLeads(true)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">✓</button>
-      <button onclick="selectAllBcLeads(false)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">✗</button>
+    <!-- Tabs: Conversas ou @Usernames -->
+    <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0">
+      <button onclick="setBcListTab('convs')" id="bc-list-tab-convs" 
+        style="flex:1;padding:9px;font-size:12px;font-weight:600;border:none;background:none;color:var(--accent);border-bottom:2px solid var(--accent);cursor:pointer;font-family:inherit">
+        💬 Conversas
+      </button>
+      <button onclick="setBcListTab('usernames')" id="bc-list-tab-usernames"
+        style="flex:1;padding:9px;font-size:12px;font-weight:600;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;cursor:pointer;font-family:inherit">
+        @ Usernames
+      </button>
     </div>
-    <!-- Abas por conta -->
-    <div id="bc-acc-tabs" style="display:flex;overflow-x:auto;border-bottom:1px solid var(--border);flex-shrink:0">
-      <button class="acc-tab active" onclick="setBcFilter('all',this)">Todas</button>
+
+    <!-- Conversas -->
+    <div id="bc-list-convs" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center">
+        <input class="search-input" id="bc-search" placeholder="🔍 Buscar..." oninput="filterBcLeads()" style="flex:1">
+        <button onclick="selectAllBcLeads(true)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;white-space:nowrap;font-family:inherit">✓</button>
+        <button onclick="selectAllBcLeads(false)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">✗</button>
+      </div>
+      <div id="bc-acc-tabs" style="display:flex;overflow-x:auto;border-bottom:1px solid var(--border);flex-shrink:0">
+        <button class="acc-tab active" onclick="setBcFilter('all',this)">Todas</button>
+      </div>
+      <div style="flex:1;overflow-y:auto" id="bc-conv-list">
+        <div class="loading">Carregando conversas...</div>
+      </div>
+      <div style="padding:8px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--text2)" id="bc-selected-count">0 selecionados</div>
     </div>
-    <div style="flex:1;overflow-y:auto" id="bc-conv-list">
-      <div class="loading">Carregando conversas...</div>
+
+    <!-- @Usernames -->
+    <div id="bc-list-usernames" style="display:none;flex-direction:column;flex:1;overflow:hidden;padding:12px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;line-height:1.6">
+        Cole os @usernames abaixo, um por linha.<br>
+        <span style="color:var(--text3);font-size:11px">Ex: @joaosilva ou joaosilva (sem @)</span>
+      </div>
+      <textarea id="bc-usernames-input" class="form-textarea" placeholder="@usuario1&#10;@usuario2&#10;usuario3&#10;..." 
+        style="flex:1;min-height:200px;font-family:monospace;font-size:12px;resize:none"
+        oninput="updateUsernameCount()"></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+        <span id="bc-username-count" style="font-size:11px;color:var(--text2)">0 usernames</span>
+        <button onclick="validateUsernames()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">
+          ✓ Validar
+        </button>
+      </div>
+      <div id="bc-username-feedback" style="margin-top:8px;font-size:11px;display:none"></div>
+
+      <!-- Selecionar conta para envio -->
+      <div style="margin-top:10px">
+        <label class="form-label">Conta para enviar</label>
+        <select class="form-select" id="bc-username-account" style="width:100%">
+          <option value="">Carregando...</option>
+        </select>
+      </div>
     </div>
-    <div style="padding:8px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--text2)" id="bc-selected-count">0 selecionados</div>
   </div>
 
   <!-- DIREITA: Composer -->
@@ -609,10 +649,11 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
         <div style="font-size:12px;font-weight:600;margin-bottom:10px">📎 Anexar Mídia <span style="font-size:10px;color:var(--text3);font-weight:400">(opcional)</span></div>
         
         <!-- Tipo de mídia -->
-        <div style="display:flex;gap:6px;margin-bottom:10px">
-          <button onclick="setBcMedia('none')" id="bc-media-none" class="btn ghost" style="flex:1;font-size:11px;padding:5px 0;border-color:var(--accent);color:var(--accent)">Nenhuma</button>
-          <button onclick="setBcMedia('image')" id="bc-media-image" class="btn ghost" style="flex:1;font-size:11px;padding:5px 0">🖼 Imagem</button>
-          <button onclick="setBcMedia('audio')" id="bc-media-audio" class="btn ghost" style="flex:1;font-size:11px;padding:5px 0">🎵 Áudio</button>
+        <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">
+          <button onclick="setBcMedia('none')" id="bc-media-none" class="btn ghost" style="flex:1;font-size:11px;padding:5px 0;border-color:var(--accent);color:var(--accent);min-width:60px">Nenhuma</button>
+          <button onclick="setBcMedia('image')" id="bc-media-image" class="btn ghost" style="flex:1;font-size:11px;padding:5px 0;min-width:60px">🖼 Imagem</button>
+          <button onclick="setBcMedia('audio')" id="bc-media-audio" class="btn ghost" style="flex:1;font-size:11px;padding:5px 0;min-width:60px">🎵 Áudio</button>
+          <button onclick="setBcMedia('video')" id="bc-media-video" class="btn ghost" style="flex:1;font-size:11px;padding:5px 0;min-width:60px">🎬 Vídeo</button>
         </div>
 
         <!-- Upload de imagem -->
@@ -634,16 +675,63 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
         <!-- Upload de áudio -->
         <div id="bc-audio-area" style="display:none">
           <input type="file" id="bc-audio-file" accept="audio/*" onchange="previewBcMedia('audio')" style="display:none">
-          <div onclick="document.getElementById('bc-audio-file').click()" id="bc-audio-drop"
-            style="border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:border-color .15s"
-            onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div style="font-size:24px;margin-bottom:6px">🎵</div>
-            <div style="font-size:12px;color:var(--text2)">Clique para selecionar áudio</div>
-            <div style="font-size:10px;color:var(--text3)">MP3, OGG, WAV, M4A</div>
+          
+          <!-- Tabs: upload ou gravar -->
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <button onclick="setBcAudioTab('upload')" id="bc-audio-tab-upload" class="btn ghost" style="flex:1;font-size:11px;padding:5px 0;border-color:var(--accent);color:var(--accent)">📁 Arquivo</button>
+            <button onclick="setBcAudioTab('record')" id="bc-audio-tab-record" class="btn ghost" style="flex:1;font-size:11px;padding:5px 0">🎙 Gravar</button>
           </div>
+
+          <!-- Upload -->
+          <div id="bc-audio-upload-area">
+            <div onclick="document.getElementById('bc-audio-file').click()" id="bc-audio-drop"
+              style="border:2px dashed var(--border);border-radius:8px;padding:14px;text-align:center;cursor:pointer;transition:border-color .15s"
+              onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div style="font-size:22px;margin-bottom:4px">🎵</div>
+              <div style="font-size:12px;color:var(--text2)">Clique para selecionar áudio</div>
+              <div style="font-size:10px;color:var(--text3)">MP3, OGG, WAV, M4A</div>
+            </div>
+          </div>
+
+          <!-- Gravador -->
+          <div id="bc-audio-record-area" style="display:none">
+            <div style="background:var(--bg4);border-radius:10px;padding:14px;text-align:center">
+              <div id="bc-rec-timer" style="font-size:22px;font-weight:700;color:var(--red);margin-bottom:8px;display:none">⏺ 0:00</div>
+              <div id="bc-rec-status" style="font-size:12px;color:var(--text2);margin-bottom:10px">Pronto para gravar</div>
+              <div style="display:flex;gap:8px;justify-content:center">
+                <button id="bc-rec-btn" onclick="toggleBcRecording()" 
+                  style="width:56px;height:56px;border-radius:50%;border:none;background:var(--red);color:#fff;font-size:22px;cursor:pointer;transition:all .2s;box-shadow:0 4px 15px rgba(239,68,68,.4)">🎙</button>
+              </div>
+              <div id="bc-rec-hint" style="font-size:10px;color:var(--text3);margin-top:8px">Clique para gravar</div>
+            </div>
+          </div>
+
+          <!-- Preview do áudio -->
           <div id="bc-audio-preview" style="display:none;margin-top:8px">
             <audio id="bc-audio-preview-player" controls style="width:100%;height:32px"></audio>
-            <button onclick="clearBcMedia('audio')" style="width:100%;background:none;border:1px solid var(--border);color:var(--text2);padding:4px;border-radius:6px;cursor:pointer;font-size:11px;margin-top:4px">✕ Remover áudio</button>
+            <button onclick="clearBcMedia('audio')" style="width:100%;background:none;border:1px solid var(--border);color:var(--text2);padding:4px;border-radius:6px;cursor:pointer;font-size:11px;margin-top:4px">✕ Remover</button>
+          </div>
+        </div>
+
+        <!-- Upload de vídeo -->
+        <div id="bc-video-area" style="display:none">
+          <input type="file" id="bc-video-file" accept="video/*" onchange="previewBcMedia('video')" style="display:none">
+          <div onclick="document.getElementById('bc-video-file').click()" id="bc-video-drop"
+            style="border:2px dashed var(--border);border-radius:8px;padding:14px;text-align:center;cursor:pointer;transition:border-color .15s"
+            onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:22px;margin-bottom:4px">🎬</div>
+            <div style="font-size:12px;color:var(--text2)">Clique para selecionar vídeo</div>
+            <div style="font-size:10px;color:var(--text3)">MP4, MOV, AVI — redondo = enviar como vídeo nota (circular)</div>
+          </div>
+          <div id="bc-video-preview" style="display:none;margin-top:8px">
+            <video id="bc-video-preview-player" controls style="width:100%;max-height:150px;border-radius:8px;background:#000"></video>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);cursor:pointer">
+                <input type="checkbox" id="bc-video-round" style="accent-color:var(--accent)">
+                Enviar como vídeo bolinha (circular)
+              </label>
+            </div>
+            <button onclick="clearBcMedia('video')" style="width:100%;background:none;border:1px solid var(--border);color:var(--text2);padding:4px;border-radius:6px;cursor:pointer;font-size:11px;margin-top:4px">✕ Remover</button>
           </div>
         </div>
       </div>
@@ -2097,6 +2185,45 @@ let bcAllLeads = [];
 let bcSelected = new Set();
 
 let bcActiveFilter = 'all';
+let bcListTab = 'convs'; // 'convs' or 'usernames'
+
+function setBcListTab(tab) {
+  bcListTab = tab;
+  document.getElementById('bc-list-convs').style.display = tab === 'convs' ? 'flex' : 'none';
+  document.getElementById('bc-list-usernames').style.display = tab === 'usernames' ? 'flex' : 'none';
+  document.getElementById('bc-list-tab-convs').style.color = tab === 'convs' ? 'var(--accent)' : 'var(--text2)';
+  document.getElementById('bc-list-tab-convs').style.borderBottomColor = tab === 'convs' ? 'var(--accent)' : 'transparent';
+  document.getElementById('bc-list-tab-usernames').style.color = tab === 'usernames' ? 'var(--accent)' : 'var(--text2)';
+  document.getElementById('bc-list-tab-usernames').style.borderBottomColor = tab === 'usernames' ? 'var(--accent)' : 'transparent';
+
+  // Populate account selector
+  if (tab === 'usernames') {
+    api('GET', '/api/accounts').then(accounts => {
+      const sel = document.getElementById('bc-username-account');
+      if (Array.isArray(accounts) && accounts.length) {
+        sel.innerHTML = accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+      }
+    });
+  }
+}
+
+function updateUsernameCount() {
+  const lines = document.getElementById('bc-usernames-input').value
+    .split('\n').map(l => l.trim()).filter(Boolean);
+  document.getElementById('bc-username-count').textContent = `${lines.length} usernames`;
+}
+
+function validateUsernames() {
+  const lines = document.getElementById('bc-usernames-input').value
+    .split('\n').map(l => l.trim().replace('@','')).filter(Boolean);
+  const fb = document.getElementById('bc-username-feedback');
+  fb.style.display = 'block';
+  if (!lines.length) {
+    fb.innerHTML = '<span style="color:var(--red)">Nenhum username encontrado</span>';
+    return;
+  }
+  fb.innerHTML = `<span style="color:var(--green)">✅ ${lines.length} usernames prontos para disparo</span>`;
+}
 let bcAccFilter = 'all';
 
 function setBcFilter(id, el) {
@@ -2729,9 +2856,9 @@ function setBcMedia(type) {
   bcMediaType = type;
   bcMediaBase64 = null;
   bcMediaMime = null;
+  stopBcRecording();
 
-  // Update buttons
-  ['none','image','audio'].forEach(t => {
+  ['none','image','audio','video'].forEach(t => {
     const btn = document.getElementById(`bc-media-${t}`);
     if (btn) {
       btn.style.borderColor = t === type ? 'var(--accent)' : 'var(--border)';
@@ -2739,28 +2866,45 @@ function setBcMedia(type) {
     }
   });
 
-  // Show/hide areas
   document.getElementById('bc-image-area').style.display = type === 'image' ? 'block' : 'none';
   document.getElementById('bc-audio-area').style.display = type === 'audio' ? 'block' : 'none';
+  document.getElementById('bc-video-area').style.display = type === 'video' ? 'block' : 'none';
+}
+
+function setBcAudioTab(tab) {
+  document.getElementById('bc-audio-upload-area').style.display = tab === 'upload' ? 'block' : 'none';
+  document.getElementById('bc-audio-record-area').style.display = tab === 'record' ? 'block' : 'none';
+  document.getElementById('bc-audio-tab-upload').style.borderColor = tab === 'upload' ? 'var(--accent)' : 'var(--border)';
+  document.getElementById('bc-audio-tab-upload').style.color = tab === 'upload' ? 'var(--accent)' : 'var(--text2)';
+  document.getElementById('bc-audio-tab-record').style.borderColor = tab === 'record' ? 'var(--accent)' : 'var(--border)';
+  document.getElementById('bc-audio-tab-record').style.color = tab === 'record' ? 'var(--accent)' : 'var(--text2)';
 }
 
 function previewBcMedia(type) {
   const file = document.getElementById(`bc-${type}-file`).files[0];
   if (!file) return;
 
+  // Verifica tamanho (max 50MB)
+  if (file.size > 50 * 1024 * 1024) {
+    showNotif('Arquivo muito grande! Máximo 50MB.', 'red');
+    return;
+  }
+
   const reader = new FileReader();
   reader.onload = e => {
     bcMediaBase64 = e.target.result.split(',')[1];
     bcMediaMime = file.type;
+    const drop = document.getElementById(`bc-${type}-drop`);
+    const preview = document.getElementById(`bc-${type}-preview`);
+    if (drop) drop.style.display = 'none';
+    if (preview) preview.style.display = 'block';
 
     if (type === 'image') {
-      document.getElementById('bc-image-drop').style.display = 'none';
-      document.getElementById('bc-image-preview').style.display = 'block';
       document.getElementById('bc-image-preview-img').src = e.target.result;
-    } else {
-      document.getElementById('bc-audio-drop').style.display = 'none';
-      document.getElementById('bc-audio-preview').style.display = 'block';
+    } else if (type === 'audio') {
       document.getElementById('bc-audio-preview-player').src = e.target.result;
+    } else if (type === 'video') {
+      document.getElementById('bc-video-preview-player').src = e.target.result;
     }
   };
   reader.readAsDataURL(file);
@@ -2769,9 +2913,84 @@ function previewBcMedia(type) {
 function clearBcMedia(type) {
   bcMediaBase64 = null;
   bcMediaMime = null;
-  document.getElementById(`bc-${type}-file`).value = '';
-  document.getElementById(`bc-${type}-drop`).style.display = 'block';
-  document.getElementById(`bc-${type}-preview`).style.display = 'none';
+  const fileEl = document.getElementById(`bc-${type}-file`);
+  if (fileEl) fileEl.value = '';
+  const drop = document.getElementById(`bc-${type}-drop`);
+  const preview = document.getElementById(`bc-${type}-preview`);
+  if (drop) drop.style.display = 'block';
+  if (preview) preview.style.display = 'none';
+  if (type === 'video') document.getElementById('bc-video-preview-player').src = '';
+}
+
+
+
+// ── Gravador de voz ──
+let bcMediaRecorder = null;
+let bcRecChunks = [];
+let bcRecInterval = null;
+let bcRecSeconds = 0;
+let bcIsRecording = false;
+
+async function toggleBcRecording() {
+  if (bcIsRecording) {
+    stopBcRecording();
+  } else {
+    await startBcRecording();
+  }
+}
+
+async function startBcRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    bcRecChunks = [];
+    bcMediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+    bcMediaRecorder.ondataavailable = e => { if (e.data.size > 0) bcRecChunks.push(e.data); };
+    bcMediaRecorder.onstop = () => {
+      const blob = new Blob(bcRecChunks, { type: 'audio/ogg' });
+      const reader = new FileReader();
+      reader.onload = e => {
+        bcMediaBase64 = e.target.result.split(',')[1];
+        bcMediaMime = 'audio/ogg';
+        bcMediaType = 'audio';
+        document.getElementById('bc-audio-record-area').style.display = 'none';
+        document.getElementById('bc-audio-preview').style.display = 'block';
+        document.getElementById('bc-audio-preview-player').src = URL.createObjectURL(blob);
+      };
+      reader.readAsDataURL(blob);
+      stream.getTracks().forEach(t => t.stop());
+    };
+
+    bcMediaRecorder.start();
+    bcIsRecording = true;
+    bcRecSeconds = 0;
+    document.getElementById('bc-rec-btn').textContent = '⏹';
+    document.getElementById('bc-rec-btn').style.background = 'var(--text3)';
+    document.getElementById('bc-rec-timer').style.display = 'block';
+    document.getElementById('bc-rec-status').textContent = 'Gravando...';
+    document.getElementById('bc-rec-hint').textContent = 'Clique para parar';
+
+    bcRecInterval = setInterval(() => {
+      bcRecSeconds++;
+      const m = Math.floor(bcRecSeconds/60);
+      const s = bcRecSeconds % 60;
+      document.getElementById('bc-rec-timer').textContent = `⏺ ${m}:${s.toString().padStart(2,'0')}`;
+    }, 1000);
+  } catch(e) {
+    showNotif('Sem permissão para o microfone!', 'red');
+  }
+}
+
+function stopBcRecording() {
+  if (bcMediaRecorder && bcIsRecording) {
+    bcMediaRecorder.stop();
+    bcIsRecording = false;
+    clearInterval(bcRecInterval);
+    document.getElementById('bc-rec-btn').textContent = '🎙';
+    document.getElementById('bc-rec-btn').style.background = 'var(--red)';
+    document.getElementById('bc-rec-timer').style.display = 'none';
+    document.getElementById('bc-rec-status').textContent = 'Pronto para gravar';
+    document.getElementById('bc-rec-hint').textContent = 'Clique para gravar';
+  }
 }
 
 let bcScheduleTimer = null;
@@ -2803,18 +3022,32 @@ async function startBroadcast() {
   const message = document.getElementById('bc-message').value.trim();
   if (!message) return showNotif('Digite a mensagem!', 'red');
 
-  if (bcSelected.size === 0) return showNotif('Selecione pelo menos 1 conversa!', 'red');
-  if (!confirm(`Confirmar disparo para ${bcSelected.size} conversa(s)?`)) return;
+  let manualList = [];
 
-  // Monta lista de leads selecionados
-  const selectedLeads = bcAllLeads.filter(l => bcSelected.has(`${l.platform}_${l.userId}`));
-  const manualList = selectedLeads.map(l => `${l.platform}:${l.userId}`);
+  if (bcListTab === 'usernames') {
+    // Modo username
+    const lines = document.getElementById('bc-usernames-input').value
+      .split('\n').map(l => l.trim().replace('@','')).filter(Boolean);
+    if (!lines.length) return showNotif('Cole pelo menos 1 username!', 'red');
+    const accountId = document.getElementById('bc-username-account').value;
+    if (!accountId) return showNotif('Selecione uma conta para enviar!', 'red');
+    if (!confirm(`Confirmar disparo para ${lines.length} username(s)?`)) return;
+    // Formato especial: username@accountId
+    manualList = lines.map(u => `username:${accountId}:${u}`);
+  } else {
+    // Modo conversas
+    if (bcSelected.size === 0) return showNotif('Selecione pelo menos 1 conversa!', 'red');
+    if (!confirm(`Confirmar disparo para ${bcSelected.size} conversa(s)?`)) return;
+    const selectedLeads = bcAllLeads.filter(l => bcSelected.has(`${l.platform}_${l.userId}`));
+    manualList = selectedLeads.map(l => `${l.platform}:${l.userId}`);
+  }
   // Mídia anexada
   const imageUrl = bcMediaType === 'image' && bcMediaBase64 ? null : '';
   const audioUrl = bcMediaType === 'audio' && bcMediaBase64 ? null : '';
   const mediaBase64 = bcMediaBase64 || null;
   const mediaMime = bcMediaMime || null;
   const mediaType = bcMediaType !== 'none' ? bcMediaType : null;
+  const videoRound = mediaType === 'video' && document.getElementById('bc-video-round')?.checked;
 
   // Link no texto
   const linkUrl = document.getElementById('bc-link-url')?.value?.trim() || '';
@@ -2830,6 +3063,7 @@ async function startBroadcast() {
     mediaBase64,
     mediaMime,
     mediaType,
+    videoRound: videoRound || false,
     filters: {},
     manualList
   };
