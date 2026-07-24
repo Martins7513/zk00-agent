@@ -16,42 +16,85 @@ const PORT = process.env.PORT || 3000;
 const { execFile } = require('child_process');
 const os = require('os');
 
+// Converte áudio para OGG/OPUS (formato nota de voz do Telegram)
+async function convertToVoiceNote(inputBuffer, inputMime) {
+  return new Promise((resolve) => {
+    const ext = inputMime?.includes('mp3') ? 'mp3' : inputMime?.includes('wav') ? 'wav' : inputMime?.includes('m4a') ? 'm4a' : 'mp3';
+    const tmpIn = path.join(os.tmpdir(), `au_in_${Date.now()}.${ext}`);
+    const tmpOut = path.join(os.tmpdir(), `au_out_${Date.now()}.ogg`);
+    fs.writeFileSync(tmpIn, inputBuffer);
+
+    const args = ['-i', tmpIn, '-c:a', 'libopus', '-b:a', '64k', '-vn', '-y', tmpOut];
+
+    const tryPath = (paths, idx) => {
+      if (idx >= paths.length) {
+        try { fs.unlinkSync(tmpIn); } catch(e) {}
+        console.log('[BROADCAST] FFmpeg não disponível para áudio — enviando original');
+        resolve(inputBuffer);
+        return;
+      }
+      execFile(paths[idx], args, { timeout: 30000 }, (err) => {
+        if (err) { tryPath(paths, idx + 1); return; }
+        try { fs.unlinkSync(tmpIn); } catch(e) {}
+        const outBuf = fs.readFileSync(tmpOut);
+        try { fs.unlinkSync(tmpOut); } catch(e) {}
+        console.log(`[BROADCAST] Áudio convertido para OGG: ${outBuf.length} bytes`);
+        resolve(outBuf);
+      });
+    };
+    tryPath(['ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'], 0);
+  });
+}
+
 // Converte vídeo para formato bolinha do Telegram
 async function convertToVideoNote(inputBuffer, inputMime) {
+  // Tenta ffmpeg se disponível, senão envia direto
   return new Promise((resolve, reject) => {
     const ext = inputMime?.includes('mp4') ? 'mp4' : inputMime?.includes('mov') ? 'mov' : 'mp4';
     const tmpIn = path.join(os.tmpdir(), `bc_in_${Date.now()}.${ext}`);
     const tmpOut = path.join(os.tmpdir(), `bc_out_${Date.now()}.mp4`);
 
-    // Salva input
     fs.writeFileSync(tmpIn, inputBuffer);
 
-    // FFmpeg: crop quadrado + resize 384x384 + H.264 + max 60s
+    // Try ffmpeg locations
+    const ffmpegPaths = ['ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/nix/store/*/bin/ffmpeg'];
+    
     const args = [
       '-i', tmpIn,
-      '-t', '60',                    // max 60 segundos
-      '-vf', 'crop=min(iw\,ih):min(iw\,ih),scale=384:384', // crop quadrado
-      '-c:v', 'libx264',             // H.264
+      '-t', '60',
+      '-vf', 'crop=min(iw\,ih):min(iw\,ih),scale=384:384',
+      '-c:v', 'libx264',
       '-preset', 'fast',
       '-crf', '28',
       '-c:a', 'aac',
       '-b:a', '64k',
       '-movflags', '+faststart',
-      '-y',
-      tmpOut
+      '-y', tmpOut
     ];
 
-    execFile('ffmpeg', args, { timeout: 60000 }, (err) => {
-      try { fs.unlinkSync(tmpIn); } catch(e) {}
-      if (err) {
-        try { fs.unlinkSync(tmpOut); } catch(e) {}
-        reject(new Error('Erro ao converter vídeo: ' + err.message));
+    const tryPath = (paths, idx) => {
+      if (idx >= paths.length) {
+        // FFmpeg não disponível — envia vídeo original como videoNote
+        console.log('[BROADCAST] FFmpeg não disponível — enviando vídeo original como bolinha');
+        try { fs.unlinkSync(tmpIn); } catch(e) {}
+        resolve(inputBuffer);
         return;
       }
-      const outBuf = fs.readFileSync(tmpOut);
-      try { fs.unlinkSync(tmpOut); } catch(e) {}
-      resolve(outBuf);
-    });
+      execFile(paths[idx], args, { timeout: 90000 }, (err) => {
+        if (err) {
+          console.log(`[BROADCAST] ffmpeg em ${paths[idx]} falhou: ${err.code}`);
+          tryPath(paths, idx + 1);
+          return;
+        }
+        try { fs.unlinkSync(tmpIn); } catch(e) {}
+        const outBuf = fs.readFileSync(tmpOut);
+        try { fs.unlinkSync(tmpOut); } catch(e) {}
+        console.log(`[BROADCAST] Vídeo convertido com ${paths[idx]}: ${outBuf.length} bytes`);
+        resolve(outBuf);
+      });
+    };
+
+    tryPath(ffmpegPaths, 0);
   });
 }
 const ntfy = require('./ntfy');
@@ -725,19 +768,55 @@ async function broadcastSendWithClient(client, userId, message, mediaBase64, med
 
   if (mediaBase64 && mediaType) {
     let buf = Buffer.from(mediaBase64, 'base64');
-    const isVoice = mediaType === 'audio' && (mediaMime?.includes('ogg') || mediaMime?.includes('opus') || mediaMime?.includes('webm'));
-    const isVideo = mediaType === 'video';
+    console.log(`[BROADCAST] Enviando ${mediaType} (${(buf.length/1024).toFixed(0)}KB) para ${targetPeer}`);
 
-    if (isVideo && videoRound) {
+    if (mediaType === 'image') {
+      // Foto nativa — não aparece como arquivo
+      await client.sendFile(targetPeer, {
+        file: buf,
+        caption: message || '',
+        forceDocument: false,
+        attributes: []
+      });
+
+    } else if (mediaType === 'audio') {
+      // Converte para OGG/OPUS se necessário
+      const needsConvert = !mediaMime?.includes('ogg') && !mediaMime?.includes('opus');
+      if (needsConvert) {
+        console.log('[BROADCAST] Convertendo áudio para OGG...');
+        buf = await convertToVoiceNote(buf, mediaMime);
+      }
+      // Envia como nota de voz (bolinha de áudio)
+      await client.sendFile(targetPeer, {
+        file: buf,
+        caption: '',
+        voiceNote: true,
+        forceDocument: false
+      });
+      if (message) await client.sendMessage(targetPeer, { message });
+
+    } else if (mediaType === 'video' && videoRound) {
+      // Vídeo bolinha circular
       console.log('[BROADCAST] Convertendo vídeo para bolinha...');
       buf = await convertToVideoNote(buf, mediaMime);
-      await client.sendFile(targetPeer, { file: buf, caption: '', videoNote: true, forceDocument: false });
+      await client.sendFile(targetPeer, {
+        file: buf,
+        caption: '',
+        videoNote: true,
+        forceDocument: false
+      });
       if (message) await client.sendMessage(targetPeer, { message });
-    } else if (isVideo) {
-      await client.sendFile(targetPeer, { file: buf, caption: message || '', supportsStreaming: true, forceDocument: false });
-    } else {
-      await client.sendFile(targetPeer, { file: buf, caption: message || '', ...(isVoice ? { voiceNote: true } : {}), forceDocument: false });
+
+    } else if (mediaType === 'video') {
+      // Vídeo normal inline (não arquivo)
+      await client.sendFile(targetPeer, {
+        file: buf,
+        caption: message || '',
+        supportsStreaming: true,
+        forceDocument: false
+      });
     }
+
   } else {
     await client.sendMessage(targetPeer, { message });
   }
