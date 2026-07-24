@@ -721,6 +721,8 @@ async function broadcastSendWithClient(client, userId, message, mediaBase64, med
     }
   }
 
+  console.log(`[BROADCAST] sendWithClient: userId=${userId} mediaType=${mediaType} mediaBase64=${!!mediaBase64} size=${mediaBase64 ? Math.round(mediaBase64.length*3/4/1024)+'KB' : 'none'}`);
+
   if (mediaBase64 && mediaType) {
     let buf = Buffer.from(mediaBase64, 'base64');
     const isVoice = mediaType === 'audio' && (mediaMime?.includes('ogg') || mediaMime?.includes('opus') || mediaMime?.includes('webm'));
@@ -779,6 +781,7 @@ app.post('/api/broadcast/preview', authMiddleware, (req, res) => {
 app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
   const { message, mediaBase64, mediaMime, mediaType, videoRound, filters, manualList } = req.body;
   if (!message) return res.status(400).json({ error: 'Mensagem obrigatória' });
+  console.log(`[BROADCAST/START] message="${message?.substring(0,30)}" mediaType=${mediaType} hasMedia=${!!mediaBase64} size=${mediaBase64 ? Math.round(mediaBase64.length*3/4/1024)+'KB' : 'none'} videoRound=${videoRound}`);
   
   // Se vieram leads selecionados manualmente (formato platform:userid)
   const finalFilters = filters || {};
