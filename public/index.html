@@ -689,8 +689,21 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
 
         <!-- Modo normal -->
         <div id="bc-msg-normal">
-          <textarea class="form-textarea" id="bc-message" placeholder="Digite a mensagem...&#10;&#10;Use {nome} para personalizar. Ex: Olá {nome}, vem pra live hoje às 21h! 🔥" style="min-height:100px"></textarea>
-          <div style="font-size:10px;color:var(--text3);margin-top:4px">Use <code style="background:var(--bg4);padding:1px 4px;border-radius:3px">{nome}</code> para inserir o nome de cada pessoa automaticamente</div>
+          <!-- Toolbar de formatação -->
+          <div style="display:flex;gap:4px;margin-bottom:5px;flex-wrap:wrap">
+            <button onclick="fmtBold()" title="Negrito" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:3px 8px;border-radius:5px;font-size:12px;cursor:pointer;font-weight:700">B</button>
+            <button onclick="fmtItalic()" title="Itálico" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:3px 8px;border-radius:5px;font-size:12px;cursor:pointer;font-style:italic">I</button>
+            <button onclick="fmtMono()" title="Código/Mono" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:3px 8px;border-radius:5px;font-size:12px;cursor:pointer;font-family:monospace">M</button>
+            <div style="width:1px;background:var(--border);margin:0 3px"></div>
+            <button onclick="fmtLink()" title="Inserir link camuflado na posição do cursor" style="background:var(--bg3);border:1px solid var(--border);color:var(--accent);padding:3px 10px;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit">
+              🔗 Link
+            </button>
+            <button onclick="insertVar('{nome}')" title="Inserir nome" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit">{nome}</button>
+          </div>
+          <textarea class="form-textarea" id="bc-message" placeholder="Digite a mensagem...&#10;&#10;Exemplos de formatação:&#10;**negrito** | __itálico__ | [link oculto](https://...)" style="min-height:100px;font-family:monospace;font-size:13px"></textarea>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px;line-height:1.6">
+            <strong>**texto**</strong> = negrito &nbsp;|&nbsp; <em>__texto__</em> = itálico &nbsp;|&nbsp; <code>[texto](url)</code> = link camuflado &nbsp;|&nbsp; {nome} = nome da pessoa
+          </div>
         </div>
 
         <!-- Modo IA -->
@@ -3448,6 +3461,58 @@ document.addEventListener('input', e => {
   if (e.target.id === 'bc-link-url' || e.target.id === 'bc-link-text') updateLinkPreview();
 });
 
+// ── Formatação de mensagem ──
+function fmtWrap(before, after) {
+  const ta = document.getElementById('bc-message');
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const selected = ta.value.slice(start, end);
+  const wrapped = before + (selected || 'texto') + after;
+  ta.value = ta.value.slice(0, start) + wrapped + ta.value.slice(end);
+  ta.focus();
+  if (!selected) {
+    ta.selectionStart = start + before.length;
+    ta.selectionEnd = start + before.length + 5; // seleciona "texto"
+  } else {
+    ta.selectionStart = start;
+    ta.selectionEnd = start + wrapped.length;
+  }
+}
+
+function fmtBold() { fmtWrap('**', '**'); }
+function fmtItalic() { fmtWrap('__', '__'); }
+function fmtMono() { fmtWrap('`', '`'); }
+
+function fmtLink() {
+  const ta = document.getElementById('bc-message');
+  const url = document.getElementById('bc-link-url')?.value?.trim();
+  const linkTxt = document.getElementById('bc-link-text')?.value?.trim();
+  
+  if (!url) {
+    showNotif('Preencha a URL do link primeiro!', 'yellow');
+    document.getElementById('bc-link-url').focus();
+    return;
+  }
+
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const selected = ta.value.slice(start, end);
+  const displayText = selected || linkTxt || 'clique aqui';
+  const linkMarkdown = `[${displayText}](${url})`;
+
+  ta.value = ta.value.slice(0, start) + linkMarkdown + ta.value.slice(end);
+  ta.focus();
+  ta.selectionStart = start + linkMarkdown.length;
+  ta.selectionEnd = start + linkMarkdown.length;
+  
+  showNotif('✅ Link inserido! O link não vai aparecer separado.', 'green');
+  
+  // Limpa o campo de link separado para não duplicar
+  const linkUrlEl = document.getElementById('bc-link-url');
+  if (linkUrlEl) linkUrlEl.value = '';
+  updateLinkPreview();
+}
+
 function insertVar(v) {
   const ta = document.getElementById('bc-message');
   if (!ta) return;
@@ -3572,8 +3637,8 @@ async function startBroadcast() {
 
   // Link no texto
   const linkUrl = document.getElementById('bc-link-url')?.value?.trim() || '';
-  const linkText = document.getElementById('bc-link-text')?.value?.trim() || 'Clique aqui';
-  const fullMessage = !bcAiMode && linkUrl && bcLinkMode === 'plain' ? `${message}\n\n${linkUrl}` : (message || '');
+  const linkText = document.getElementById('bc-link-text')?.value?.trim() || '';
+  const fullMessage = bcAiMode ? '' : message;
 
   const btnText = '';
   const btnUrl = '';
@@ -3586,7 +3651,7 @@ async function startBroadcast() {
     aiTone: bcAiMode ? (document.getElementById('bc-ai-tone')?.value || 'casual') : null,
     linkUrl: linkUrl || null,
     linkText: linkText || null,
-    linkMode: linkUrl ? bcLinkMode : null,
+    linkMode: bcLinkMode || 'plain',
     mediaBase64,
     mediaMime,
     mediaType,
