@@ -901,6 +901,130 @@ app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
   }).catch(e => console.error('[BROADCAST] Erro:', e.message));
 });
 
+// Sincroniza histórico de conversas do Telegram
+app.post('/api/telegram/sync-history', authMiddleware, async (req, res) => {
+  const { accountId, limit = 50 } = req.body;
+  
+  try {
+    const ac = userbotManager.activeClients[accountId];
+    if (!ac?.client) return res.json({ error: 'Conta não conectada' });
+    
+    const client = ac.client;
+    const { Api } = require('telegram');
+    
+    res.json({ success: true, message: 'Sincronização iniciada em background' });
+    
+    // Roda em background
+    (async () => {
+      let imported = 0;
+      let errors = 0;
+      
+      try {
+        // Busca diálogos (conversas) do Telegram
+        const dialogs = await client.getDialogs({ limit: parseInt(limit) });
+        
+        console.log(`[SYNC] Encontrados ${dialogs.length} diálogos para ${accountId}`);
+        
+        for (const dialog of dialogs) {
+          try {
+            const entity = dialog.entity;
+            // Só processa chats privados (não grupos/canais)
+            if (!entity?.className === 'User') continue;
+            if (entity.bot) continue; // ignora bots
+            
+            const userId = String(entity.id);
+            const name = [entity.firstName, entity.lastName].filter(Boolean).join(' ') || 'Desconhecido';
+            const platform = `telegram_${accountId}`;
+            
+            // Salva o cliente no banco
+            db.saveClient(platform, userId, {
+              name,
+              username: entity.username || null,
+              lastSeen: new Date().toISOString()
+            });
+            
+            // Busca últimas mensagens desta conversa
+            const messages = await client.getMessages(entity, { limit: 20 });
+            
+            for (const msg of messages.reverse()) {
+              if (!msg.message) continue;
+              const role = msg.out ? 'agent' : 'user';
+              const timestamp = new Date(msg.date * 1000).toISOString();
+              
+              // Adiciona mensagem se não existe já
+              const history = db.getHistory(platform, userId);
+              const exists = history.some(h => 
+                h.content === msg.message && 
+                Math.abs(new Date(h.timestamp) - new Date(timestamp)) < 2000
+              );
+              
+              if (!exists) {
+                db.addMessage(platform, userId, role, msg.message, timestamp);
+              }
+            }
+            
+            imported++;
+            await new Promise(r => setTimeout(r, 500)); // delay anti-rate-limit
+            
+          } catch(e) {
+            errors++;
+          }
+        }
+        
+        console.log(`[SYNC] Concluído: ${imported} conversas importadas, ${errors} erros`);
+      } catch(e) {
+        console.error('[SYNC] Erro:', e.message);
+      }
+    })();
+    
+  } catch(e) {
+    res.json({ error: e.message });
+  }
+});
+
+// Busca usernames de todas as conversas
+app.get('/api/contacts/fetch-usernames', authMiddleware, async (req, res) => {
+  try {
+    const convs = db.getRecentConversations(500, null);
+    const results = [];
+
+    for (const conv of convs) {
+      if (!conv.platform?.startsWith('telegram_')) continue;
+      const accountId = conv.platform.replace('telegram_', '');
+      const ac = userbotManager.activeClients[accountId];
+      const client = ac?.client;
+      if (!client) continue;
+
+      try {
+        const userId = parseInt(conv.userId);
+        if (isNaN(userId)) continue;
+
+        const entity = await client.getEntity(userId);
+        const username = entity.username;
+        const name = [entity.firstName, entity.lastName].filter(Boolean).join(' ') || entity.title || conv.clientName;
+
+        results.push({
+          userId: conv.userId,
+          username: username || null,
+          name,
+          platform: conv.platform
+        });
+      } catch(e) {
+        // Ignora erros individuais
+      }
+
+      // Pequeno delay para não dar rate limit
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    const withUsername = results.filter(r => r.username);
+    console.log(`[CONTACTS] Encontrados ${withUsername.length}/${results.length} com username`);
+    res.json({ total: results.length, withUsername: withUsername.length, contacts: withUsername });
+  } catch(e) {
+    res.json({ error: e.message });
+  }
+});
+
 // Status do disparo em andamento
 app.get('/api/broadcast/status', authMiddleware, (req, res) => {
   res.json(broadcast.getStatus());
