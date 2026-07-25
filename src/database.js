@@ -57,6 +57,7 @@ function getDefaultDB() {
     clients: {},
     conversations: {},
     knowledge: JSON.parse(JSON.stringify(FIXED_KNOWLEDGE)),
+    contacts: [],
     settings: JSON.parse(JSON.stringify(FIXED_SETTINGS))
   };
 }
@@ -268,6 +269,58 @@ function toggleKnowledge(id, active) {
 }
 
 // ==============================
+// CONTATOS
+// ==============================
+
+function getContacts() {
+  if (!db.contacts) db.contacts = [];
+  return db.contacts;
+}
+
+function saveContactsDB(contacts) {
+  const seen = new Set();
+  db.contacts = contacts.filter(c => {
+    const key = c.username.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  saveDB(db);
+  return db.contacts;
+}
+
+function addContact(contact) {
+  if (!db.contacts) db.contacts = [];
+  const exists = db.contacts.find(c => c.username.toLowerCase() === contact.username.toLowerCase());
+  if (exists) return { error: 'Contato já existe' };
+  db.contacts.push({ ...contact, addedAt: new Date().toISOString() });
+  saveDB(db);
+  return { success: true };
+}
+
+function removeContact(username) {
+  if (!db.contacts) db.contacts = [];
+  db.contacts = db.contacts.filter(c => c.username.toLowerCase() !== username.toLowerCase());
+  saveDB(db);
+}
+
+function importContactsDB(list) {
+  if (!db.contacts) db.contacts = [];
+  const existing = new Set(db.contacts.map(c => c.username.toLowerCase()));
+  let added = 0, dupes = 0;
+  list.forEach(c => {
+    const key = (c.username || c).toLowerCase().replace('@','');
+    if (!key || key.length < 2) return;
+    if (existing.has(key)) { dupes++; return; }
+    db.contacts.push({ username: key, name: c.name || '', addedAt: new Date().toISOString() });
+    existing.add(key);
+    added++;
+  });
+  saveDB(db);
+  return { added, dupes };
+}
+
+// ==============================
 // SETTINGS
 // ==============================
 function getSettings() { return db.settings; }
@@ -371,6 +424,7 @@ module.exports = {
   searchKnowledge, getAllKnowledge, addKnowledge, deleteKnowledge,
   getSettings, updateSettings, isHumanMode, setHumanMode, flagConversation,
   getStats, exportBackup, importBackup, deleteMessage, toggleKnowledge, markAsRead, markReadByLead,
+  getContacts, saveContactsDB, addContact, removeContact, importContactsDB,
   getContacts, saveContacts, addContact, removeContact, importContacts,
   getUsers, getUserByCredentials, addUser, updateUser, deleteUser
 };
