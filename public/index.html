@@ -607,28 +607,58 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
     </div>
 
     <!-- @Usernames -->
-    <div id="bc-list-usernames" style="display:none;flex-direction:column;flex:1;overflow:hidden;padding:12px">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;line-height:1.6">
-        Cole os @usernames abaixo, um por linha.<br>
-        <span style="color:var(--text3);font-size:11px">Ex: @joaosilva ou joaosilva (sem @)</span>
-      </div>
-      <textarea id="bc-usernames-input" class="form-textarea" placeholder="@usuario1&#10;@usuario2&#10;usuario3&#10;..." 
-        style="flex:1;min-height:200px;font-family:monospace;font-size:12px;resize:none"
-        oninput="updateUsernameCount()"></textarea>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
-        <span id="bc-username-count" style="font-size:11px;color:var(--text2)">0 usernames</span>
-        <button onclick="validateUsernames()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">
-          ✓ Validar
-        </button>
-      </div>
-      <div id="bc-username-feedback" style="margin-top:8px;font-size:11px;display:none"></div>
+    <div id="bc-list-usernames" style="display:none;flex-direction:column;flex:1;overflow:hidden">
 
-      <!-- Selecionar conta para envio -->
-      <div style="margin-top:10px">
-        <label class="form-label">Conta para enviar</label>
-        <select class="form-select" id="bc-username-account" style="width:100%">
-          <option value="">Carregando...</option>
-        </select>
+      <!-- Toolbar -->
+      <div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center">
+        <input class="search-input" id="bc-contact-search" placeholder="🔍 Buscar..." oninput="renderContacts()" style="flex:1">
+        <button onclick="showAddContact()" style="background:var(--accent);border:none;color:#fff;padding:5px 10px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:700" title="Adicionar">+</button>
+        <button onclick="showImport()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">📋 Lista</button>
+      </div>
+
+      <!-- Stats + select all -->
+      <div style="padding:5px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <span id="bc-contact-stats" style="font-size:11px;color:var(--text2)">0 contatos</span>
+        <div style="display:flex;gap:5px">
+          <button onclick="selectAllContacts(true)" style="background:none;border:1px solid var(--border);color:var(--text2);padding:2px 7px;border-radius:4px;font-size:10px;cursor:pointer;font-family:inherit">✓</button>
+          <button onclick="selectAllContacts(false)" style="background:none;border:1px solid var(--border);color:var(--text2);padding:2px 7px;border-radius:4px;font-size:10px;cursor:pointer;font-family:inherit">✗</button>
+          <button onclick="deleteSelectedContacts()" style="background:none;border:1px solid rgba(239,68,68,.3);color:var(--red);padding:2px 7px;border-radius:4px;font-size:10px;cursor:pointer;font-family:inherit">🗑</button>
+        </div>
+      </div>
+
+      <!-- Lista -->
+      <div id="bc-contacts-list" style="flex:1;overflow-y:auto"></div>
+
+      <!-- Add contact -->
+      <div id="bc-add-contact-bar" style="display:none;padding:8px 12px;border-top:1px solid var(--border);background:var(--bg3)">
+        <div style="font-size:11px;font-weight:600;margin-bottom:5px">➕ Novo contato</div>
+        <div style="display:flex;gap:5px">
+          <input class="form-input" id="bc-new-name" placeholder="Nome (opcional)" style="flex:1;font-size:12px">
+          <input class="form-input" id="bc-new-username" placeholder="@username" style="flex:1;font-size:12px"
+            onkeydown="if(event.key==='Enter')addContact()">
+          <button onclick="addContact()" style="background:var(--accent);border:none;color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:700">✓</button>
+          <button onclick="hideAddContact()" style="background:var(--bg4);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:12px;cursor:pointer">✕</button>
+        </div>
+      </div>
+
+      <!-- Import lista -->
+      <div id="bc-import-bar" style="display:none;padding:8px 12px;border-top:1px solid var(--border);background:var(--bg3)">
+        <div style="font-size:11px;font-weight:600;margin-bottom:5px">📋 Importar @usernames (um por linha)</div>
+        <textarea id="bc-import-text" class="form-textarea" placeholder="@joao&#10;@maria&#10;pedro&#10;..." style="min-height:70px;font-family:monospace;font-size:12px;resize:none"></textarea>
+        <div style="display:flex;gap:6px;margin-top:5px">
+          <button onclick="importContacts()" style="flex:1;background:var(--accent);border:none;color:#fff;padding:6px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600">✓ Importar</button>
+          <button onclick="hideImport()" style="background:var(--bg4);border:1px solid var(--border);color:var(--text2);padding:6px 10px;border-radius:6px;font-size:12px;cursor:pointer">✕</button>
+        </div>
+      </div>
+
+      <!-- Footer: conta + selecionados -->
+      <div style="padding:8px 12px;border-top:1px solid var(--border);background:var(--bg2)">
+        <div style="display:flex;gap:8px;align-items:center">
+          <select class="form-select" id="bc-username-account" style="flex:1;font-size:12px">
+            <option value="">Selecione a conta...</option>
+          </select>
+          <span id="bc-selected-contacts" style="font-size:11px;color:var(--accent);white-space:nowrap;font-weight:600">0 selecionados</span>
+        </div>
       </div>
     </div>
   </div>
@@ -2200,6 +2230,145 @@ const _origFilterConvs = filterConvs;
 let bcAllLeads = [];
 let bcSelected = new Set();
 
+// ── AGENDA DE CONTATOS ──
+function getContacts() {
+  return JSON.parse(localStorage.getItem('bc_contacts') || '[]');
+}
+function saveContacts(contacts) {
+  localStorage.setItem('bc_contacts', JSON.stringify(contacts));
+}
+
+let selectedContacts = new Set();
+
+function renderContacts() {
+  const el = document.getElementById('bc-contacts-list');
+  if (!el) return;
+  const q = (document.getElementById('bc-contact-search')?.value || '').toLowerCase();
+  const contacts = getContacts();
+  const filtered = q ? contacts.filter(c =>
+    c.username.toLowerCase().includes(q) || (c.name||'').toLowerCase().includes(q)
+  ) : contacts;
+
+  const stats = document.getElementById('bc-contact-stats');
+  const selCount = document.getElementById('bc-selected-contacts');
+  if (stats) stats.textContent = `${contacts.length} contato${contacts.length!==1?'s':''}`;
+  if (selCount) selCount.textContent = `${selectedContacts.size} selecionado${selectedContacts.size!==1?'s':''}`;
+
+  if (!filtered.length) {
+    el.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">
+      ${contacts.length ? 'Nenhum contato encontrado' : 'Nenhum contato ainda.<br>Clique em + para adicionar ou 📋 Lista para importar.'}
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = filtered.map((c, i) => {
+    const checked = selectedContacts.has(c.username);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);${checked?'background:rgba(59,130,246,.06)':''}">
+      <input type="checkbox" ${checked?'checked':''} onchange="toggleContact('${c.username}', this.checked)"
+        style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);flex-shrink:0">
+        ${(c.name||c.username).charAt(0).toUpperCase()}
+      </div>
+      <div style="flex:1;min-width:0">
+        ${c.name ? `<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name}</div>` : ''}
+        <div style="font-size:11px;color:var(--text2)">@${c.username}</div>
+      </div>
+      <button onclick="removeContact('${c.username}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 6px" title="Remover">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleContact(username, checked) {
+  if (checked) selectedContacts.add(username);
+  else selectedContacts.delete(username);
+  renderContacts();
+}
+
+function selectAllContacts(all) {
+  const contacts = getContacts();
+  if (all) contacts.forEach(c => selectedContacts.add(c.username));
+  else selectedContacts.clear();
+  renderContacts();
+}
+
+function showAddContact() {
+  document.getElementById('bc-add-contact-bar').style.display = 'block';
+  document.getElementById('bc-import-bar').style.display = 'none';
+  document.getElementById('bc-new-username').focus();
+}
+function hideAddContact() {
+  document.getElementById('bc-add-contact-bar').style.display = 'none';
+  document.getElementById('bc-new-name').value = '';
+  document.getElementById('bc-new-username').value = '';
+}
+
+function showImport() {
+  document.getElementById('bc-import-bar').style.display = 'block';
+  document.getElementById('bc-add-contact-bar').style.display = 'none';
+}
+function hideImport() {
+  document.getElementById('bc-import-bar').style.display = 'none';
+  document.getElementById('bc-import-text').value = '';
+}
+
+function addContact() {
+  const name = document.getElementById('bc-new-name').value.trim();
+  const username = document.getElementById('bc-new-username').value.trim().replace('@','');
+  if (!username || username.length < 2) return showNotif('Digite um @username válido!', 'red');
+
+  const contacts = getContacts();
+  if (contacts.find(c => c.username.toLowerCase() === username.toLowerCase())) {
+    return showNotif(`@${username} já existe na lista!`, 'yellow');
+  }
+  contacts.push({ username, name: name || '', addedAt: new Date().toISOString() });
+  saveContacts(contacts);
+  hideAddContact();
+  renderContacts();
+  showNotif(`✅ @${username} adicionado!`, 'green');
+}
+
+function importContacts() {
+  const text = document.getElementById('bc-import-text').value;
+  const lines = [...new Set(
+    text.split(/[\n\r,; \t]+/).map(l => l.trim().replace('@','')).filter(l => l.length > 2)
+  )];
+
+  const contacts = getContacts();
+  const existing = new Set(contacts.map(c => c.username.toLowerCase()));
+  let added = 0, dupes = 0;
+
+  lines.forEach(username => {
+    if (existing.has(username.toLowerCase())) { dupes++; return; }
+    contacts.push({ username, name: '', addedAt: new Date().toISOString() });
+    existing.add(username.toLowerCase());
+    added++;
+  });
+
+  saveContacts(contacts);
+  hideImport();
+  renderContacts();
+  showNotif(`✅ ${added} adicionado${added!==1?'s':''} • ${dupes} duplicata${dupes!==1?'s':''} ignorada${dupes!==1?'s':''}`, 'green');
+}
+
+function removeContact(username) {
+  const contacts = getContacts().filter(c => c.username !== username);
+  saveContacts(contacts);
+  selectedContacts.delete(username);
+  renderContacts();
+}
+
+function deleteSelectedContacts() {
+  if (!selectedContacts.size) return showNotif('Selecione contatos para remover', 'yellow');
+  if (!confirm(`Remover ${selectedContacts.size} contato(s)?`)) return;
+  const contacts = getContacts().filter(c => !selectedContacts.has(c.username));
+  saveContacts(contacts);
+  selectedContacts.clear();
+  renderContacts();
+  showNotif('Contatos removidos', '');
+}
+
+function importContactsText() { showImport(); }
+
 let bcActiveFilter = 'all';
 let bcListTab = 'convs'; // 'convs' or 'usernames'
 
@@ -2220,12 +2389,13 @@ function setBcListTab(tab) {
         sel.innerHTML = accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
       }
     });
+    setTimeout(renderContacts, 100);
   }
 }
 
 function updateUsernameCount() {
   const lines = document.getElementById('bc-usernames-input').value
-    .split(/[\n,;\s]+/).map(l => l.trim().replace('@','')).filter(l => l.length > 2);
+    .split(/[\n\r,; \t]+/).map(l => l.trim().replace('@','')).filter(l => l.length > 2);
   const unique = [...new Set(lines)];
   document.getElementById('bc-username-count').textContent = `${unique.length} username(s)`;
 }
@@ -3047,10 +3217,8 @@ async function startBroadcast() {
 
   if (bcListTab === 'usernames') {
     // Modo username
-    const lines = [...new Set(
-      document.getElementById('bc-usernames-input').value
-        .split(/[\n,;\s]+/).map(l => l.trim().replace('@','')).filter(l => l.length > 2)
-    )];
+    // Usa contatos selecionados na agenda
+    const lines = [...selectedContacts].filter(u => u.length > 2);
     if (!lines.length) return showNotif('Cole pelo menos 1 username!', 'red');
     const accountId = document.getElementById('bc-username-account').value;
     if (!accountId) return showNotif('Selecione uma conta para enviar!', 'red');
