@@ -371,5 +371,6 @@ module.exports = {
   searchKnowledge, getAllKnowledge, addKnowledge, deleteKnowledge,
   getSettings, updateSettings, isHumanMode, setHumanMode, flagConversation,
   getStats, exportBackup, importBackup, deleteMessage, toggleKnowledge, markAsRead, markReadByLead,
+  getContacts, saveContacts, addContact, removeContact, importContacts,
   getUsers, getUserByCredentials, addUser, updateUser, deleteUser
 };
