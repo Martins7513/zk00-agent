@@ -136,7 +136,7 @@ function filterLeads(filters = {}) {
 }
 
 // Executa o disparo
-async function startBroadcast({ message, mediaBase64, mediaMime, mediaType, videoRound, filters, sendFn }) {
+async function startBroadcast({ message, aiMessages, hasPersonalization, mediaBase64, mediaMime, mediaType, videoRound, filters, sendFn }) {
   if (broadcastState.active) {
     return { error: 'Já existe um disparo em andamento' };
   }
@@ -172,12 +172,27 @@ async function startBroadcast({ message, mediaBase64, mediaMime, mediaType, vide
       const userId = lead.userId;
       const name = lead.name || userId;
 
+      // Personaliza mensagem para este lead
+      let personalMessage = message;
+
+      if (aiMessages && aiMessages.length > 0) {
+        // Usa uma variação aleatória da IA
+        const idx = Math.floor(Math.random() * aiMessages.length);
+        personalMessage = aiMessages[idx];
+      }
+
+      // Substitui {nome} pelo nome real
+      if (personalMessage.includes('{nome}')) {
+        const firstName = name.split(' ')[0] || name;
+        personalMessage = personalMessage.replace(/\{nome\}/g, firstName);
+      }
+
       // Marca como enviando
       broadcastState.log = broadcastState.log.filter(l => !(l.userId === userId && l.status === 'sending'));
       broadcastState.log.push({ name, userId, platform, status: 'sending', time: new Date().toISOString() });
 
       try {
-        await sendFn(platform, userId, message, mediaBase64, mediaMime, mediaType, videoRound);
+        await sendFn(platform, userId, personalMessage, mediaBase64, mediaMime, mediaType, videoRound);
 
         broadcastState.sent++;
         broadcastState.log.push({
