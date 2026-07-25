@@ -616,7 +616,45 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
         <button onclick="showAddContact()" style="background:var(--accent);border:none;color:#fff;padding:5px 10px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:700" title="Adicionar">+</button>
         <button onclick="showImport()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">📋 Lista</button>
         <button onclick="fetchUsernamesFromConvs()" id="bc-fetch-btn" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" title="Importar usernames de todas as conversas">🔍 Conversas</button>
+        <button onclick="showGroupExtract()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" title="Extrair @usernames de grupos/canais">👥 Grupos</button>
         <button onclick="exportContactsTxt()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" title="Baixar lista em .txt">⬇️ .txt</button>
+      </div>
+
+      <!-- Extração de grupos -->
+      <div id="bc-group-extract" style="display:none;padding:10px 12px;border-bottom:1px solid var(--border);background:rgba(99,102,241,.06)">
+        <div style="font-size:11px;font-weight:600;margin-bottom:8px">👥 Extrair @usernames de Grupo/Canal</div>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <select class="form-select" id="bc-extract-account" style="flex:1;font-size:11px" onchange="loadGroupsList()">
+            <option value="">Selecione a conta...</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <select class="form-select" id="bc-extract-group" style="flex:1;font-size:11px">
+            <option value="">Selecione o grupo/canal...</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+          <select class="form-select" id="bc-extract-limit" style="flex:1;font-size:11px">
+            <option value="200">200 últimas mensagens</option>
+            <option value="500" selected>500 últimas mensagens</option>
+            <option value="1000">1000 mensagens</option>
+            <option value="3000">3000 mensagens</option>
+          </select>
+          <button onclick="startGroupExtract()" id="bc-extract-btn" style="background:var(--accent);border:none;color:#fff;padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700;white-space:nowrap">▶ Extrair</button>
+        </div>
+        <!-- Progress bar -->
+        <div id="bc-extract-progress" style="display:none;margin-bottom:6px">
+          <div style="background:var(--bg4);border-radius:4px;height:5px;overflow:hidden">
+            <div id="bc-extract-bar" style="background:var(--accent);height:100%;width:0%;transition:width .5s;border-radius:4px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:3px">
+            <span>📨 <span id="bc-extract-scanned">0</span> msgs lidas</span>
+            <span>👤 <span id="bc-extract-found">0</span> com @username</span>
+            <span>✅ <span id="bc-extract-added">0</span> novos</span>
+          </div>
+        </div>
+        <div id="bc-extract-status" style="font-size:10px;color:var(--text3)">Lê as mensagens do grupo e pega @usernames de quem enviou — funciona em grupos fechados!</div>
+        <button onclick="hideGroupExtract()" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;margin-top:4px">✕ Fechar</button>
       </div>
 
       <!-- Stats + select all -->
@@ -2472,6 +2510,105 @@ async function deleteSelectedContacts() {
 }
 
 function importContactsText() { showImport(); }
+
+// ── Extração de grupos ──
+async function showGroupExtract() {
+  const panel = document.getElementById('bc-group-extract');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  if (panel.style.display === 'block') {
+    // Popula contas
+    const accounts = await api('GET', '/api/accounts');
+    const sel = document.getElementById('bc-extract-account');
+    if (Array.isArray(accounts)) {
+      sel.innerHTML = '<option value="">Selecione a conta...</option>' +
+        accounts.filter(a => a.connected).map(a =>
+          `<option value="${a.id}">${a.name}</option>`
+        ).join('');
+    }
+  }
+}
+
+function hideGroupExtract() {
+  document.getElementById('bc-group-extract').style.display = 'none';
+}
+
+async function loadGroupsList() {
+  const accountId = document.getElementById('bc-extract-account').value;
+  const sel = document.getElementById('bc-extract-group');
+  if (!accountId) return;
+
+  sel.innerHTML = '<option>Carregando...</option>';
+  const groups = await api('GET', `/api/telegram/groups?accountId=${accountId}`);
+
+  if (groups.error) {
+    sel.innerHTML = `<option>Erro: ${groups.error}</option>`;
+    return;
+  }
+
+  sel.innerHTML = '<option value="">Selecione o grupo/canal...</option>' +
+    groups.map(g =>
+      `<option value="${g.id}">${g.name} (${g.type === 'channel' ? '📢' : '👥'} ${g.members} membros)</option>`
+    ).join('');
+}
+
+let extractInterval = null;
+
+async function startGroupExtract() {
+  const accountId = document.getElementById('bc-extract-account').value;
+  const groupId = document.getElementById('bc-extract-group').value;
+  const msgLimit = document.getElementById('bc-extract-limit').value;
+  const status = document.getElementById('bc-extract-status');
+  const btn = document.getElementById('bc-extract-btn');
+  const progress = document.getElementById('bc-extract-progress');
+
+  if (!accountId || !groupId) return showNotif('Selecione conta e grupo!', 'yellow');
+
+  btn.disabled = true;
+  btn.textContent = '⏳';
+  status.textContent = '🔄 Lendo mensagens...';
+  status.style.color = 'var(--yellow)';
+  progress.style.display = 'block';
+
+  const res = await api('POST', '/api/telegram/extract-members', { accountId, groupId, msgLimit });
+
+  if (res.error) {
+    status.textContent = '❌ ' + res.error;
+    status.style.color = 'var(--red)';
+    btn.disabled = false;
+    btn.textContent = '▶ Extrair';
+    return;
+  }
+
+  // Poll ao vivo
+  if (extractInterval) clearInterval(extractInterval);
+  extractInterval = setInterval(async () => {
+    const s = await api('GET', '/api/telegram/extract-status');
+    if (!s) return;
+
+    document.getElementById('bc-extract-scanned').textContent = s.scanned || 0;
+    document.getElementById('bc-extract-found').textContent = s.found || 0;
+    document.getElementById('bc-extract-added').textContent = s.added || 0;
+
+    const pct = msgLimit > 0 ? Math.min(100, Math.round((s.scanned / parseInt(msgLimit)) * 100)) : 50;
+    document.getElementById('bc-extract-bar').style.width = pct + '%';
+
+    if (s.active) {
+      status.textContent = `🔄 Lendo mensagens de "${s.groupName || 'grupo'}"...`;
+    }
+
+    if (s.done) {
+      clearInterval(extractInterval);
+      document.getElementById('bc-extract-bar').style.width = '100%';
+      document.getElementById('bc-extract-bar').style.background = 'var(--green)';
+      status.textContent = `✅ Concluído! ${s.added} novos @usernames adicionados de ${s.scanned} mensagens`;
+      status.style.color = 'var(--green)';
+      btn.disabled = false;
+      btn.textContent = '▶ Extrair';
+      invalidateContacts();
+      renderContacts();
+    }
+  }, 1500);
+}
 
 async function exportContactsTxt() {
   const contacts = await getContacts();
