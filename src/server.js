@@ -996,7 +996,7 @@ app.post('/api/contacts', authMiddleware, (req, res) => {
 app.post('/api/contacts/import', authMiddleware, (req, res) => {
   const { list } = req.body;
   if (!Array.isArray(list)) return res.status(400).json({ error: 'Lista inválida' });
-  res.json(db.importContacts(list));
+  res.json(db.importContactsDB(list));
 });
 
 app.delete('/api/contacts/:username', authMiddleware, (req, res) => {
@@ -1006,7 +1006,7 @@ app.delete('/api/contacts/:username', authMiddleware, (req, res) => {
 
 app.put('/api/contacts', authMiddleware, (req, res) => {
   const { contacts } = req.body;
-  res.json(db.saveContacts(contacts));
+  res.json(db.saveContactsDB(contacts));
 });
 
 // Busca usernames de todas as conversas
