@@ -136,7 +136,7 @@ function filterLeads(filters = {}) {
 }
 
 // Executa o disparo
-async function startBroadcast({ message, aiMessages, hasPersonalization, mediaBase64, mediaMime, mediaType, videoRound, filters, sendFn }) {
+async function startBroadcast({ message, aiObjective, aiTone, linkUrl, linkText, linkMode, mediaBase64, mediaMime, mediaType, videoRound, filters, sendFn, generateAiMsg }) {
   if (broadcastState.active) {
     return { error: 'Já existe um disparo em andamento' };
   }
@@ -172,19 +172,34 @@ async function startBroadcast({ message, aiMessages, hasPersonalization, mediaBa
       const userId = lead.userId;
       const name = lead.name || userId;
 
-      // Personaliza mensagem para este lead
+      // Gera mensagem personalizada para este lead
       let personalMessage = message;
 
-      if (aiMessages && aiMessages.length > 0) {
-        // Usa uma variação aleatória da IA
-        const idx = Math.floor(Math.random() * aiMessages.length);
-        personalMessage = aiMessages[idx];
+      if (aiObjective) {
+        // IA gera mensagem única para cada pessoa
+        try {
+          if (generateAiMsg) personalMessage = await generateAiMsg(aiObjective, aiTone, name);
+          else personalMessage = message || aiObjective;
+        } catch(e) {
+          // Fallback: usa mensagem base se IA falhar
+          console.error('[BROADCAST] IA falhou para', name, e.message);
+          personalMessage = message || aiObjective;
+        }
       }
 
       // Substitui {nome} pelo nome real
-      if (personalMessage.includes('{nome}')) {
-        const firstName = name.split(' ')[0] || name;
+      if (personalMessage && personalMessage.includes('{nome}')) {
+        const firstName = (name || '').split(' ')[0] || name;
         personalMessage = personalMessage.replace(/\{nome\}/g, firstName);
+      }
+
+      // Adiciona link conforme modo
+      if (linkUrl) {
+        if (linkMode === 'plain') {
+          personalMessage = (personalMessage || '') + '\n\n' + linkUrl;
+        } else if (linkMode === 'button' || linkMode === 'hidden') {
+          personalMessage = (personalMessage || '') + '\n\n' + linkUrl;
+        }
       }
 
       // Marca como enviando
