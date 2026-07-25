@@ -193,13 +193,17 @@ async function startBroadcast({ message, aiObjective, aiTone, linkUrl, linkText,
         personalMessage = personalMessage.replace(/\{nome\}/g, firstName);
       }
 
-      // Adiciona link conforme modo
+      // Adiciona link à mensagem
       if (linkUrl) {
-        if (linkMode === 'plain') {
-          personalMessage = (personalMessage || '') + '\n\n' + linkUrl;
-        } else if (linkMode === 'button' || linkMode === 'hidden') {
-          personalMessage = (personalMessage || '') + '\n\n' + linkUrl;
+        const sep = personalMessage ? '\n\n' : '';
+        if (linkMode === 'hidden' && linkText) {
+          // Link camuflado: [texto](url) em Markdown do Telegram
+          personalMessage = (personalMessage || '') + sep + `[${linkText}](${linkUrl})`;
+        } else {
+          // Link normal ou no final
+          personalMessage = (personalMessage || '') + sep + linkUrl;
         }
+        console.log(`[BROADCAST] Link adicionado (${linkMode}): ${linkUrl}`);
       }
 
       // Marca como enviando
