@@ -1018,9 +1018,26 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
         <option value="0">📋 Todas (pode demorar)</option>
       </select>
     </div>
-    <div id="sync-status" style="display:none;background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:12px"></div>
+    <div id="sync-status" style="display:none;background:var(--bg3);border-radius:8px;padding:12px;font-size:12px;color:var(--text2);margin-bottom:12px">
+      <div id="sync-status-text" style="margin-bottom:8px">Iniciando...</div>
+      <!-- Barra de progresso -->
+      <div id="sync-progress-wrap" style="display:none">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+          <span>Buscando conversas...</span>
+          <span id="sync-count">0</span>
+        </div>
+        <div style="background:var(--bg4);border-radius:4px;height:6px;overflow:hidden">
+          <div id="sync-bar" style="background:var(--accent);height:100%;width:0%;transition:width .3s;border-radius:4px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:4px">
+          <span>📥 <span id="sync-imported">0</span> importadas</span>
+          <span>🔍 <span id="sync-found">0</span> encontradas</span>
+          <span>❌ <span id="sync-errors">0</span> erros</span>
+        </div>
+      </div>
+    </div>
     <div class="modal-actions">
-      <button class="btn ghost" onclick="closeModal('sync')">Fechar</button>
+      <button class="btn ghost" onclick="closeModal('sync')" id="sync-close-btn">Fechar</button>
       <button class="btn primary" onclick="startSync()" id="sync-btn">📥 Sincronizar</button>
     </div>
   </div>
@@ -2482,6 +2499,8 @@ async function openSyncModal() {
   openModal('sync');
 }
 
+let syncInterval = null;
+
 async function startSync() {
   const accountId = document.getElementById('sync-account').value;
   const limit = document.getElementById('sync-limit').value;
@@ -2492,21 +2511,47 @@ async function startSync() {
   btn.disabled = true;
   btn.textContent = '⏳ Sincronizando...';
   status.style.display = 'block';
-  status.textContent = '🔄 Importando conversas do Telegram... isso pode levar 1-2 minutos.';
+  document.getElementById('sync-status-text').textContent = '🔄 Iniciando sincronização...';
+  document.getElementById('sync-progress-wrap').style.display = 'block';
+  document.getElementById('sync-bar').style.width = '0%';
 
   const res = await api('POST', '/api/telegram/sync-history', { accountId, limit: parseInt(limit) });
 
   if (res.error) {
-    status.textContent = '❌ Erro: ' + res.error;
-    status.style.color = 'var(--red)';
-  } else {
-    status.textContent = '✅ Sincronização iniciada! As conversas aparecerão em alguns minutos. Clique em 🔄 Atualizar para ver.';
-    status.style.color = 'var(--green)';
-    setTimeout(() => refreshData(), 5000);
+    document.getElementById('sync-status-text').textContent = '❌ Erro: ' + res.error;
+    btn.disabled = false;
+    btn.textContent = '📥 Sincronizar';
+    return;
   }
 
-  btn.disabled = false;
-  btn.textContent = '📥 Sincronizar';
+  // Poll status ao vivo
+  if (syncInterval) clearInterval(syncInterval);
+  syncInterval = setInterval(async () => {
+    const s = await api('GET', '/api/telegram/sync-status');
+    if (!s) return;
+
+    document.getElementById('sync-imported').textContent = s.imported || 0;
+    document.getElementById('sync-found').textContent = s.found || 0;
+    document.getElementById('sync-errors').textContent = s.errors || 0;
+    document.getElementById('sync-count').textContent = `${s.imported}/${s.total || s.found || '?'}`;
+
+    const pct = s.total > 0 ? Math.round(s.imported / s.total * 100) : Math.min(90, (s.imported / Math.max(s.found, 1)) * 100);
+    document.getElementById('sync-bar').style.width = pct + '%';
+
+    if (s.active) {
+      document.getElementById('sync-status-text').textContent = `🔄 Buscando... ${s.found} encontradas, ${s.imported} importadas`;
+    }
+
+    if (s.done) {
+      clearInterval(syncInterval);
+      document.getElementById('sync-bar').style.width = '100%';
+      document.getElementById('sync-bar').style.background = 'var(--green)';
+      document.getElementById('sync-status-text').textContent = `✅ Concluído! ${s.imported} conversas importadas de ${s.total} encontradas`;
+      btn.disabled = false;
+      btn.textContent = '📥 Sincronizar';
+      refreshData();
+    }
+  }, 1500);
 }
 
 async function fetchUsernamesFromConvs() {
