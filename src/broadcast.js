@@ -194,16 +194,17 @@ async function startBroadcast({ message, aiObjective, aiTone, linkUrl, linkText,
       }
 
       // Adiciona link à mensagem
-      if (linkUrl) {
-        const sep = personalMessage ? '\n\n' : '';
+      if (linkUrl && linkUrl.length > 5) {
+        const base = personalMessage || '';
+        const sep = base ? '\n\n' : '';
         if (linkMode === 'hidden' && linkText) {
-          // Link camuflado: [texto](url) em Markdown do Telegram
-          personalMessage = (personalMessage || '') + sep + `[${linkText}](${linkUrl})`;
+          personalMessage = base + sep + `[${linkText}](${linkUrl})`;
         } else {
-          // Link normal ou no final
-          personalMessage = (personalMessage || '') + sep + linkUrl;
+          personalMessage = base + sep + linkUrl;
         }
-        console.log(`[BROADCAST] Link adicionado (${linkMode}): ${linkUrl}`);
+        console.log(`[BROADCAST] ✅ Link adicionado (${linkMode}): "${personalMessage?.substring(0,80)}"`);
+      } else if (!linkUrl) {
+        console.log(`[BROADCAST] Sem link para adicionar`);
       }
 
       // Marca como enviando
