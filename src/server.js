@@ -982,6 +982,33 @@ app.post('/api/telegram/sync-history', authMiddleware, async (req, res) => {
   }
 });
 
+// ── API de Contatos ──
+app.get('/api/contacts', authMiddleware, (req, res) => {
+  res.json(db.getContacts());
+});
+
+app.post('/api/contacts', authMiddleware, (req, res) => {
+  const { username, name } = req.body;
+  if (!username) return res.status(400).json({ error: 'Username obrigatório' });
+  res.json(db.addContact({ username: username.replace('@',''), name: name || '' }));
+});
+
+app.post('/api/contacts/import', authMiddleware, (req, res) => {
+  const { list } = req.body;
+  if (!Array.isArray(list)) return res.status(400).json({ error: 'Lista inválida' });
+  res.json(db.importContacts(list));
+});
+
+app.delete('/api/contacts/:username', authMiddleware, (req, res) => {
+  db.removeContact(req.params.username);
+  res.json({ success: true });
+});
+
+app.put('/api/contacts', authMiddleware, (req, res) => {
+  const { contacts } = req.body;
+  res.json(db.saveContacts(contacts));
+});
+
 // Busca usernames de todas as conversas
 app.get('/api/contacts/fetch-usernames', authMiddleware, async (req, res) => {
   try {
