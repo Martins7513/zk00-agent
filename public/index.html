@@ -695,22 +695,20 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
 
         <!-- Modo IA -->
         <div id="bc-msg-ai" style="display:none">
-          <textarea class="form-textarea" id="bc-ai-objective" placeholder="Descreva o objetivo da mensagem...&#10;&#10;Ex: Convidar para live de apostas hoje às 21h, criar urgência, tom descontraído" style="min-height:70px"></textarea>
-          <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
-            <select class="form-select" id="bc-ai-tone" style="flex:1;font-size:12px">
+          <textarea class="form-textarea" id="bc-ai-objective" placeholder="Descreva como a IA deve falar e o objetivo...&#10;&#10;Ex: Convidar de forma empolgada para a live de hoje às 21h. Mencionar que vai dar sinais ao vivo. Tom descontraído, use {nome}." style="min-height:90px"></textarea>
+          <div style="margin-top:8px">
+            <select class="form-select" id="bc-ai-tone" style="width:100%;font-size:12px">
               <option value="casual">😊 Tom casual/amigável</option>
               <option value="urgente">⚡ Urgência/escassez</option>
-              <option value="formal">👔 Formal</option>
               <option value="empolgado">🔥 Empolgado/hype</option>
               <option value="curiosidade">🤔 Gerar curiosidade</option>
+              <option value="formal">👔 Formal</option>
             </select>
-            <button onclick="generateAiMessages()" id="bc-ai-gen-btn"
-              style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
-              ✨ Gerar
-            </button>
           </div>
-          <div id="bc-ai-preview" style="display:none;margin-top:8px;background:var(--bg3);border-radius:8px;padding:10px;font-size:12px;color:var(--text2);max-height:150px;overflow-y:auto"></div>
-          <div style="font-size:10px;color:var(--text3);margin-top:4px">A IA gera uma variação única para cada pessoa — reduz risco de ban</div>
+          <div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:8px 10px;margin-top:8px;font-size:11px;color:var(--text2);line-height:1.6">
+            🤖 A IA vai gerar uma mensagem <strong style="color:var(--accent)">única e diferente</strong> para cada pessoa na hora do envio.<br>
+            Use <code style="background:var(--bg4);padding:1px 4px;border-radius:3px">{nome}</code> para personalizar com o nome de cada um.
+          </div>
         </div>
       </div>
 
@@ -815,9 +813,26 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
 
       <!-- LINK NO TEXTO -->
       <div class="form-group">
-        <label class="form-label">🔗 Link (opcional — será adicionado à mensagem)</label>
-        <input class="form-input" id="bc-link-url" placeholder="https://...">
-        <div style="font-size:10px;color:var(--text3);margin-top:3px">O link aparece diretamente no texto da mensagem</div>
+        <label class="form-label">🔗 Link (opcional)</label>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="bc-link-url" placeholder="https://..." style="flex:2">
+          <input class="form-input" id="bc-link-text" placeholder="Texto do link (opcional)" style="flex:1">
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button onclick="setLinkMode('plain')" id="bc-link-plain" 
+            style="flex:1;background:var(--bg3);border:1px solid var(--accent);color:var(--accent);padding:5px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">
+            🔗 Link normal
+          </button>
+          <button onclick="setLinkMode('hidden')" id="bc-link-hidden"
+            style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">
+            🥷 Link camuflado
+          </button>
+          <button onclick="setLinkMode('button')" id="bc-link-button"
+            style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">
+            📎 No final
+          </button>
+        </div>
+        <div id="bc-link-preview" style="display:none;margin-top:6px;background:var(--bg3);border-radius:6px;padding:7px 10px;font-size:11px;color:var(--text2)"></div>
       </div>
 
       <!-- AGENDAMENTO -->
@@ -3354,6 +3369,40 @@ function toggleAiMode() {
   if (!bcAiMode) bcAiMessages = [];
 }
 
+// ── Link modes ──
+let bcLinkMode = 'plain';
+
+function setLinkMode(mode) {
+  bcLinkMode = mode;
+  ['plain','hidden','button'].forEach(m => {
+    const btn = document.getElementById(`bc-link-${m}`);
+    btn.style.borderColor = m === mode ? 'var(--accent)' : 'var(--border)';
+    btn.style.color = m === mode ? 'var(--accent)' : 'var(--text2)';
+    btn.style.background = m === mode ? 'rgba(59,130,246,.08)' : 'var(--bg3)';
+  });
+  updateLinkPreview();
+}
+
+function updateLinkPreview() {
+  const url = document.getElementById('bc-link-url').value.trim();
+  const text = document.getElementById('bc-link-text').value.trim() || 'Clique aqui';
+  const preview = document.getElementById('bc-link-preview');
+  if (!url) { preview.style.display = 'none'; return; }
+  preview.style.display = 'block';
+  if (bcLinkMode === 'plain') {
+    preview.innerHTML = `Link no final: <span style="color:var(--accent)">${url}</span>`;
+  } else if (bcLinkMode === 'hidden') {
+    preview.innerHTML = `Link camuflado: <span style="color:var(--accent);text-decoration:underline">${text}</span> <span style="color:var(--text3)">(parece texto, mas abre ${url})</span>`;
+  } else {
+    preview.innerHTML = `Link separado no final da mensagem: <span style="color:var(--accent)">${url}</span>`;
+  }
+}
+
+// Atualiza preview ao digitar
+document.addEventListener('input', e => {
+  if (e.target.id === 'bc-link-url' || e.target.id === 'bc-link-text') updateLinkPreview();
+});
+
 function insertVar(v) {
   const ta = document.getElementById('bc-message');
   if (!ta) return;
@@ -3431,8 +3480,9 @@ async function startBroadcast() {
   // Valida mensagem
   let message = '';
   if (bcAiMode) {
-    if (!bcAiMessages.length) return showNotif('Gere as mensagens com IA primeiro!', 'red');
-    message = '__AI_MESSAGES__'; // placeholder
+    const obj = document.getElementById('bc-ai-objective')?.value?.trim();
+    if (!obj) return showNotif('Descreva o objetivo da mensagem para a IA!', 'red');
+    message = '';
   } else {
     message = document.getElementById('bc-message').value.trim();
     if (!message) return showNotif('Digite a mensagem!', 'red');
@@ -3477,7 +3527,8 @@ async function startBroadcast() {
 
   // Link no texto
   const linkUrl = document.getElementById('bc-link-url')?.value?.trim() || '';
-  const fullMessage = !bcAiMode && linkUrl ? `${message}\n\n${linkUrl}` : (message || '');
+  const linkText = document.getElementById('bc-link-text')?.value?.trim() || 'Clique aqui';
+  const fullMessage = !bcAiMode && linkUrl && bcLinkMode === 'plain' ? `${message}\n\n${linkUrl}` : (message || '');
 
   const btnText = '';
   const btnUrl = '';
@@ -3485,9 +3536,12 @@ async function startBroadcast() {
   const scheduleTime = document.getElementById('bc-schedule-time')?.value;
 
   const payload = {
-    message: bcAiMode ? '__AI_MESSAGES__' : fullMessage,
-    aiMessages: bcAiMode ? bcAiMessages : null,
-    hasPersonalization: !bcAiMode && fullMessage.includes('{nome}'),
+    message: bcAiMode ? '' : fullMessage,
+    aiObjective: bcAiMode ? (document.getElementById('bc-ai-objective')?.value?.trim() || '') : null,
+    aiTone: bcAiMode ? (document.getElementById('bc-ai-tone')?.value || 'casual') : null,
+    linkUrl: linkUrl || null,
+    linkText: linkText || null,
+    linkMode: linkUrl ? bcLinkMode : null,
     mediaBase64,
     mediaMime,
     mediaType,
