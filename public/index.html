@@ -616,6 +616,7 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
         <button onclick="showAddContact()" style="background:var(--accent);border:none;color:#fff;padding:5px 10px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:700" title="Adicionar">+</button>
         <button onclick="showImport()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">📋 Lista</button>
         <button onclick="fetchUsernamesFromConvs()" id="bc-fetch-btn" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" title="Importar usernames de todas as conversas">🔍 Conversas</button>
+        <button onclick="exportContactsTxt()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" title="Baixar lista em .txt">⬇️ .txt</button>
       </div>
 
       <!-- Stats + select all -->
@@ -958,10 +959,11 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
     <div class="form-group">
       <label class="form-label">Quantas conversas importar</label>
       <select class="form-select" id="sync-limit">
-        <option value="30">30 conversas mais recentes</option>
-        <option value="50" selected>50 conversas mais recentes</option>
+        <option value="50">50 conversas mais recentes</option>
         <option value="100">100 conversas mais recentes</option>
         <option value="200">200 conversas mais recentes</option>
+        <option value="500">500 conversas</option>
+        <option value="0">📋 Todas (pode demorar)</option>
       </select>
     </div>
     <div id="sync-status" style="display:none;background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:12px"></div>
@@ -2261,20 +2263,23 @@ let bcAllLeads = [];
 let bcSelected = new Set();
 
 // ── AGENDA DE CONTATOS ──
-function getContacts() {
-  return JSON.parse(localStorage.getItem('bc_contacts') || '[]');
-}
-function saveContacts(contacts) {
-  localStorage.setItem('bc_contacts', JSON.stringify(contacts));
-}
-
+let _contactsCache = null;
 let selectedContacts = new Set();
 
-function renderContacts() {
+async function getContacts() {
+  if (_contactsCache) return _contactsCache;
+  const res = await api('GET', '/api/contacts');
+  _contactsCache = Array.isArray(res) ? res : [];
+  return _contactsCache;
+}
+
+function invalidateContacts() { _contactsCache = null; }
+
+async function renderContacts() {
   const el = document.getElementById('bc-contacts-list');
   if (!el) return;
   const q = (document.getElementById('bc-contact-search')?.value || '').toLowerCase();
-  const contacts = getContacts();
+  const contacts = await getContacts();
   const filtered = q ? contacts.filter(c =>
     c.username.toLowerCase().includes(q) || (c.name||'').toLowerCase().includes(q)
   ) : contacts;
@@ -2314,10 +2319,11 @@ function toggleContact(username, checked) {
   renderContacts();
 }
 
-function selectAllContacts(all) {
-  const contacts = getContacts();
-  if (all) contacts.forEach(c => selectedContacts.add(c.username));
-  else selectedContacts.clear();
+async function selectAllContacts(all) {
+  if (all) {
+    const contacts = await getContacts();
+    contacts.forEach(c => selectedContacts.add(c.username));
+  } else selectedContacts.clear();
   renderContacts();
 }
 
@@ -2341,63 +2347,75 @@ function hideImport() {
   document.getElementById('bc-import-text').value = '';
 }
 
-function addContact() {
+async function addContact() {
   const name = document.getElementById('bc-new-name').value.trim();
   const username = document.getElementById('bc-new-username').value.trim().replace('@','');
   if (!username || username.length < 2) return showNotif('Digite um @username válido!', 'red');
-
-  const contacts = getContacts();
-  if (contacts.find(c => c.username.toLowerCase() === username.toLowerCase())) {
-    return showNotif(`@${username} já existe na lista!`, 'yellow');
-  }
-  contacts.push({ username, name: name || '', addedAt: new Date().toISOString() });
-  saveContacts(contacts);
+  const res = await api('POST', '/api/contacts', { username, name });
+  if (res.error) return showNotif(res.error, 'yellow');
+  invalidateContacts();
   hideAddContact();
   renderContacts();
   showNotif(`✅ @${username} adicionado!`, 'green');
 }
 
-function importContacts() {
+async function importContacts() {
   const text = document.getElementById('bc-import-text').value;
   const lines = [...new Set(
     text.split(/[\n\r,; \t]+/).map(l => l.trim().replace('@','')).filter(l => l.length > 2)
   )];
-
-  const contacts = getContacts();
-  const existing = new Set(contacts.map(c => c.username.toLowerCase()));
-  let added = 0, dupes = 0;
-
-  lines.forEach(username => {
-    if (existing.has(username.toLowerCase())) { dupes++; return; }
-    contacts.push({ username, name: '', addedAt: new Date().toISOString() });
-    existing.add(username.toLowerCase());
-    added++;
-  });
-
-  saveContacts(contacts);
+  if (!lines.length) return showNotif('Nenhum username encontrado!', 'red');
+  const res = await api('POST', '/api/contacts/import', { list: lines.map(u => ({ username: u })) });
+  invalidateContacts();
   hideImport();
   renderContacts();
-  showNotif(`✅ ${added} adicionado${added!==1?'s':''} • ${dupes} duplicata${dupes!==1?'s':''} ignorada${dupes!==1?'s':''}`, 'green');
+  showNotif(`✅ ${res.added} adicionado${res.added!==1?'s':''} • ${res.dupes} duplicata${res.dupes!==1?'s':''} ignorada${res.dupes!==1?'s':''}`, 'green');
 }
 
-function removeContact(username) {
-  const contacts = getContacts().filter(c => c.username !== username);
-  saveContacts(contacts);
+async function removeContact(username) {
+  await api('DELETE', `/api/contacts/${username}`);
+  invalidateContacts();
   selectedContacts.delete(username);
   renderContacts();
 }
 
-function deleteSelectedContacts() {
+async function deleteSelectedContacts() {
   if (!selectedContacts.size) return showNotif('Selecione contatos para remover', 'yellow');
   if (!confirm(`Remover ${selectedContacts.size} contato(s)?`)) return;
-  const contacts = getContacts().filter(c => !selectedContacts.has(c.username));
-  saveContacts(contacts);
+  for (const u of selectedContacts) await api('DELETE', `/api/contacts/${u}`);
+  invalidateContacts();
   selectedContacts.clear();
   renderContacts();
   showNotif('Contatos removidos', '');
 }
 
 function importContactsText() { showImport(); }
+
+async function exportContactsTxt() {
+  const contacts = await getContacts();
+  if (!contacts.length) return showNotif('Nenhum contato para exportar!', 'yellow');
+
+  // Gera conteúdo do TXT
+  const lines = contacts.map(c => c.name ? `@${c.username} | ${c.name}` : `@${c.username}`);
+  const txt = `# Agenda de Contatos — Tele Agent
+# Exportado em: ${new Date().toLocaleString('pt-BR')}
+# Total: ${contacts.length} contatos
+#
+# Formato: @username | Nome (nome é opcional)
+
+${lines.join('\n')}
+`;
+
+  // Download
+  const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `contatos_${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showNotif(`✅ ${contacts.length} contatos exportados!`, 'green');
+}
 
 // ── Sync Telegram ──
 async function openSyncModal() {
@@ -2452,18 +2470,14 @@ async function fetchUsernamesFromConvs() {
       return;
     }
 
-    const contacts = getContacts();
-    const existing = new Set(contacts.map(c => c.username.toLowerCase()));
     let added = 0, dupes = 0;
 
-    res.contacts.forEach(c => {
-      if (existing.has(c.username.toLowerCase())) { dupes++; return; }
-      contacts.push({ username: c.username, name: c.name || '', addedAt: new Date().toISOString() });
-      existing.add(c.username.toLowerCase());
-      added++;
+    const importRes = await api('POST', '/api/contacts/import', { 
+      list: res.contacts.map(c => ({ username: c.username, name: c.name || '' })) 
     });
-
-    saveContacts(contacts);
+    added = importRes.added || 0;
+    dupes = importRes.dupes || 0;
+    invalidateContacts();
     renderContacts();
     showNotif(`✅ ${added} username${added!==1?'s':''} importado${added!==1?'s':''} de ${res.total} conversas • ${dupes} duplicata${dupes!==1?'s':''} ignorada${dupes!==1?'s':''} • ${res.total - res.withUsername} sem username`, 'green');
   } catch(e) {
@@ -3323,6 +3337,11 @@ async function startBroadcast() {
     // Modo username
     // Usa contatos selecionados na agenda
     const lines = [...selectedContacts].filter(u => u.length > 2);
+    // Se não tem selecionados mas tem contatos, usa todos
+    if (!lines.length) {
+      const allC = await getContacts();
+      if (allC.length) allC.forEach(c => lines.push(c.username));
+    }
     if (!lines.length) return showNotif('Cole pelo menos 1 username!', 'red');
     const accountId = document.getElementById('bc-username-account').value;
     if (!accountId) return showNotif('Selecione uma conta para enviar!', 'red');
