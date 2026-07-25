@@ -180,11 +180,11 @@ function getAllClients(ownerId = null) {
 // ==============================
 function getHistory(platform, userId) { return db.conversations[getClientKey(platform,userId)] || []; }
 
-function addMessage(platform, userId, role, content) {
+function addMessage(platform, userId, role, content, timestamp) {
   const key = getClientKey(platform, userId);
   if (!db.conversations[key]) db.conversations[key] = [];
-  db.conversations[key].push({ role, content, timestamp:new Date().toISOString() });
-  if (db.conversations[key].length > 40) db.conversations[key] = db.conversations[key].slice(-40);
+  db.conversations[key].push({ role, content, timestamp: timestamp || new Date().toISOString() });
+  if (db.conversations[key].length > 100) db.conversations[key] = db.conversations[key].slice(-100);
   saveDB(db);
 }
 
