@@ -865,7 +865,7 @@ app.post('/api/broadcast/preview', authMiddleware, (req, res) => {
 app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
   const { message, aiObjective, aiTone, linkUrl, linkText, linkMode, mediaBase64, mediaMime, mediaType, videoRound, filters, manualList } = req.body;
   if (!message && !aiObjective) return res.status(400).json({ error: 'Mensagem ou objetivo IA obrigatório' });
-  console.log(`[BROADCAST/START] message="${message?.substring(0,30)}" aiMode=${!!aiObjective} mediaType=${mediaType} hasMedia=${!!mediaBase64}`);
+  console.log(`[BROADCAST/START] message="${message?.substring(0,30)}" aiMode=${!!aiObjective} mediaType=${mediaType} hasMedia=${!!mediaBase64} linkUrl=${linkUrl} linkMode=${linkMode}`);
   
   // Se vieram leads selecionados manualmente (formato platform:userid)
   const finalFilters = filters || {};
