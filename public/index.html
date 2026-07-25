@@ -673,8 +673,45 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
 
       <!-- MENSAGEM -->
       <div class="form-group">
-        <label class="form-label">💬 Mensagem</label>
-        <textarea class="form-textarea" id="bc-message" placeholder="Digite a mensagem..." style="min-height:100px"></textarea>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <label class="form-label" style="margin:0">💬 Mensagem</label>
+          <div style="display:flex;gap:6px">
+            <button onclick="toggleAiMode()" id="bc-ai-btn" title="Gerar com IA" 
+              style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">
+              🤖 IA
+            </button>
+            <button onclick="insertVar('{nome}')" title="Inserir nome do contato"
+              style="background:var(--bg3);border:1px solid var(--border);color:var(--accent);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">
+              {nome}
+            </button>
+          </div>
+        </div>
+
+        <!-- Modo normal -->
+        <div id="bc-msg-normal">
+          <textarea class="form-textarea" id="bc-message" placeholder="Digite a mensagem...&#10;&#10;Use {nome} para personalizar. Ex: Olá {nome}, vem pra live hoje às 21h! 🔥" style="min-height:100px"></textarea>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px">Use <code style="background:var(--bg4);padding:1px 4px;border-radius:3px">{nome}</code> para inserir o nome de cada pessoa automaticamente</div>
+        </div>
+
+        <!-- Modo IA -->
+        <div id="bc-msg-ai" style="display:none">
+          <textarea class="form-textarea" id="bc-ai-objective" placeholder="Descreva o objetivo da mensagem...&#10;&#10;Ex: Convidar para live de apostas hoje às 21h, criar urgência, tom descontraído" style="min-height:70px"></textarea>
+          <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+            <select class="form-select" id="bc-ai-tone" style="flex:1;font-size:12px">
+              <option value="casual">😊 Tom casual/amigável</option>
+              <option value="urgente">⚡ Urgência/escassez</option>
+              <option value="formal">👔 Formal</option>
+              <option value="empolgado">🔥 Empolgado/hype</option>
+              <option value="curiosidade">🤔 Gerar curiosidade</option>
+            </select>
+            <button onclick="generateAiMessages()" id="bc-ai-gen-btn"
+              style="background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+              ✨ Gerar
+            </button>
+          </div>
+          <div id="bc-ai-preview" style="display:none;margin-top:8px;background:var(--bg3);border-radius:8px;padding:10px;font-size:12px;color:var(--text2);max-height:150px;overflow-y:auto"></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px">A IA gera uma variação única para cada pessoa — reduz risco de ban</div>
+        </div>
       </div>
 
       <!-- MÍDIA -->
@@ -3302,6 +3339,69 @@ function stopBcRecording() {
   }
 }
 
+// ── IA no Disparo ──
+let bcAiMode = false;
+let bcAiMessages = []; // mensagens geradas pela IA
+
+function toggleAiMode() {
+  bcAiMode = !bcAiMode;
+  const btn = document.getElementById('bc-ai-btn');
+  document.getElementById('bc-msg-normal').style.display = bcAiMode ? 'none' : 'block';
+  document.getElementById('bc-msg-ai').style.display = bcAiMode ? 'block' : 'none';
+  btn.style.background = bcAiMode ? 'rgba(99,102,241,.2)' : 'var(--bg3)';
+  btn.style.borderColor = bcAiMode ? 'var(--accent)' : 'var(--border)';
+  btn.style.color = bcAiMode ? 'var(--accent)' : 'var(--text2)';
+  if (!bcAiMode) bcAiMessages = [];
+}
+
+function insertVar(v) {
+  const ta = document.getElementById('bc-message');
+  if (!ta) return;
+  const pos = ta.selectionStart;
+  ta.value = ta.value.slice(0, pos) + v + ta.value.slice(pos);
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = pos + v.length;
+}
+
+async function generateAiMessages() {
+  const objective = document.getElementById('bc-ai-objective').value.trim();
+  const tone = document.getElementById('bc-ai-tone').value;
+  if (!objective) return showNotif('Descreva o objetivo da mensagem!', 'red');
+
+  const btn = document.getElementById('bc-ai-gen-btn');
+  const preview = document.getElementById('bc-ai-preview');
+  btn.textContent = '⏳ Gerando...';
+  btn.disabled = true;
+  preview.style.display = 'block';
+  preview.textContent = 'Gerando variações...';
+
+  try {
+    const res = await api('POST', '/api/broadcast/generate-messages', {
+      objective,
+      tone,
+      count: 5
+    });
+
+    if (res.error) throw new Error(res.error);
+
+    bcAiMessages = res.messages;
+    preview.innerHTML = `<div style="font-size:11px;font-weight:600;color:var(--accent);margin-bottom:8px">✨ ${res.messages.length} variações geradas:</div>` +
+      res.messages.map((m, i) => `
+        <div style="background:var(--bg4);border-radius:6px;padding:8px;margin-bottom:5px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Variação ${i+1}</div>
+          <div style="font-size:12px">${m}</div>
+        </div>`).join('');
+
+    showNotif(`✅ ${res.messages.length} variações prontas! Cada pessoa receberá uma diferente.`, 'green');
+  } catch(e) {
+    preview.textContent = '❌ Erro: ' + e.message;
+    showNotif('Erro ao gerar: ' + e.message, 'red');
+  }
+
+  btn.textContent = '✨ Gerar';
+  btn.disabled = false;
+}
+
 let bcScheduleTimer = null;
 
 function toggleSchedule() {
@@ -3328,8 +3428,15 @@ function toggleSchedule() {
 }
 
 async function startBroadcast() {
-  const message = document.getElementById('bc-message').value.trim();
-  if (!message) return showNotif('Digite a mensagem!', 'red');
+  // Valida mensagem
+  let message = '';
+  if (bcAiMode) {
+    if (!bcAiMessages.length) return showNotif('Gere as mensagens com IA primeiro!', 'red');
+    message = '__AI_MESSAGES__'; // placeholder
+  } else {
+    message = document.getElementById('bc-message').value.trim();
+    if (!message) return showNotif('Digite a mensagem!', 'red');
+  }
 
   let manualList = [];
 
@@ -3370,7 +3477,7 @@ async function startBroadcast() {
 
   // Link no texto
   const linkUrl = document.getElementById('bc-link-url')?.value?.trim() || '';
-  const fullMessage = linkUrl ? `${message}\n\n${linkUrl}` : message;
+  const fullMessage = !bcAiMode && linkUrl ? `${message}\n\n${linkUrl}` : (message || '');
 
   const btnText = '';
   const btnUrl = '';
@@ -3378,7 +3485,9 @@ async function startBroadcast() {
   const scheduleTime = document.getElementById('bc-schedule-time')?.value;
 
   const payload = {
-    message: fullMessage,
+    message: bcAiMode ? '__AI_MESSAGES__' : fullMessage,
+    aiMessages: bcAiMode ? bcAiMessages : null,
+    hasPersonalization: !bcAiMode && fullMessage.includes('{nome}'),
     mediaBase64,
     mediaMime,
     mediaType,
