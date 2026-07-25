@@ -208,7 +208,16 @@ app.post('/api/ntfy/test', authMiddleware, async (req, res) => {
 app.get('/api/bootstrap-export', authMiddleware, (req, res) => {
   if (!req.user?.isAdmin) return res.status(403).json({ error: 'Admin only' });
   const backup = db.exportBackup();
-  const encoded = Buffer.from(JSON.stringify(backup)).toString('base64');
+  const minimalBackup = {
+    settings: {
+      panelUsers: backup.settings?.panelUsers || [],
+      telegramAccounts: backup.settings?.telegramAccounts || [],
+      agentActive: backup.settings?.agentActive,
+      agentName: backup.settings?.agentName,
+      agentPersonality: backup.settings?.agentPersonality
+    }
+  };
+  const encoded = Buffer.from(JSON.stringify(minimalBackup)).toString('base64');
   res.json({ success: true, value: encoded });
 });
 
@@ -219,7 +228,19 @@ app.get('/bootstrap', (req, res) => {
     return res.send('<h2>Senha incorreta</h2>');
   }
   const backup = db.exportBackup();
-  const encoded = Buffer.from(JSON.stringify(backup)).toString('base64');
+  
+  // Bootstrap mínimo: só usuários e contas (sem conversas/base de conhecimento)
+  const minimalBackup = {
+    settings: {
+      panelUsers: backup.settings?.panelUsers || [],
+      telegramAccounts: backup.settings?.telegramAccounts || [],
+      agentActive: backup.settings?.agentActive,
+      agentName: backup.settings?.agentName,
+      agentPersonality: backup.settings?.agentPersonality
+    }
+  };
+  
+  const encoded = Buffer.from(JSON.stringify(minimalBackup)).toString('base64');
   const users = (backup.settings?.panelUsers || []).map(u => u.username).join(', ') || 'nenhum';
   const accounts = (backup.settings?.telegramAccounts || []).map(a => a.name).join(', ') || 'nenhuma';
   res.send(`<!DOCTYPE html>
@@ -752,7 +773,7 @@ app.post('/api/analyze-conversations', authMiddleware, async (req, res) => {
 // ==============================
 
 // Função de envio unificada (Telegram + WhatsApp)
-async function broadcastSendWithClient(client, userId, message, mediaBase64, mediaMime, mediaType, videoRound) {
+async function broadcastSendWithClient(client, userId, message, mediaBase64, mediaMime, mediaType, videoRound, hasMarkdown) {
   let targetPeer = parseInt(userId);
   if (isNaN(targetPeer)) {
     try {
@@ -827,7 +848,7 @@ async function broadcastSendWithClient(client, userId, message, mediaBase64, med
   }
 }
 
-async function broadcastSendFn(platform, userId, message, mediaBase64, mediaMime, mediaType, videoRound) {
+async function broadcastSendFn(platform, userId, message, mediaBase64, mediaMime, mediaType, videoRound, hasMarkdown) {
   if (platform.startsWith('telegram')) {
     const accountId = platform.replace('telegram_', '');
     const ac = userbotManager.activeClients[accountId];
@@ -848,7 +869,7 @@ async function broadcastSendFn(platform, userId, message, mediaBase64, mediaMime
       throw new Error(`Cliente Telegram não conectado (accountId: ${accountId})`);
     }
 
-    return await broadcastSendWithClient(client, userId, message, mediaBase64, mediaMime, mediaType, videoRound);
+    return await broadcastSendWithClient(client, userId, message, mediaBase64, mediaMime, mediaType, videoRound, hasMarkdown);
   } else if (platform === 'whatsapp') {
     const { sendManual } = require('./whatsapp');
     await sendManual(userId, message);
