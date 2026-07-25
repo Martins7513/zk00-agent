@@ -901,6 +901,13 @@ app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
   }).catch(e => console.error('[BROADCAST] Erro:', e.message));
 });
 
+// Status da sincronização em andamento
+let syncStatus = { active: false, found: 0, imported: 0, errors: 0, total: 0, done: false };
+
+app.get('/api/telegram/sync-status', authMiddleware, (req, res) => {
+  res.json(syncStatus);
+});
+
 // Sincroniza histórico de conversas do Telegram
 app.post('/api/telegram/sync-history', authMiddleware, async (req, res) => {
   const { accountId, limit = 50 } = req.body;
@@ -920,10 +927,35 @@ app.post('/api/telegram/sync-history', authMiddleware, async (req, res) => {
       let errors = 0;
       
       try {
-        // Busca diálogos (conversas) do Telegram
-        const dialogs = await client.getDialogs({ limit: parseInt(limit) });
-        
-        console.log(`[SYNC] Encontrados ${dialogs.length} diálogos para ${accountId}`);
+        // Busca diálogos com paginação automática
+        const fetchAll = !limit || limit === '0' || parseInt(limit) === 0;
+        const targetLimit = fetchAll ? 999999 : parseInt(limit);
+        let allDialogs = [];
+        let offsetDate = 0, offsetId = 0, offsetPeer = undefined;
+
+        console.log(`[SYNC] Buscando ${fetchAll ? 'TODOS' : targetLimit} diálogos...`);
+
+        while (allDialogs.length < targetLimit) {
+          const batch = await client.getDialogs({
+            limit: 100,
+            ...(offsetDate ? { offsetDate, offsetId, offsetPeer } : {})
+          });
+          if (!batch.length) break;
+          allDialogs = [...allDialogs, ...batch];
+          console.log(`[SYNC] Buscados ${allDialogs.length} até agora...`);
+          syncStatus.found = allDialogs.length;
+          if (batch.length < 100) break; // última página
+          // Pega offset do último dialog para próxima página
+          const last = batch[batch.length - 1];
+          offsetDate = last.date || 0;
+          offsetId = last.message?.id || 0;
+          offsetPeer = last.inputEntity;
+          await new Promise(r => setTimeout(r, 1000)); // anti rate-limit
+        }
+
+        const dialogs = allDialogs.slice(0, targetLimit);
+        console.log(`[SYNC] Total: ${dialogs.length} diálogos para ${accountId}`);
+        syncStatus.total = dialogs.length;
         
         for (const dialog of dialogs) {
           try {
