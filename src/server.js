@@ -922,6 +922,108 @@ app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
   }).catch(e => console.error('[BROADCAST] Erro:', e.message));
 });
 
+// Busca grupos/canais disponíveis nas contas
+app.get('/api/telegram/groups', authMiddleware, async (req, res) => {
+  const { accountId } = req.query;
+  try {
+    const ac = userbotManager.activeClients[accountId];
+    if (!ac?.client) return res.json({ error: 'Conta não conectada' });
+    const client = ac.client;
+
+    const dialogs = await client.getDialogs({ limit: 100 });
+    const groups = dialogs
+      .filter(d => d.entity?.className === 'Channel' || d.entity?.className === 'Chat')
+      .map(d => ({
+        id: String(d.entity.id),
+        name: d.entity.title || d.entity.username || 'Sem nome',
+        username: d.entity.username || null,
+        type: d.entity.className === 'Channel' ? (d.entity.megagroup ? 'supergroup' : 'channel') : 'group',
+        members: d.entity.participantsCount || d.entity.membersCount || '?'
+      }));
+
+    res.json(groups);
+  } catch(e) {
+    res.json({ error: e.message });
+  }
+});
+
+// Extrai @usernames de quem mandou mensagem no grupo/canal
+let extractStatus = { active: false, scanned: 0, found: 0, added: 0, done: false, groupName: '' };
+
+app.get('/api/telegram/extract-status', authMiddleware, (req, res) => {
+  res.json(extractStatus);
+});
+
+app.post('/api/telegram/extract-members', authMiddleware, async (req, res) => {
+  const { accountId, groupId, msgLimit = 500 } = req.body;
+  res.json({ success: true, message: 'Extração iniciada' });
+
+  extractStatus = { active: true, scanned: 0, found: 0, added: 0, done: false, groupName: '' };
+
+  (async () => {
+    try {
+      const ac = userbotManager.activeClients[accountId];
+      if (!ac?.client) return;
+      const client = ac.client;
+
+      // Busca a entidade do grupo
+      const entity = await client.getEntity(parseInt(groupId) || groupId);
+      extractStatus.groupName = entity.title || entity.username || groupId;
+      console.log(`[EXTRACT] Lendo mensagens de: ${extractStatus.groupName}`);
+
+      // Lê mensagens e coleta senders com @username
+      const seen = new Set();
+      let offsetId = 0;
+      const batchSize = 100;
+      let scanned = 0;
+
+      while (scanned < parseInt(msgLimit)) {
+        const messages = await client.getMessages(entity, {
+          limit: batchSize,
+          offsetId,
+          reverse: false
+        });
+
+        if (!messages.length) break;
+
+        for (const msg of messages) {
+          if (!msg.senderId) continue;
+          const senderId = String(msg.senderId);
+          if (seen.has(senderId)) continue;
+          seen.add(senderId);
+
+          try {
+            const sender = msg.sender;
+            if (!sender || sender.bot || sender.deleted) continue;
+            if (!sender.username) continue;
+
+            const name = [sender.firstName, sender.lastName].filter(Boolean).join(' ') || sender.username;
+            const result = db.importContactsDB([{ username: sender.username, name }]);
+            extractStatus.found++;
+            if (result.added > 0) extractStatus.added++;
+          } catch(e) {}
+        }
+
+        scanned += messages.length;
+        extractStatus.scanned = scanned;
+        offsetId = messages[messages.length - 1].id;
+
+        console.log(`[EXTRACT] ${scanned} msgs lidas, ${extractStatus.found} usuários com @username, ${extractStatus.added} novos`);
+        if (messages.length < batchSize) break;
+        await new Promise(r => setTimeout(r, 800));
+      }
+
+      extractStatus.active = false;
+      extractStatus.done = true;
+      console.log(`[EXTRACT] ✅ Concluído: ${extractStatus.added} novos @usernames de ${scanned} mensagens`);
+    } catch(e) {
+      console.error('[EXTRACT] Erro:', e.message);
+      extractStatus.active = false;
+      extractStatus.done = true;
+    }
+  })();
+});
+
 // Status da sincronização em andamento
 let syncStatus = { active: false, found: 0, imported: 0, errors: 0, total: 0, done: false };
 
