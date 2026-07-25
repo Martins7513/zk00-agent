@@ -863,9 +863,9 @@ app.post('/api/broadcast/preview', authMiddleware, (req, res) => {
 
 // Inicia o disparo
 app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
-  const { message, aiMessages, hasPersonalization, mediaBase64, mediaMime, mediaType, videoRound, filters, manualList } = req.body;
-  if (!message && !aiMessages?.length) return res.status(400).json({ error: 'Mensagem obrigatória' });
-  console.log(`[BROADCAST/START] message="${message?.substring(0,30)}" aiMessages=${aiMessages?.length||0} mediaType=${mediaType} hasMedia=${!!mediaBase64}`);
+  const { message, aiObjective, aiTone, linkUrl, linkText, linkMode, mediaBase64, mediaMime, mediaType, videoRound, filters, manualList } = req.body;
+  if (!message && !aiObjective) return res.status(400).json({ error: 'Mensagem ou objetivo IA obrigatório' });
+  console.log(`[BROADCAST/START] message="${message?.substring(0,30)}" aiMode=${!!aiObjective} mediaType=${mediaType} hasMedia=${!!mediaBase64}`);
   
   // Se vieram leads selecionados manualmente (formato platform:userid)
   const finalFilters = filters || {};
@@ -982,6 +982,38 @@ app.post('/api/telegram/sync-history', authMiddleware, async (req, res) => {
   }
 });
 
+// ── Gerar mensagem IA para um lead específico ──
+async function generateAiMessageForLead(objective, tone, name) {
+  const toneMap = {
+    casual: 'casual e amigável',
+    urgente: 'urgência e escassez',
+    empolgado: 'muito empolgado com emojis',
+    curiosidade: 'gerando curiosidade',
+    formal: 'formal e profissional'
+  };
+  const firstName = name?.split(' ')[0] || name || 'você';
+  const response = await axios.post(
+    'https://api.anthropic.com/v1/messages',
+    {
+      model: 'claude-sonnet-4-6',
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: `Crie UMA mensagem curta para Telegram com objetivo: "${objective}". Tom: ${toneMap[tone]||'casual'}. Nome da pessoa: ${firstName}. Máximo 3 linhas, pode usar emojis. Responda APENAS com o texto da mensagem, sem aspas, sem explicações.`
+      }]
+    },
+    {
+      headers: {
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
+      },
+      timeout: 15000
+    }
+  );
+  return response.data.content[0].text.trim();
+}
+
 // ── Gerar mensagens com IA para disparo ──
 app.post('/api/broadcast/generate-messages', authMiddleware, async (req, res) => {
   const { objective, tone, count = 5 } = req.body;
@@ -996,15 +1028,14 @@ app.post('/api/broadcast/generate-messages', authMiddleware, async (req, res) =>
   };
 
   try {
-    const Anthropic = require('@anthropic-ai/sdk');
-    const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1000,
-      messages: [{
-        role: 'user',
-        content: `Crie exatamente ${count} variações diferentes de mensagem para Telegram com o seguinte objetivo: "${objective}"
+    const response = await axios.post(
+      'https://api.anthropic.com/v1/messages',
+      {
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `Crie exatamente ${count} variações diferentes de mensagem para Telegram com o seguinte objetivo: "${objective}"
 
 Tom: ${toneMap[tone] || 'casual'}
 
@@ -1016,13 +1047,22 @@ Regras:
 - Sem saudações muito longas
 - Sem hashtags
 
-Responda APENAS com um JSON assim (sem markdown):
+Responda APENAS com um JSON assim, sem markdown, sem explicações:
 {"messages":["mensagem 1","mensagem 2","mensagem 3","mensagem 4","mensagem 5"]}`
-      }]
-    });
+        }]
+      },
+      {
+        headers: {
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json'
+        }
+      }
+    );
 
-    const text = response.content[0].text.trim();
-    const parsed = JSON.parse(text);
+    const text = response.data.content[0].text.trim();
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
     res.json({ messages: parsed.messages || [] });
   } catch(e) {
     console.error('[AI BROADCAST] Erro:', e.message);
