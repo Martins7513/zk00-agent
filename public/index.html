@@ -579,16 +579,35 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
 
   <!-- ESQUERDA: Lista de conversas para selecionar -->
   <div style="width:300px;min-width:300px;border-right:1px solid var(--border);display:flex;flex-direction:column;height:100%">
-    <!-- Tabs: Conversas ou @Usernames -->
+    <!-- Tabs: Conversas | Usernames | Falhas -->
     <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0">
       <button onclick="setBcListTab('convs')" id="bc-list-tab-convs" 
-        style="flex:1;padding:9px;font-size:12px;font-weight:600;border:none;background:none;color:var(--accent);border-bottom:2px solid var(--accent);cursor:pointer;font-family:inherit">
+        style="flex:1;padding:8px;font-size:11px;font-weight:600;border:none;background:none;color:var(--accent);border-bottom:2px solid var(--accent);cursor:pointer;font-family:inherit">
         💬 Conversas
       </button>
       <button onclick="setBcListTab('usernames')" id="bc-list-tab-usernames"
-        style="flex:1;padding:9px;font-size:12px;font-weight:600;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;cursor:pointer;font-family:inherit">
-        @ Usernames
+        style="flex:1;padding:8px;font-size:11px;font-weight:600;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;cursor:pointer;font-family:inherit">
+        @ Contatos
       </button>
+      <button onclick="setBcListTab('failed')" id="bc-list-tab-failed"
+        style="flex:1;padding:8px;font-size:11px;font-weight:600;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;cursor:pointer;font-family:inherit">
+        ❌ Falhas <span id="bc-failed-count" style="background:var(--red);color:#fff;font-size:9px;padding:1px 5px;border-radius:10px;margin-left:2px;display:none">0</span>
+      </button>
+    </div>
+
+    <!-- Failed contacts panel -->
+    <div id="bc-list-failed" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;color:var(--text2)" id="bc-failed-info">0 contatos com falha</span>
+        <div style="display:flex;gap:6px">
+          <button onclick="moveFailedToContacts()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit" title="Mover selecionados de volta para contatos">↩ Restaurar</button>
+          <button onclick="exportFailedTxt()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">⬇️ .txt</button>
+          <button onclick="clearAllFailed()" style="background:none;border:1px solid rgba(239,68,68,.3);color:var(--red);padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">🗑 Limpar</button>
+        </div>
+      </div>
+      <div id="bc-failed-list" style="flex:1;overflow-y:auto">
+        <div class="loading">Carregando...</div>
+      </div>
     </div>
 
     <!-- Conversas -->
@@ -1704,7 +1723,7 @@ async function renderAccountTabs(convs) {
     tabs += `<button class="acc-tab ${activeAccountFilter===accId?'active':''}" onclick="setAccountFilter('${accId}')">
       <span style="width:6px;height:6px;border-radius:50%;background:${connected?'var(--green)':'var(--text3)'};display:inline-block;margin-right:4px"></span>
       ${name}
-      ${unread>0?`<span style="background:var(--red);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px">${unread}</span>`:`<span style="color:var(--text3);font-size:10px;margin-left:3px">${count}</span>`}
+      ${unread>0?'<span style="background:var(--red);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px">'+unread+'</span>':'<span style="color:var(--text3);font-size:10px;margin-left:3px">'+count+'</span>'}
     </button>`;
   });
 
@@ -1785,7 +1804,7 @@ function renderConvList(convs) {
       <div class="conv-meta">
         <span class="conv-time">${timeAgo(c.lastTime)}</span>
         ${c.lastReadByLead && c.lastRole === 'agent' ? '<span style="color:var(--accent);font-size:11px" title="Lead leu a mensagem">✓✓</span>' : ''}
-        ${c.unread>0?`<span class="unread-badge">${c.unread}</span>`:''}
+        ${c.unread>0?'<span class="unread-badge">'+c.unread+'</span>':''}
         <button onclick="event.stopPropagation();openLabelModal('${c.key}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:1px 3px;border-radius:4px;line-height:1" title="Etiquetar">🏷</button>
         <button onclick="event.stopPropagation();openFolderAssign('${c.key}')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:1px 3px;border-radius:4px;line-height:1" title="Mover para pasta">📁</button>
       </div>
@@ -2469,7 +2488,7 @@ async function renderContacts() {
         ${(c.name||c.username).charAt(0).toUpperCase()}
       </div>
       <div style="flex:1;min-width:0">
-        ${c.name ? `<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name}</div>` : ''}
+        ${c.name ? '<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + c.name + '</div>' : ''}
         <div style="font-size:11px;color:var(--text2)">@${c.username}</div>
       </div>
       <button onclick="removeContact('${c.username}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 6px" title="Remover">✕</button>
@@ -2891,17 +2910,111 @@ async function fetchUsernamesFromConvs() {
   }
 }
 
+// ── Lista de Falhas ──
+let failedContacts = [];
+let selectedFailed = new Set();
+
+async function loadFailedContacts() {
+  const res = await api('GET', '/api/contacts/failed');
+  failedContacts = Array.isArray(res) ? res : [];
+  renderFailedContacts();
+  // Update badge
+  const badge = document.getElementById('bc-failed-count');
+  const tab = document.getElementById('bc-list-tab-failed');
+  if (badge) { badge.textContent = failedContacts.length; badge.style.display = failedContacts.length ? 'inline' : 'none'; }
+}
+
+function renderFailedContacts() {
+  const el = document.getElementById('bc-failed-list');
+  const info = document.getElementById('bc-failed-info');
+  if (!el) return;
+  if (info) info.textContent = `${failedContacts.length} contato${failedContacts.length!==1?'s':''} com falha`;
+
+  if (!failedContacts.length) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Nenhuma falha registrada ✅</div>';
+    return;
+  }
+
+  el.innerHTML = failedContacts.map(c => {
+    const checked = selectedFailed.has(c.username);
+    const reasonColor = c.reason === 'bloqueado' ? 'var(--red)' : c.reason === 'usuário não existe' ? 'var(--text3)' : 'var(--yellow)';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);${checked?'background:rgba(59,130,246,.06)':''}">
+      <input type="checkbox" ${checked?'checked':''} onchange="toggleFailedSelect('${c.username}', this.checked)"
+        style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600">@${c.username}</div>
+        <div style="font-size:10px;color:${reasonColor}">${c.reason}${c.count > 1 ? ' (' + c.count + 'x)' : ''}</div>
+      </div>
+      <button onclick="removeFailed('${c.username}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 4px">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleFailedSelect(username, checked) {
+  if (checked) selectedFailed.add(username);
+  else selectedFailed.delete(username);
+}
+
+async function removeFailed(username) {
+  await api('DELETE', `/api/contacts/failed/${username}`);
+  failedContacts = failedContacts.filter(c => c.username !== username);
+  selectedFailed.delete(username);
+  renderFailedContacts();
+  loadFailedContacts();
+}
+
+async function clearAllFailed() {
+  if (!confirm('Limpar toda a lista de falhas?')) return;
+  await api('POST', '/api/contacts/failed/clear');
+  failedContacts = [];
+  selectedFailed.clear();
+  renderFailedContacts();
+  loadFailedContacts();
+  showNotif('Lista de falhas limpa', '');
+}
+
+async function moveFailedToContacts() {
+  const toMove = selectedFailed.size ? [...selectedFailed] : failedContacts.map(c => c.username);
+  if (!toMove.length) return showNotif('Nada selecionado', 'yellow');
+  // Remove da lista de falhas
+  for (const u of toMove) await api('DELETE', `/api/contacts/failed/${u}`);
+  failedContacts = failedContacts.filter(c => !toMove.includes(c.username));
+  selectedFailed.clear();
+  renderFailedContacts();
+  loadFailedContacts();
+  showNotif(`${toMove.length} contatos restaurados`, 'green');
+}
+
+async function exportFailedTxt() {
+  if (!failedContacts.length) return showNotif('Nenhuma falha para exportar', 'yellow');
+  const txt = `# Contatos com falha no disparo
+# ${new Date().toLocaleString('pt-BR')}
+# Total: ${failedContacts.length}
+
+` +
+    failedContacts.map(c => `@${c.username} | ${c.reason}`).join('\n');
+  const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `falhas_${new Date().toISOString().slice(0,10)}.txt`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
 let bcActiveFilter = 'all';
-let bcListTab = 'convs'; // 'convs' or 'usernames'
+let bcListTab = 'convs';
 
 function setBcListTab(tab) {
   bcListTab = tab;
-  document.getElementById('bc-list-convs').style.display = tab === 'convs' ? 'flex' : 'none';
-  document.getElementById('bc-list-usernames').style.display = tab === 'usernames' ? 'flex' : 'none';
-  document.getElementById('bc-list-tab-convs').style.color = tab === 'convs' ? 'var(--accent)' : 'var(--text2)';
-  document.getElementById('bc-list-tab-convs').style.borderBottomColor = tab === 'convs' ? 'var(--accent)' : 'transparent';
-  document.getElementById('bc-list-tab-usernames').style.color = tab === 'usernames' ? 'var(--accent)' : 'var(--text2)';
-  document.getElementById('bc-list-tab-usernames').style.borderBottomColor = tab === 'usernames' ? 'var(--accent)' : 'transparent';
+  ['convs','usernames','failed'].forEach(t => {
+    const el = document.getElementById(`bc-list-${t}`);
+    const btn = document.getElementById(`bc-list-tab-${t}`);
+    if (el) el.style.display = t === tab ? 'flex' : 'none';
+    if (btn) {
+      btn.style.color = t === tab ? 'var(--accent)' : 'var(--text2)';
+      btn.style.borderBottomColor = t === tab ? 'var(--accent)' : 'transparent';
+    }
+  });
+  if (tab === 'failed') loadFailedContacts();
 
   // Populate account selector
   if (tab === 'usernames') {
@@ -3195,6 +3308,7 @@ function showTab(id, el) {
     if (id === 'broadcast') {
       loadBroadcastLeads();
       loadBroadcastHistory();
+      loadFailedContacts();
     }
 }
 
@@ -4116,6 +4230,7 @@ async function updateBroadcastStatus() {
     document.getElementById('bc-status-label').textContent = 
       `✅ Concluído — ${s.sent} enviados, ${s.failed} falhas, ${s.skipped} pulados`;
     loadBroadcastHistory();
+    loadFailedContacts();
   }
 }
 
@@ -4321,7 +4436,7 @@ async function importKnowledge(input) {
 
     input.value = '';
     await loadKnowledge();
-    showNotif(`✅ ${saved} gatilhos importados${failed > 0 ? `, ${failed} falhas` : ''}!`, 'green');
+    showNotif('✅ ' + saved + ' gatilhos importados' + (failed > 0 ? ', ' + failed + ' falhas' : '') + '!', 'green');
 
   } catch(e) {
     showNotif('Erro ao ler arquivo: ' + e.message, 'red');
