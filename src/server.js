@@ -1153,16 +1153,40 @@ async function generateAiMessageForLead(objective, tone, name) {
     formal: 'formal e profissional'
   };
   const firstName = name?.split(' ')[0] || name || 'você';
+  // Variações de estrutura para forçar diversidade
+  const structures = [
+    `Comece com uma pergunta provocativa`,
+    `Comece com o nome da pessoa`,
+    `Comece com um emoji impactante`,
+    `Comece com uma afirmação surpreendente`,
+    `Comece com "Ei," ou "Oi," de forma descontraída`,
+    `Use uma metáfora ou comparação criativa`,
+    `Seja bem direto e objetivo`,
+    `Use suspense — não revele tudo de uma vez`
+  ];
+  const randomStructure = structures[Math.floor(Math.random() * structures.length)];
+  const randomSeed = Math.floor(Math.random() * 10000);
+
   const response = await axios.post(
     'https://api.anthropic.com/v1/messages',
     {
       model: 'claude-sonnet-4-6',
       max_tokens: 300,
+      temperature: 1,
       messages: [{
         role: 'user',
-        content: `Crie UMA mensagem ÚNICA e CRIATIVA para Telegram. Objetivo: "${objective}". Tom: ${toneMap[tone]||'casual'}. Nome da pessoa: ${firstName}. 
+        content: `Crie UMA mensagem curta para Telegram (máximo 3 linhas). 
+Objetivo: "${objective}"
+Tom: ${toneMap[tone]||'casual'}
+Nome da pessoa: ${firstName}
+Estrutura sugerida: ${randomStructure}
+Seed de variação: ${randomSeed}
 
-IMPORTANTE: Seja diferente, criativo e varie o estilo. NÃO use sempre a mesma estrutura. Máximo 3 linhas. Pode usar emojis. 
+REGRAS:
+- Mensagem completamente diferente de qualquer padrão
+- Pode usar emojis (mas não exagere)
+- NÃO use sempre "Ei [nome]!" ou "Olá [nome]"
+- Seja criativo e natural
 
 Responda APENAS com o texto da mensagem, sem aspas, sem explicações.`
       }]
