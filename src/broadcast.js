@@ -15,8 +15,13 @@ let broadcastState = {
   startedAt: null,
   finishedAt: null,
   log: [],
-  aborted: false
+  aborted: false,
+  paused: false
 };
+
+// Histórico de quem já recebeu (persiste entre sessões)
+const sentHistory = new Set(); // "platform_userId" ou "username"
+
 
 // Delay aleatório entre envios (anti-ban)
 // Entre 8 e 20 segundos por mensagem
@@ -172,6 +177,21 @@ async function startBroadcast({ message, aiObjective, aiTone, linkUrl, linkText,
       const userId = lead.userId;
       const name = lead.name || userId;
 
+      // Verifica se pausado
+      while (broadcastState.paused && !broadcastState.aborted) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+      if (broadcastState.aborted) break;
+
+      // Verifica se já foi enviado antes
+      const histKey = lead.isUsername ? lead.userId : `${platform}_${userId}`;
+      if (sentHistory.has(histKey)) {
+        broadcastState.skipped++;
+        broadcastState.log.push({ name, userId, platform, status: 'skipped', time: new Date().toISOString(), reason: 'já enviado' });
+        console.log(`[BROADCAST] ⏭ Pulando ${name} — já enviado antes`);
+        continue;
+      }
+
       // Gera mensagem personalizada para este lead
       let personalMessage = message;
 
@@ -221,6 +241,7 @@ async function startBroadcast({ message, aiObjective, aiTone, linkUrl, linkText,
         await sendFn(platform, userId, personalMessage, mediaBase64, mediaMime, mediaType, videoRound, hasMarkdown);
 
         broadcastState.sent++;
+        sentHistory.add(histKey); // marca como enviado
         broadcastState.log.push({
           name,
           userId,
@@ -293,4 +314,9 @@ function previewLeads(filters) {
   };
 }
 
-module.exports = { startBroadcast, getStatus, abort, previewLeads, filterLeads };
+function pauseBroadcast() { broadcastState.paused = true; }
+function resumeBroadcast() { broadcastState.paused = false; }
+function clearSentHistory() { sentHistory.clear(); }
+function getSentHistory() { return [...sentHistory]; }
+
+module.exports = { startBroadcast, getStatus, abort, previewLeads, filterLeads, pauseBroadcast, resumeBroadcast, clearSentHistory, getSentHistory };
