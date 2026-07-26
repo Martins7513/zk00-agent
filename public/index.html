@@ -938,8 +938,13 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
       <div id="bc-lead-status" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto"></div>
 
       <div style="display:flex;gap:8px;margin-top:14px">
-        <button class="btn ghost" onclick="abortBroadcast()" id="bc-abort-btn2">⛔ Interromper</button>
+        <button class="btn ghost" onclick="pauseResumeBroadcast()" id="bc-pause-btn">⏸ Pausar</button>
+        <button class="btn ghost" onclick="abortBroadcast()" id="bc-abort-btn2" style="color:var(--red)">⛔ Interromper</button>
         <button class="btn primary" onclick="resetBroadcast()" id="bc-new-btn" style="display:none">+ Novo Disparo</button>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--text3);display:flex;align-items:center;justify-content:space-between">
+        <span id="bc-history-info"></span>
+        <button onclick="clearBroadcastHistory()" style="background:none;border:1px solid var(--border);color:var(--text3);padding:2px 8px;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">🗑 Limpar histórico</button>
       </div>
     </div>
   </div>
@@ -3035,7 +3040,10 @@ function showTab(id, el) {
     if (id === 'accounts') loadAccounts();
     if (id === 'broadcast') { updateBroadcastStatus(); }
     if (id === 'users') loadUsers();
-    if (id === 'broadcast') loadBroadcastLeads();
+    if (id === 'broadcast') {
+      loadBroadcastLeads();
+      loadBroadcastHistory();
+    }
 }
 
 function openModal(id) {
@@ -3698,6 +3706,41 @@ async function generateAiMessages() {
   btn.disabled = false;
 }
 
+// ── Controle de disparo ──
+let bcIsPaused = false;
+
+async function pauseResumeBroadcast() {
+  const btn = document.getElementById('bc-pause-btn');
+  if (bcIsPaused) {
+    await api('POST', '/api/broadcast/resume');
+    bcIsPaused = false;
+    btn.textContent = '⏸ Pausar';
+    btn.style.color = '';
+    showNotif('▶ Disparo retomado', 'green');
+  } else {
+    await api('POST', '/api/broadcast/pause');
+    bcIsPaused = true;
+    btn.textContent = '▶ Retomar';
+    btn.style.color = 'var(--green)';
+    showNotif('⏸ Disparo pausado', 'yellow');
+  }
+}
+
+async function clearBroadcastHistory() {
+  if (!confirm('Limpar histórico? Na próxima sessão vai enviar para todos novamente.')) return;
+  await api('POST', '/api/broadcast/clear-history');
+  document.getElementById('bc-history-info').textContent = '';
+  showNotif('✅ Histórico limpo', 'green');
+}
+
+async function loadBroadcastHistory() {
+  const res = await api('GET', '/api/broadcast/sent-history');
+  if (res?.sent?.length) {
+    const el = document.getElementById('bc-history-info');
+    if (el) el.textContent = `${res.sent.length} pessoas já receberam (serão puladas)`;
+  }
+}
+
 let bcScheduleTimer = null;
 
 function toggleSchedule() {
@@ -3832,8 +3875,13 @@ async function startBroadcast() {
   document.getElementById('broadcast-composer').style.display = 'none';
   document.getElementById('broadcast-progress').style.display = 'block';
   document.getElementById('bc-total').textContent = res.total || bcSelected.size;
+  document.getElementById('bc-pause-btn').textContent = '⏸ Pausar';
+  document.getElementById('bc-pause-btn').style.display = 'flex';
+  document.getElementById('bc-abort-btn2').style.display = 'flex';
+  document.getElementById('bc-new-btn').style.display = 'none';
+  bcIsPaused = false;
   broadcastInterval = setInterval(updateBroadcastStatus, 2000);
-  setTimeout(updateBroadcastStatus, 500); // primeira atualização rápida
+  setTimeout(updateBroadcastStatus, 500);
 }
 
 function cancelSchedule() {
@@ -3895,15 +3943,27 @@ async function updateBroadcastStatus() {
   }
 
   // Finalizado
+  // Mostra estado de pausa
+  const pauseBtn = document.getElementById('bc-pause-btn');
+  if (pauseBtn && s.paused && s.active) {
+    pauseBtn.textContent = '▶ Retomar';
+    pauseBtn.style.color = 'var(--green)';
+    document.getElementById('bc-status-label').textContent = '⏸ Pausado';
+  }
+
   if (!s.active && s.finishedAt) {
     clearInterval(broadcastInterval);
     broadcastInterval = null;
+    bcIsPaused = false;
     const newBtn = document.getElementById('bc-new-btn');
     const abortBtn = document.getElementById('bc-abort-btn2');
+    const pBtn = document.getElementById('bc-pause-btn');
     if (newBtn) newBtn.style.display = 'block';
     if (abortBtn) abortBtn.style.display = 'none';
+    if (pBtn) pBtn.style.display = 'none';
     document.getElementById('bc-status-label').textContent = 
-      `✅ Concluído — ${s.sent} enviados, ${s.failed} falhas`;
+      `✅ Concluído — ${s.sent} enviados, ${s.failed} falhas, ${s.skipped} pulados`;
+    loadBroadcastHistory();
   }
 }
 
