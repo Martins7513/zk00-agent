@@ -178,12 +178,15 @@ async function startBroadcast({ message, aiObjective, aiTone, linkUrl, linkText,
       if (aiObjective) {
         // IA gera mensagem única para cada pessoa
         try {
-          if (generateAiMsg) personalMessage = await generateAiMsg(aiObjective, aiTone, name);
-          else personalMessage = message || aiObjective;
+          if (generateAiMsg) {
+            personalMessage = await generateAiMsg(aiObjective, aiTone, name);
+            console.log(`[BROADCAST] IA gerou para ${name}: "${personalMessage?.substring(0,50)}"`);
+          } else {
+            personalMessage = message || aiObjective;
+          }
         } catch(e) {
-          // Fallback: usa mensagem base se IA falhar
-          console.error('[BROADCAST] IA falhou para', name, e.message);
-          personalMessage = message || aiObjective;
+          console.error('[BROADCAST] IA falhou para', name, ':', e.message);
+          personalMessage = message || aiObjective; // fallback
         }
       }
 
@@ -207,12 +210,15 @@ async function startBroadcast({ message, aiObjective, aiTone, linkUrl, linkText,
         console.log(`[BROADCAST] Sem link para adicionar`);
       }
 
+      // Detecta se mensagem tem markdown
+      const hasMarkdown = personalMessage && /\*\*.*\*\*|__.*__|`.*`|\[.+\]\(https?:\/\/.+\)/.test(personalMessage);
+
       // Marca como enviando
       broadcastState.log = broadcastState.log.filter(l => !(l.userId === userId && l.status === 'sending'));
       broadcastState.log.push({ name, userId, platform, status: 'sending', time: new Date().toISOString() });
 
       try {
-        await sendFn(platform, userId, personalMessage, mediaBase64, mediaMime, mediaType, videoRound);
+        await sendFn(platform, userId, personalMessage, mediaBase64, mediaMime, mediaType, videoRound, hasMarkdown);
 
         broadcastState.sent++;
         broadcastState.log.push({
