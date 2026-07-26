@@ -269,6 +269,45 @@ function toggleKnowledge(id, active) {
 }
 
 // ==============================
+// CONTATOS COM FALHA
+// ==============================
+
+function getFailedContacts() {
+  if (!db.failedContacts) db.failedContacts = [];
+  return db.failedContacts;
+}
+
+function addFailedContact(contact) {
+  if (!db.failedContacts) db.failedContacts = [];
+  const exists = db.failedContacts.find(c => c.username === contact.username);
+  if (exists) {
+    // Atualiza motivo e contador
+    exists.reason = contact.reason;
+    exists.count = (exists.count || 1) + 1;
+    exists.lastAt = new Date().toISOString();
+  } else {
+    db.failedContacts.push({ ...contact, count: 1, addedAt: new Date().toISOString(), lastAt: new Date().toISOString() });
+  }
+  saveDB(db);
+}
+
+function removeFailedContact(username) {
+  if (!db.failedContacts) return;
+  db.failedContacts = db.failedContacts.filter(c => c.username !== username);
+  saveDB(db);
+}
+
+function clearFailedContacts() {
+  db.failedContacts = [];
+  saveDB(db);
+}
+
+// Move failed back to main contacts (remove from failed)
+function restoreFailedContact(username) {
+  removeFailedContact(username);
+}
+
+// ==============================
 // CONTATOS
 // ==============================
 
@@ -425,5 +464,6 @@ module.exports = {
   getSettings, updateSettings, isHumanMode, setHumanMode, flagConversation,
   getStats, exportBackup, importBackup, deleteMessage, toggleKnowledge, markAsRead, markReadByLead,
   getContacts, saveContactsDB, addContact, removeContact, importContactsDB,
+  getFailedContacts, addFailedContact, removeFailedContact, clearFailedContacts,
   getUsers, getUserByCredentials, addUser, updateUser, deleteUser
 };
