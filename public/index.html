@@ -675,7 +675,10 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
         </div>
         <div id="bc-invite-current" style="font-size:10px;color:var(--accent);display:none">Usando: <span id="bc-invite-acc-name"></span></div>
         <div id="bc-invite-status" style="font-size:10px;color:var(--text3)">Selecione os contatos na lista ✓, as contas e o grupo de destino</div>
-        <button onclick="hideInvitePanel()" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;margin-top:4px">✕ Fechar</button>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button onclick="abortInvite()" id="bc-invite-abort" style="background:none;border:1px solid rgba(239,68,68,.3);color:var(--red);padding:3px 10px;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit">⛔ Cancelar</button>
+          <button onclick="hideInvitePanel()" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer">✕ Fechar</button>
+        </div>
       </div>
 
       <!-- Extração de grupos -->
@@ -2580,6 +2583,16 @@ let inviteInterval = null;
 
 let inviteSelectedAccounts = new Set();
 
+async function abortInvite() {
+  await api('POST', '/api/telegram/invite-abort');
+  if (inviteInterval) { clearInterval(inviteInterval); inviteInterval = null; }
+  const btn = document.getElementById('bc-invite-btn');
+  const status = document.getElementById('bc-invite-status');
+  if (btn) { btn.disabled = false; btn.textContent = '➕ Adicionar'; }
+  if (status) { status.textContent = '⛔ Cancelado'; status.style.color = 'var(--red)'; }
+  showNotif('Adição ao grupo cancelada', '');
+}
+
 async function showInviteToGroup() {
   const panel = document.getElementById('bc-invite-panel');
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -2647,6 +2660,7 @@ async function startInvite() {
   progress.style.display = 'block';
   status.textContent = `🔄 Adicionando ${usernames.length} pessoas...`;
   status.style.color = 'var(--yellow)';
+  document.getElementById('bc-invite-abort').style.display = 'inline-block';
 
   const accountIds = [...inviteSelectedAccounts];
   const delaySeconds = parseInt(document.getElementById('bc-invite-delay').value) || 5;
