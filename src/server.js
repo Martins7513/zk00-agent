@@ -1331,7 +1331,14 @@ app.get('/api/contacts/fetch-usernames', authMiddleware, async (req, res) => {
 });
 
 // ── Adicionar contatos a grupos ──
-let inviteStatus = { active: false, total: 0, added: 0, failed: 0, skipped: 0, done: false, log: [] };
+let inviteStatus = { active: false, total: 0, added: 0, failed: 0, skipped: 0, done: false, log: [], aborted: false };
+
+app.post('/api/telegram/invite-abort', authMiddleware, (req, res) => {
+  inviteStatus.aborted = true;
+  inviteStatus.active = false;
+  inviteStatus.done = true;
+  res.json({ success: true });
+});
 
 app.get('/api/telegram/invite-status', authMiddleware, (req, res) => {
   res.json(inviteStatus);
@@ -1348,7 +1355,7 @@ app.post('/api/telegram/invite-to-group', authMiddleware, async (req, res) => {
   inviteStatus = { 
     active: true, total: usernames.length, 
     added: 0, failed: 0, skipped: 0, done: false, log: [],
-    currentAccount: '', accountIndex: 0
+    currentAccount: '', accountIndex: 0, aborted: false
   };
 
   (async () => {
@@ -1395,6 +1402,7 @@ app.post('/api/telegram/invite-to-group', authMiddleware, async (req, res) => {
       console.log(`[INVITE] Grupo: ${group.title} | Contas: ${accounts.map(a=>a.name).join(', ')}`);
 
       for (const username of usernames) {
+        if (inviteStatus.aborted) break;
         const acc = getActiveAccount();
         if (!acc) {
           // Todas limitadas — aguarda a que terminar mais cedo
@@ -1410,63 +1418,75 @@ app.post('/api/telegram/invite-to-group', authMiddleware, async (req, res) => {
         inviteStatus.accountIndex = accountIdx;
 
         try {
-          const user = await acc.client.getEntity(username.startsWith('@') ? username : `@${username}`);
+          // Timeout de 15s por operação
+          const withTimeout = (promise, ms) => Promise.race([
+            promise,
+            new Promise((_, rej) => setTimeout(() => rej(new Error('TIMEOUT')), ms))
+          ]);
+
+          const user = await withTimeout(
+            acc.client.getEntity(username.startsWith('@') ? username : `@${username}`),
+            10000
+          );
           
-          await acc.client.invoke(new Api.channels.InviteToChannel({
-            channel: group,
-            users: [user]
-          }));
+          await withTimeout(
+            acc.client.invoke(new Api.channels.InviteToChannel({
+              channel: group,
+              users: [user]
+            })),
+            15000
+          );
 
           inviteStatus.added++;
           addedByAccount[acc.id]++;
           inviteStatus.log.push({ username, status: 'added', account: acc.name });
-          console.log(`[INVITE] ✅ @${username} adicionado via ${acc.name} (${addedByAccount[acc.id]} desta conta)`);
+          console.log(`[INVITE] ✅ @${username} adicionado via ${acc.name}`);
 
-          // Rotaciona conta a cada 10 adições para distribuir
+          // Rotaciona conta a cada 10 adições
           if (addedByAccount[acc.id] % 10 === 0 && accounts.length > 1) {
             accountIdx = (accountIdx + 1) % accounts.length;
-            console.log(`[INVITE] 🔄 Rotacionando para próxima conta...`);
             await new Promise(r => setTimeout(r, 5000));
           }
 
         } catch(e) {
           const msg = e.message || '';
           let reason = msg.substring(0, 50);
-          let switchAccount = false;
 
-          if (msg.includes('PRIVACY') || msg.includes('RESTRICTED')) {
+          if (msg === 'TIMEOUT') {
+            reason = 'timeout — pulando';
+            console.log(`[INVITE] ⏱ Timeout para @${username}, continuando...`);
+          } else if (msg.includes('PRIVACY') || msg.includes('RESTRICTED')) {
             reason = 'privacidade bloqueada';
           } else if (msg.includes('USER_ALREADY') || msg.includes('already')) {
-            reason = 'já está no grupo';
             inviteStatus.skipped++;
-            inviteStatus.log.push({ username, status: 'skipped', reason });
+            inviteStatus.log.push({ username, status: 'skipped', reason: 'já está no grupo', account: acc.name });
+            console.log(`[INVITE] ⏭ @${username} já está no grupo`);
+            await new Promise(r => setTimeout(r, 1000));
             continue;
           } else if (msg.includes('PEER_FLOOD') || msg.includes('FLOOD_WAIT')) {
-            // Conta limitada — troca para próxima
             const waitMatch = msg.match(/FLOOD_WAIT_(\d+)/);
-            const waitSecs = waitMatch ? parseInt(waitMatch[1]) : 3600;
+            const waitSecs = Math.min(waitMatch ? parseInt(waitMatch[1]) : 300, 300); // max 5min
             acc.limited = true;
             acc.limitedUntil = Date.now() + (waitSecs * 1000);
-            reason = `conta limitada por ${Math.round(waitSecs/60)} min`;
-            switchAccount = true;
+            reason = `flood — aguardando ${Math.round(waitSecs/60)}min`;
             accountIdx = (accountIdx + 1) % accounts.length;
-            console.log(`[INVITE] ⚠️ ${acc.name} limitada por ${waitSecs}s, trocando para próxima conta`);
+            console.log(`[INVITE] ⚠️ ${acc.name} flood, trocando conta. Aguardando ${waitSecs}s...`);
+          } else if (msg.includes('No user') || msg.includes('Cannot find')) {
+            reason = 'usuário não encontrado';
           } else if (msg.includes('401') || msg.includes('AUTH')) {
             acc.limited = true;
             acc.limitedUntil = Date.now() + 3600000;
             reason = 'sessão expirada';
-            switchAccount = true;
             accountIdx = (accountIdx + 1) % accounts.length;
           }
 
           inviteStatus.failed++;
           inviteStatus.log.push({ username, status: 'failed', reason, account: acc.name });
-          console.log(`[INVITE] ❌ @${username} (${acc.name}): ${reason}`);
+          console.log(`[INVITE] ❌ @${username}: ${reason}`);
         }
 
         // Delay entre envios
-        const delay = (delaySeconds * 1000) + (Math.random() * 3000);
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise(r => setTimeout(r, (delaySeconds * 1000) + (Math.random() * 2000)));
       }
 
       inviteStatus.active = false;
