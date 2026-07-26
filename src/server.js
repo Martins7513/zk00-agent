@@ -1160,7 +1160,11 @@ async function generateAiMessageForLead(objective, tone, name) {
       max_tokens: 300,
       messages: [{
         role: 'user',
-        content: `Crie UMA mensagem curta para Telegram com objetivo: "${objective}". Tom: ${toneMap[tone]||'casual'}. Nome da pessoa: ${firstName}. Máximo 3 linhas, pode usar emojis. Responda APENAS com o texto da mensagem, sem aspas, sem explicações.`
+        content: `Crie UMA mensagem ÚNICA e CRIATIVA para Telegram. Objetivo: "${objective}". Tom: ${toneMap[tone]||'casual'}. Nome da pessoa: ${firstName}. 
+
+IMPORTANTE: Seja diferente, criativo e varie o estilo. NÃO use sempre a mesma estrutura. Máximo 3 linhas. Pode usar emojis. 
+
+Responda APENAS com o texto da mensagem, sem aspas, sem explicações.`
       }]
     },
     {
@@ -1299,6 +1303,26 @@ app.get('/api/contacts/fetch-usernames', authMiddleware, async (req, res) => {
   } catch(e) {
     res.json({ error: e.message });
   }
+});
+
+// Pausa/retoma disparo
+app.post('/api/broadcast/pause', authMiddleware, (req, res) => {
+  broadcast.pauseBroadcast();
+  res.json({ success: true, paused: true });
+});
+
+app.post('/api/broadcast/resume', authMiddleware, (req, res) => {
+  broadcast.resumeBroadcast();
+  res.json({ success: true, paused: false });
+});
+
+app.get('/api/broadcast/sent-history', authMiddleware, (req, res) => {
+  res.json({ sent: broadcast.getSentHistory() });
+});
+
+app.post('/api/broadcast/clear-history', authMiddleware, (req, res) => {
+  broadcast.clearSentHistory();
+  res.json({ success: true });
 });
 
 // Status do disparo em andamento
