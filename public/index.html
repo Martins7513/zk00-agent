@@ -617,7 +617,46 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
         <button onclick="showImport()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">📋 Lista</button>
         <button onclick="fetchUsernamesFromConvs()" id="bc-fetch-btn" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" title="Importar usernames de todas as conversas">🔍 Conversas</button>
         <button onclick="showGroupExtract()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" title="Extrair @usernames de grupos/canais">👥 Grupos</button>
+        <button onclick="showInviteToGroup()" style="background:var(--bg3);border:1px solid var(--border);color:var(--green);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" title="Adicionar selecionados a um grupo">➕ Grupo</button>
         <button onclick="exportContactsTxt()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" title="Baixar lista em .txt">⬇️ .txt</button>
+      </div>
+
+      <!-- Adicionar ao grupo -->
+      <div id="bc-invite-panel" style="display:none;padding:10px 12px;border-bottom:1px solid var(--border);background:rgba(16,185,129,.06)">
+        <div style="font-size:11px;font-weight:600;margin-bottom:8px;color:var(--green)">➕ Adicionar selecionados ao grupo</div>
+        <div style="margin-bottom:6px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Contas (selecione múltiplas — rotaciona automaticamente se uma for limitada)</div>
+          <div id="bc-invite-accounts" style="display:flex;flex-wrap:wrap;gap:4px;background:var(--bg4);border-radius:6px;padding:6px"></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <select class="form-select" id="bc-invite-group" style="flex:1;font-size:11px">
+            <option value="">Selecione o grupo...</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+          <label style="font-size:10px;color:var(--text3);white-space:nowrap">Delay (seg):</label>
+          <select class="form-select" id="bc-invite-delay" style="width:80px;font-size:11px">
+            <option value="3">3s</option>
+            <option value="5" selected>5s</option>
+            <option value="10">10s</option>
+            <option value="20">20s</option>
+          </select>
+          <button onclick="startInvite()" id="bc-invite-btn" style="flex:1;background:var(--green);border:none;color:#fff;padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700">➕ Adicionar ao Grupo</button>
+        </div>
+        <!-- Progress -->
+        <div id="bc-invite-progress" style="display:none;margin-bottom:4px">
+          <div style="background:var(--bg4);border-radius:4px;height:5px;overflow:hidden">
+            <div id="bc-invite-bar" style="background:var(--green);height:100%;width:0%;transition:width .5s;border-radius:4px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:3px">
+            <span>✅ <span id="bc-invite-added">0</span> adicionados</span>
+            <span>❌ <span id="bc-invite-failed">0</span> falhas</span>
+            <span>⏭ <span id="bc-invite-skipped">0</span> já estavam</span>
+          </div>
+        </div>
+        <div id="bc-invite-current" style="font-size:10px;color:var(--accent);display:none">Usando: <span id="bc-invite-acc-name"></span></div>
+        <div id="bc-invite-status" style="font-size:10px;color:var(--text3)">Selecione os contatos na lista ✓, as contas e o grupo de destino</div>
+        <button onclick="hideInvitePanel()" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;margin-top:4px">✕ Fechar</button>
       </div>
 
       <!-- Extração de grupos -->
@@ -2517,6 +2556,119 @@ async function deleteSelectedContacts() {
 function importContactsText() { showImport(); }
 
 // ── Extração de grupos ──
+// ── Adicionar ao grupo ──
+let inviteInterval = null;
+
+let inviteSelectedAccounts = new Set();
+
+async function showInviteToGroup() {
+  const panel = document.getElementById('bc-invite-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  if (panel.style.display === 'block') {
+    const accounts = await api('GET', '/api/accounts');
+    const el = document.getElementById('bc-invite-accounts');
+    if (Array.isArray(accounts) && el) {
+      const connected = accounts.filter(a => a.connected);
+      el.innerHTML = connected.map(a => `
+        <label style="display:flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px" id="inv-acc-${a.id}">
+          <input type="checkbox" value="${a.id}" onchange="toggleInviteAccount('${a.id}', '${a.name}', this)" style="accent-color:var(--green)">
+          ${a.name}
+        </label>`).join('');
+      // Auto-seleciona primeira
+      if (connected.length > 0) {
+        const first = connected[0];
+        const cb = el.querySelector(`input[value="${first.id}"]`);
+        if (cb) { cb.checked = true; toggleInviteAccount(first.id, first.name, cb); }
+      }
+    }
+  }
+}
+
+function toggleInviteAccount(id, name, cb) {
+  if (cb.checked) {
+    inviteSelectedAccounts.add(id);
+    document.getElementById(`inv-acc-${id}`).style.borderColor = 'var(--green)';
+    // Carrega grupos da primeira conta selecionada
+    if (inviteSelectedAccounts.size === 1) loadGroupsForInvite(id);
+  } else {
+    inviteSelectedAccounts.delete(id);
+    document.getElementById(`inv-acc-${id}`).style.borderColor = 'var(--border)';
+  }
+}
+
+function hideInvitePanel() {
+  document.getElementById('bc-invite-panel').style.display = 'none';
+}
+
+async function loadGroupsForInvite(accountId) {
+  if (!accountId) accountId = [...inviteSelectedAccounts][0];
+  const sel = document.getElementById('bc-invite-group');
+  if (!accountId) return;
+  sel.innerHTML = '<option>Carregando...</option>';
+  const groups = await api('GET', `/api/telegram/groups?accountId=${accountId}`);
+  if (groups.error) { sel.innerHTML = `<option>Erro: ${groups.error}</option>`; return; }
+  const filtered = groups.filter(g => g.type !== 'channel');
+  sel.innerHTML = '<option value="">Selecione o grupo...</option>' +
+    filtered.map(g => `<option value="${g.id}">${g.name} (${g.members} membros)</option>`).join('');
+}
+
+async function startInvite() {
+  const groupId = document.getElementById('bc-invite-group').value;
+  const status = document.getElementById('bc-invite-status');
+  const btn = document.getElementById('bc-invite-btn');
+  const progress = document.getElementById('bc-invite-progress');
+
+  if (!inviteSelectedAccounts.size || !groupId) return showNotif('Selecione conta(s) e grupo!', 'yellow');
+  if (!selectedContacts.size) return showNotif('Selecione contatos na lista primeiro!', 'yellow');
+
+  const usernames = [...selectedContacts];
+  if (!confirm(`Adicionar ${usernames.length} pessoa(s) ao grupo?`)) return;
+
+  btn.disabled = true;
+  progress.style.display = 'block';
+  status.textContent = `🔄 Adicionando ${usernames.length} pessoas...`;
+  status.style.color = 'var(--yellow)';
+
+  const accountIds = [...inviteSelectedAccounts];
+  const delaySeconds = parseInt(document.getElementById('bc-invite-delay').value) || 5;
+  const res = await api('POST', '/api/telegram/invite-to-group', { accountIds, groupId, usernames, delaySeconds });
+  if (res.error) {
+    status.textContent = '❌ ' + res.error;
+    btn.disabled = false;
+    return;
+  }
+
+  // Poll ao vivo
+  if (inviteInterval) clearInterval(inviteInterval);
+  inviteInterval = setInterval(async () => {
+    const s = await api('GET', '/api/telegram/invite-status');
+    if (!s) return;
+
+    document.getElementById('bc-invite-added').textContent = s.added || 0;
+    document.getElementById('bc-invite-failed').textContent = s.failed || 0;
+    document.getElementById('bc-invite-skipped').textContent = s.skipped || 0;
+
+    const pct = s.total > 0 ? Math.round((s.added + s.failed + s.skipped) / s.total * 100) : 0;
+    document.getElementById('bc-invite-bar').style.width = pct + '%';
+
+    if (s.active) {
+      status.textContent = `🔄 Adicionando... ${s.added + s.failed + s.skipped}/${s.total}`;
+      const curr = document.getElementById('bc-invite-current');
+      const accName = document.getElementById('bc-invite-acc-name');
+      if (curr && s.currentAccount) { curr.style.display = 'block'; accName.textContent = s.currentAccount; }
+    }
+
+    if (s.done) {
+      clearInterval(inviteInterval);
+      document.getElementById('bc-invite-bar').style.width = '100%';
+      status.textContent = `✅ Concluído! ${s.added} adicionados, ${s.failed} com privacidade bloqueada, ${s.skipped} já estavam no grupo`;
+      status.style.color = 'var(--green)';
+      btn.disabled = false;
+      btn.textContent = '➕ Adicionar';
+    }
+  }, 2000);
+}
+
 async function showGroupExtract() {
   const panel = document.getElementById('bc-group-extract');
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
