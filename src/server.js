@@ -912,13 +912,19 @@ app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
 
   // Processa em background
   broadcast.startBroadcast({
-    message,
+    message: message || '',
+    aiObjective: aiObjective || null,
+    aiTone: aiTone || 'casual',
+    linkUrl: linkUrl || null,
+    linkText: linkText || null,
+    linkMode: linkMode || 'plain',
     mediaBase64,
     mediaMime,
     mediaType,
     videoRound: videoRound || false,
     filters: finalFilters,
-    sendFn: broadcastSendFn
+    sendFn: broadcastSendFn,
+    generateAiMsg: aiObjective ? generateAiMessageForLead : null
   }).catch(e => console.error('[BROADCAST] Erro:', e.message));
 });
 
