@@ -1481,6 +1481,21 @@ app.post('/api/telegram/invite-to-group', authMiddleware, async (req, res) => {
   })();
 });
 
+// ── Lista de contatos com falha ──
+app.get('/api/contacts/failed', authMiddleware, (req, res) => {
+  res.json(db.getFailedContacts ? db.getFailedContacts() : []);
+});
+
+app.post('/api/contacts/failed/clear', authMiddleware, (req, res) => {
+  if (db.clearFailedContacts) db.clearFailedContacts();
+  res.json({ success: true });
+});
+
+app.delete('/api/contacts/failed/:username', authMiddleware, (req, res) => {
+  if (db.removeFailedContact) db.removeFailedContact(req.params.username);
+  res.json({ success: true });
+});
+
 // Pausa/retoma disparo
 app.post('/api/broadcast/pause', authMiddleware, (req, res) => {
   broadcast.pauseBroadcast();
