@@ -963,9 +963,27 @@ reclamações graves, parcerias — parar e chamar Rodrigo.</div>
       </div>
 
       <!-- DELAY -->
-      <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
-        <span>⏱</span>
-        <span style="color:var(--text2)">Delay entre envios: <strong style="color:var(--text)">8–20 segundos</strong> (anti-ban)</span>
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px">⏱ Delay entre envios</div>
+        <select class="form-select" id="bc-delay-preset" style="width:100%;font-size:12px;margin-bottom:6px" onchange="updateDelayFromPreset()">
+          <option value="8,20" selected>8–20s (padrão)</option>
+          <option value="20,40">20–40s (seguro)</option>
+          <option value="30,60">30–60s (conservador)</option>
+          <option value="60,90">1–1.5 min (ultra seguro)</option>
+          <option value="60,120">1–2 min (máximo)</option>
+          <option value="custom">⚙️ Personalizado</option>
+        </select>
+        <div id="bc-delay-custom" style="display:none;display:flex;gap:8px">
+          <div style="flex:1">
+            <label style="font-size:10px;color:var(--text3)">Mín (seg)</label>
+            <input class="form-input" type="number" id="bc-delay-min" value="8" min="3" max="600">
+          </div>
+          <div style="flex:1">
+            <label style="font-size:10px;color:var(--text3)">Máx (seg)</label>
+            <input class="form-input" type="number" id="bc-delay-max" value="20" min="3" max="600">
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px" id="bc-delay-info">Aleatório entre 8s e 20s — parece mais humano</div>
       </div>
 
       <div style="display:flex;gap:10px">
@@ -4021,6 +4039,32 @@ async function loadBroadcastHistory() {
   }
 }
 
+// ── Delay configurável ──
+function updateDelayFromPreset() {
+  const preset = document.getElementById('bc-delay-preset').value;
+  const customDiv = document.getElementById('bc-delay-custom');
+  const info = document.getElementById('bc-delay-info');
+
+  if (preset === 'custom') {
+    customDiv.style.display = 'flex';
+    info.textContent = 'Intervalo personalizado entre envios';
+  } else {
+    customDiv.style.display = 'none';
+    const [min, max] = preset.split(',').map(Number);
+    document.getElementById('bc-delay-min').value = min;
+    document.getElementById('bc-delay-max').value = max;
+    const minLabel = min >= 60 ? `${min/60}min` : `${min}s`;
+    const maxLabel = max >= 60 ? `${max/60}min` : `${max}s`;
+    info.textContent = `Aleatório entre ${minLabel} e ${maxLabel} — parece mais humano`;
+  }
+}
+
+function getBroadcastDelay() {
+  const min = parseInt(document.getElementById('bc-delay-min')?.value) || 8;
+  const max = parseInt(document.getElementById('bc-delay-max')?.value) || 20;
+  return { min: Math.max(3, min), max: Math.max(min + 1, max) };
+}
+
 let bcScheduleTimer = null;
 
 function toggleSchedule() {
@@ -4105,6 +4149,8 @@ async function startBroadcast() {
   const scheduleOn = !document.getElementById('bc-schedule-toggle').classList.contains('off');
   const scheduleTime = document.getElementById('bc-schedule-time')?.value;
 
+  const { min: delayMin, max: delayMax } = getBroadcastDelay();
+
   const payload = {
     message: bcAiMode ? '' : fullMessage,
     aiObjective: bcAiMode ? (document.getElementById('bc-ai-objective')?.value?.trim() || '') : null,
@@ -4112,6 +4158,8 @@ async function startBroadcast() {
     linkUrl: linkUrl || null,
     linkText: linkText || null,
     linkMode: bcLinkMode || 'plain',
+    delayMin,
+    delayMax,
     mediaBase64,
     mediaMime,
     mediaType,
