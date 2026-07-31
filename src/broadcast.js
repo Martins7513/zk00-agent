@@ -141,7 +141,7 @@ function filterLeads(filters = {}) {
 }
 
 // Executa o disparo
-async function startBroadcast({ message, aiObjective, aiTone, linkUrl, linkText, linkMode, mediaBase64, mediaMime, mediaType, videoRound, filters, sendFn, generateAiMsg }) {
+async function startBroadcast({ message, aiObjective, aiTone, linkUrl, linkText, linkMode, delayMin, delayMax, mediaBase64, mediaMime, mediaType, videoRound, filters, sendFn, generateAiMsg }) {
   if (broadcastState.active) {
     return { error: 'Já existe um disparo em andamento' };
   }
@@ -271,7 +271,9 @@ async function startBroadcast({ message, aiObjective, aiTone, linkUrl, linkText,
 
       // Delay anti-ban entre envios
       if (broadcastState.sent + broadcastState.failed < broadcastState.total) {
-        const delay = randomDelay(8000, 20000);
+        const dMin = delayMin || 8000;
+        const dMax = delayMax || 20000;
+        const delay = Math.floor(Math.random() * (dMax - dMin + 1)) + dMin;
         console.log(`[BROADCAST] Aguardando ${Math.round(delay/1000)}s...`);
         await new Promise(r => setTimeout(r, delay));
       }
