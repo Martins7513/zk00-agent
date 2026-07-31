@@ -885,7 +885,7 @@ app.post('/api/broadcast/preview', authMiddleware, (req, res) => {
 
 // Inicia o disparo
 app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
-  const { message, aiObjective, aiTone, linkUrl, linkText, linkMode, mediaBase64, mediaMime, mediaType, videoRound, filters, manualList } = req.body;
+  const { message, aiObjective, aiTone, linkUrl, linkText, linkMode, delayMin, delayMax, mediaBase64, mediaMime, mediaType, videoRound, filters, manualList } = req.body;
   if (!message && !aiObjective) return res.status(400).json({ error: 'Mensagem ou objetivo IA obrigatório' });
   console.log(`[BROADCAST/START] message="${message?.substring(0,30)}" aiObjective="${aiObjective?.substring(0,50)||'none'}" hasGenerateFn=${aiObjective ? 'YES' : 'NO'} linkUrl=${linkUrl||'none'}`);
   
@@ -912,6 +912,10 @@ app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
   res.json({ success: true, total: finalFilters._usernameList?.length || finalFilters.manualList?.length || 0, message: 'Disparo iniciado!' });
 
   // Processa em background
+  const bDelayMin = parseInt(delayMin) || 8;
+  const bDelayMax = parseInt(delayMax) || 20;
+  console.log(`[BROADCAST/START] delay: ${bDelayMin}s–${bDelayMax}s`);
+
   broadcast.startBroadcast({
     message: message || '',
     aiObjective: aiObjective || null,
@@ -919,6 +923,8 @@ app.post('/api/broadcast/start', authMiddleware, async (req, res) => {
     linkUrl: linkUrl || null,
     linkText: linkText || null,
     linkMode: linkMode || 'plain',
+    delayMin: bDelayMin * 1000,
+    delayMax: bDelayMax * 1000,
     mediaBase64,
     mediaMime,
     mediaType,
